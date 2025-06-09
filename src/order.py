@@ -18,6 +18,7 @@ class OrderSide(Enum):
 
 @dataclass
 class Order:
+    client_id: str
     order_id: str
     side: OrderSide
     price: float
@@ -26,10 +27,11 @@ class Order:
     timestamp: float = time.time()
 
     @staticmethod
-    def create(side: OrderSide, price: float, qty: float) -> "Order":
+    def create(client_id: str, side: OrderSide, price: float, qty: float) -> "Order":
         if isinstance(side, str):
             side = OrderSide(side.lower())
         return Order(
+            client_id=client_id,
             order_id=str(uuid4()),
             side=side,
             price=price,
@@ -48,6 +50,7 @@ class Order:
 
     def __repr__(self):
         return (f"Order("
+                f"client_id={self.client_id}, "
                 f"id={self.order_id}, "
                 f"side={self.side.value}, "
                 f"price={self.price}, "
