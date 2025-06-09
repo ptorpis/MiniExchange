@@ -47,12 +47,12 @@ class Trade:
         }
 
     def __repr__(self):
-        return ("Trade("
-                f"trade_id={self.trade_id}, "
-                f"price={self.price}, "
-                f"quantity={self.qty}, "
-                f"timestamp={self.timestamp}, "
-                f"buyer_order_id={self.buyer_order_id}, "
-                f"seller_order_id={self.seller_order_id}, "
-                f"buyer_id={self.buyer_id}, "
-                f"seller_id={self.seller_id})")
+        return (
+            f"\nTrade(\n"
+            f"  id={self.trade_id[:6]}, price={self.price:.2f}, "
+            f"qty={self.qty:.4f}, "
+            f"timestamp={self.timestamp:.2f},\n"
+            f"  buyer_order_id={self.buyer_order_id[:6]}, "
+            f"seller_order_id={self.seller_order_id[:6]},\n"
+            f"  buyer_id={self.buyer_id[:6]}, seller_id={self.seller_id[:6]}\n"
+        )

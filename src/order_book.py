@@ -48,7 +48,6 @@ class OrderBook:
         if order.side == OrderSide.BUY.value:
             while remaining_qty > 0 and len(self.asks) > 0:
                 best_price = self.best_ask()
-                print("best price: (ask)", best_price)
                 if best_price > order.price:
                     break
 
@@ -73,8 +72,9 @@ class OrderBook:
                     remaining_qty -= match_qty
 
                     if best_ask.qty == 0:
-                        # Update status
                         ask_queue.popleft()
+                    else:
+                        best_ask.status = OrderStatus.PARTIALLY_FILLED.value
 
                 if not ask_queue:
                     del self.asks[best_price]
@@ -106,17 +106,18 @@ class OrderBook:
                     remaining_qty -= match_qty
 
                     if best_bid.qty == 0:
+                        best_bid.status = OrderStatus.FILLED.value
                         bid_queue.popleft()
+                    else:
+                        best_bid.status = OrderStatus.PARTIALLY_FILLED.value
 
                 if not bid_queue:
                     del self.bids[best_price]
-        else:
-            print("order type not recognized")
 
         if remaining_qty == 0:
-            order.status = OrderStatus.FILLED
+            order.status = OrderStatus.FILLED.value
         elif remaining_qty < order.qty:
-            order.status = OrderStatus.PARTIALLY_FILLED
+            order.status = OrderStatus.PARTIALLY_FILLED.value
             order.qty = remaining_qty
             self.add_order(order)
         else:
@@ -128,7 +129,10 @@ class OrderBook:
         remaining_qty = order.qty
         trades = []
 
-        book = self.order_book.asks if order.side == OrderSide.BUY else self.order_book.bids
+        if order.side == OrderSide.BUY.value:
+            book = self.asks
+        else:
+            book = self.bids
 
         while remaining_qty > 0 and len(book) > 0:
             best_price = next(iter(book))
@@ -138,13 +142,24 @@ class OrderBook:
                 resting_order = queue[0]
                 match_qty = min(remaining_qty, resting_order.qty)
 
+                if order.side == OrderSide.BUY.value:
+                    buyer_id = order.client_id
+                    buyer_order_id = order.order_id
+                    seller_id = resting_order.client_id
+                    seller_order_id = resting_order.order_id
+                else:
+                    buyer_id = resting_order.client_id
+                    buyer_order_id = resting_order.order_id
+                    seller_id = order.client_id
+                    seller_order_id = order.order_id
+
                 trade = Trade.create(
                     price=best_price,
                     qty=match_qty,
-                    buyer_order_id=order.order_id if order.side == OrderSide.BUY else resting_order.order_id,
-                    seller_order_id=resting_order.order_id if order.side == OrderSide.BUY else order.order_id,
-                    buyer_id=order.client_id if order.side == OrderSide.BUY else resting_order.client_id,
-                    seller_id=resting_order.client_id if order.side == OrderSide.BUY else order.client_id,
+                    buyer_order_id=buyer_order_id,
+                    seller_order_id=seller_order_id,
+                    buyer_id=buyer_id,
+                    seller_id=seller_id
                 )
                 trades.append(trade)
 
@@ -158,18 +173,30 @@ class OrderBook:
                 del book[best_price]
 
         if remaining_qty == 0:
-            order.status = OrderStatus.FILLED
+            order.status = OrderStatus.FILLED.value
         elif remaining_qty < order.qty:
-            order.status = OrderStatus.PARTIALLY_FILLED
+            order.status = OrderStatus.PARTIALLY_FILLED.value
             order.qty = remaining_qty
         else:
-            order.status = OrderStatus.CANCELLED
+            order.status = OrderStatus.CANCELLED.value
 
         return trades
 
     def __repr__(self):
+        def format_side(side):
+            lines = []
+            for price, queue in side.items():
+                orders_str = ', '.join(
+                    f"[id={order.order_id[:6]} qty={order.qty} "
+                    f"status={order.status}]"
+                    for order in queue
+                )
+                lines.append(f"  {price:.2f}: {orders_str}")
+            return '\n'.join(lines) if lines else "  []"
+
         return (
             "Order Book:\n"
-            f"  Bids: {list(self.bids.items())}\n"
-            f"  Asks: {list(self.asks.items())}\n"
+            "Bids:\n" + format_side(self.bids) + "\n" +
+            "Asks:\n" + format_side(self.asks)
         )
+
