@@ -45,74 +45,53 @@ class OrderBook:
     def _match_limit_order(self, order: LimitOrder):
         trades = []
         remaining_qty = order.qty
+
         if order.side == OrderSide.BUY.value:
-            while remaining_qty > 0 and len(self.asks) > 0:
+            book = self.asks
+            asks = True
+        else:
+            book = self.bids
+            asks = False
+
+        while remaining_qty > 0 and len(book) > 0:
+            if asks:
                 best_price = self.best_ask()
-                if best_price > order.price:
-                    break
-
-                ask_queue = self.asks[best_price]
-
-                while ask_queue and remaining_qty > 0:
-                    best_ask = ask_queue[0]
-                    match_qty = min(remaining_qty, best_ask.qty)
-
-                    trade = Trade.create(
-                        price=best_price,
-                        qty=match_qty,
-                        buyer_order_id=order.order_id,
-                        seller_order_id=best_ask.order_id,
-                        buyer_id=order.client_id,
-                        seller_id=best_ask.client_id
-                    )
-
-                    trades.append(trade)
-
-                    best_ask.qty -= match_qty
-                    remaining_qty -= match_qty
-
-                    if best_ask.qty == 0:
-                        ask_queue.popleft()
-                    else:
-                        best_ask.status = OrderStatus.PARTIALLY_FILLED.value
-
-                if not ask_queue:
-                    del self.asks[best_price]
-
-        elif order.side == OrderSide.SELL.value:
-            while remaining_qty > 0 and len(self.bids) > 0:
+            else:
                 best_price = self.best_bid()
 
-                if best_price < order.price:
+            if asks:
+                if best_price > order.price:
                     break
+            elif best_price < order.price:
+                break
 
-                bid_queue = self.bids[best_price]
-                while bid_queue and remaining_qty > 0:
-                    best_bid = bid_queue[0]
-                    match_qty = min(remaining_qty, best_bid.qty)
+            queue = book[best_price]
 
-                    trade = Trade.create(
-                        price=best_price,
-                        qty=match_qty,
-                        buyer_order_id=best_bid.order_id,
-                        seller_order_id=order.order_id,
-                        buyer_id=best_bid.client_id,
-                        seller_id=order.client_id
-                    )
+            while queue and remaining_qty > 0:
+                resting_order = queue[0]
+                match_qty = min(remaining_qty, resting_order.qty)
 
-                    trades.append(trade)
+                trade = Trade.create(
+                    price=best_price,
+                    qty=match_qty,
+                    buyer_order_id=order.order_id,
+                    seller_order_id=resting_order.order_id,
+                    buyer_id=order.client_id,
+                    seller_id=resting_order.client_id
+                )
 
-                    best_bid.qty -= match_qty
-                    remaining_qty -= match_qty
+                trades.append(trade)
 
-                    if best_bid.qty == 0:
-                        best_bid.status = OrderStatus.FILLED.value
-                        bid_queue.popleft()
-                    else:
-                        best_bid.status = OrderStatus.PARTIALLY_FILLED.value
+                resting_order.qty -= match_qty
+                remaining_qty -= match_qty
 
-                if not bid_queue:
-                    del self.bids[best_price]
+                if resting_order.qty == 0:
+                    queue.popleft()
+                else:
+                    resting_order.status = OrderStatus.PARTIALLY_FILLED.value
+
+            if not queue:
+                del book[best_price]
 
         if remaining_qty == 0:
             order.status = OrderStatus.FILLED.value
@@ -199,4 +178,3 @@ class OrderBook:
             "Bids:\n" + format_side(self.bids) + "\n" +
             "Asks:\n" + format_side(self.asks)
         )
-
