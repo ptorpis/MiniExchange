@@ -1,4 +1,4 @@
-# OrderBookPrototype
+# MiniExchange
 Single symbol orderbook / exchange prototype in Python.
 
 Design Notes:
