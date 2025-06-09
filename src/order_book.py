@@ -43,6 +43,10 @@ class OrderBook:
             return self._match_market_order(order)
 
     def _match_limit_order(self, order: LimitOrder):
+        """
+        Using FIFO logic, best prices are matched, then filled and partially
+        filler orders are updated.
+        """
         trades = []
         remaining_qty = order.qty
 
@@ -166,8 +170,8 @@ class OrderBook:
             lines = []
             for price, queue in side.items():
                 orders_str = ', '.join(
-                    f"[id={order.order_id[:6]} qty={order.qty} "
-                    f"status={order.status}]"
+                    f"[id: {order.order_id[:6]}, qty: {order.qty}, "
+                    f"status: {order.status}]"
                     for order in queue
                 )
                 lines.append(f"  {price:.2f}: {orders_str}")

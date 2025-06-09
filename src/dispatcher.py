@@ -1,4 +1,5 @@
 from src.order import Order, LimitOrder, MarketOrder
+from src.order_book import OrderBook
 
 
 class InvalidOrderError(Exception):
@@ -83,8 +84,8 @@ def validate_order(payload: dict):
 
 
 class OrderDispatcher:
-    def __init__(self, matching_engine):
-        self.matching_engine = matching_engine
+    def __init__(self):
+        self.order_book = OrderBook()
 
     def dispatch(self, order_msg: dict) -> Order:
         validate_order(order_msg)
@@ -105,26 +106,5 @@ class OrderDispatcher:
         else:
             raise InvalidOrderError(f"Unknown order type: {order_msg["type"]}")
 
-        print(f"Dispatched Order: {order}")
-
-        self.matching_engine.process_order(order)
-
-
-class DummyMatchingEngine:
-    def process_order(self, order: Order):
-        print(f"Matching engine received: {order}")
-
-
-if __name__ == "__main__":
-    matching_engine = DummyMatchingEngine()
-    dispatcher = OrderDispatcher(matching_engine)
-
-    order_msg = {
-        "client_id": "user1",
-        "side": "buy",
-        "price": 100,
-        "qty": 10,
-        "type": "limit"
-    }
-
-    dispatcher.dispatch(order_msg)
+        self.order_book.match(order)
+        return f"Dispatched Order: {order}"
