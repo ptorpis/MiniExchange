@@ -48,7 +48,7 @@ class Trade:
 
     def __repr__(self):
         return ("Trade("
-                f"trade_id={self.trade_id},"
+                f"trade_id={self.trade_id}, "
                 f"price={self.price}, "
                 f"quantity={self.qty}, "
                 f"timestamp={self.timestamp}, "
