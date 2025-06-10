@@ -56,17 +56,3 @@ class LimitOrder(Order):
 
 To keep the logic of the matching engine as small as possible, an intermediate layer called the order dispatcher was added that does order validation, filtering, and dispatching.
 
-Tomorrow:
-
-- add order cancellation
-- add spread calculation
-- create a session manager with logins
-- simulate fix, fix-json support
-- response messages from the api
-- market data feed - pub/sub, public, private
-- add support for csv reading to handle large amounts of data
-- add logs
-- rigorous testing
-- documentation - write about the core components, how an order flows through the system
-- documentation - write about the matching logic, FIFO, data formats
-- add performance benchmarking

@@ -1,13 +1,15 @@
 from collections import deque
 from sortedcontainers import SortedDict
+from datetime import datetime
 
 from src.order import LimitOrder, MarketOrder, Order
 from src.order import OrderSide, OrderStatus
 from src.trade import Trade
+from src.events import EventBus, Event
 
 
 class OrderBook:
-    def __init__(self):
+    def __init__(self, event_bus: EventBus = None):
         """
         Using sortedcontainers to keep the prices sorted.
 
@@ -31,19 +33,19 @@ class OrderBook:
                     - match(order: Order)
                         routes the order to the correct matching function
 
-        'Private':  _match_limit_order(order: LimitOrder) -> list[Trade]
+        'Private':  - _match_limit_order(order: LimitOrder) -> list[Trade]
                         matching logic for limit orders
                         retunrs a list of trades triggered by the limit
                         order, updates order status accordingly
 
-                    _match_market_order(order: MarketOrder) -> list[Trade]
+                    - _match_market_order(order: MarketOrder) -> list[Trade]
                         matching logic for the market orders, if no matching
                         price is found, the order is cancelled
                         similarly to the _match_limit_order, it returns a
                         list of the trades triggered by the incoming order
                         and updates the order statuses accordingly
 
-                    _add_order(order: Order)
+                    - _add_order(order: Order)
                         adds an order to the bids/asks
                         this method is called internally, when the order cannot
                         be matched
@@ -52,6 +54,8 @@ class OrderBook:
         self.asks = SortedDict()
 
         self.order_map: dict[str, tuple[str, float, deque]] = {}
+
+        self.event_bus = event_bus
 
     def best_bid(self):
         if not self.bids:
@@ -75,6 +79,18 @@ class OrderBook:
             if order.order_id == order_id:
                 order.status = OrderStatus.CANCELLED.value
                 del queue[i]
+
+                event = Event(
+                    type="ORDER_CANCELLED",
+                    data={
+                        "order_id": order_id,
+                        "side": side,
+                        "price": price,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                )
+                if self.event_bus:
+                    self.event_bus.publish(event)
 
                 if not queue:
                     if side == OrderSide.BUY.value:
@@ -137,36 +153,110 @@ class OrderBook:
                 resting_order = queue[0]
                 match_qty = min(remaining_qty, resting_order.qty)
 
+                if order.side == OrderSide.BUY.value:
+                    buyer_id = order.client_id
+                    buyer_order_id = order.order_id
+                    seller_id = resting_order.client_id
+                    seller_order_id = resting_order.order_id
+                else:
+                    buyer_id = resting_order.client_id
+                    buyer_order_id = resting_order.order_id
+                    seller_id = order.client_id
+                    seller_order_id = order.order_id
+
                 trade = Trade.create(
                     price=best_price,
                     qty=match_qty,
-                    buyer_order_id=order.order_id,
-                    seller_order_id=resting_order.order_id,
-                    buyer_id=order.client_id,
-                    seller_id=resting_order.client_id
+                    buyer_order_id=buyer_order_id,
+                    seller_order_id=seller_order_id,
+                    buyer_id=buyer_id,
+                    seller_id=seller_id
                 )
 
                 trades.append(trade)
+
+                self.event_bus.publish(Event(
+                    type="TRADE",
+                    data={
+                        "price": best_price,
+                        "qty": match_qty,
+                        "buyer_order_id": buyer_order_id,
+                        "seller_order_id": seller_order_id,
+                        "buyer_id": buyer_id,
+                        "seller_id": seller_id,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                ))
 
                 resting_order.qty -= match_qty
                 remaining_qty -= match_qty
 
                 if resting_order.qty == 0:
+                    resting_order.status = OrderStatus.FILLED.value
+
+                    self.event_bus.publish(Event(
+                        type="ORDER_FILLED",
+                        data={
+                            "order_id": resting_order.order_id,
+                            "side": resting_order.side,
+                            "price": best_price,
+                            "qty": match_qty,
+                            "client_id": resting_order.client_id,
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                    ))
                     queue.popleft()
                 else:
                     resting_order.status = OrderStatus.PARTIALLY_FILLED.value
+                    self.event_bus.publish(Event(
+                        type="ORDER_PARTIALLY_FILLED",
+                        data={
+                            "order_id": resting_order.order_id,
+                            "side": resting_order.side,
+                            "price": best_price,
+                            "qty": match_qty,
+                            "client_id": resting_order.client_id,
+                            "timestamp": datetime.utcnow().isoformat()
+                        }
+                    ))
 
             if not queue:
                 del book[best_price]
 
         if remaining_qty == 0:
             order.status = OrderStatus.FILLED.value
+            self.event_bus.publish(Event(
+                type="ORDER_FILLED",
+                data={
+                    "order_id": order.order_id,
+                    "side": order.side,
+                    "price": order.price,
+                    "qty": order.qty,
+                    "client_id": order.client_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ))
+
         elif remaining_qty < order.qty:
             order.status = OrderStatus.PARTIALLY_FILLED.value
             order.qty = remaining_qty
-            self._add_order(order)
+
+            self.event_bus.publish(Event(
+                type="ORDER_PARTIALLY_FILLED",
+                data={
+                    "order_id": order.order_id,
+                    "side": order.side,
+                    "price": order.price,
+                    "qty": order.qty - remaining_qty,
+                    "client_id": order.client_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ))
+
+            self._add_order(order)  # logging happens inside this method
+
         else:
-            self._add_order(order)
+            self._add_order(order)  # Same here
 
         return trades
 
@@ -208,6 +298,19 @@ class OrderBook:
                 )
                 trades.append(trade)
 
+                self.event_bus.publish(Event(
+                    type="TRADE_EXECUTED",
+                    data={
+                        "price": best_price,
+                        "qty": match_qty,
+                        "buyer_order_id": buyer_order_id,
+                        "seller_order_id": seller_order_id,
+                        "buyer_id": buyer_id,
+                        "seller_id": seller_id,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                ))
+
                 resting_order.qty -= match_qty
                 remaining_qty -= match_qty
 
@@ -219,11 +322,46 @@ class OrderBook:
 
         if remaining_qty == 0:
             order.status = OrderStatus.FILLED.value
+            self.event_bus.publish(Event(
+                type="ORDER_FILLED",
+                data={
+                    "order_id": order.order_id,
+                    "side": order.side,
+                    "price": order.price,
+                    "qty": order.qty,
+                    "client_id": order.client_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ))
         elif remaining_qty < order.qty:
             order.status = OrderStatus.PARTIALLY_FILLED.value
             order.qty = remaining_qty
+
+            self.event_bus.publish(Event(
+                type="ORDER_PARTIALLY_FILLED",
+                data={
+                    "order_id": order.order_id,
+                    "side": order.side,
+                    "price": order.price,
+                    "qty": order.qty - remaining_qty,
+                    "client_id": order.client_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ))
         else:
             order.status = OrderStatus.CANCELLED.value
+
+            self.event_bus.publish(Event(
+                type="ORDER_CANCELLED",
+                data={
+                    "order_id": order.order_id,
+                    "side": order.side,
+                    "price": order.price,
+                    "qty": order.qty,
+                    "client_id": order.client_id,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            ))
 
         return trades
 
@@ -236,12 +374,24 @@ class OrderBook:
         if order.price not in book_side:
             book_side[order.price] = deque()
 
-        # book_side[order.price].append(order)
-
         queue = book_side[order.price]
         queue.append(order)
 
         self.order_map[order.order_id] = (order.side, order.price, queue)
+
+        event = Event(
+            type="ORDER_ADDED",
+            data={
+                "order_id": order.order_id,
+                "side": order.side,
+                "price": order.price,
+                "qty": order.qty,
+                "client_id": order.client_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
+        self.event_bus.publish(event)
 
     def __repr__(self):
         def format_side(side):

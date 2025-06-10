@@ -1,9 +1,11 @@
 from src.dispatcher import OrderDispatcher, InvalidOrderError
+from src.events import EventBus
 
 
 class ExchangeAPI:
-    def __init__(self):
-        self.dispatcher = OrderDispatcher()
+    def __init__(self, event_bus):
+        self.event_bus = event_bus
+        self.dispatcher = OrderDispatcher(event_bus=event_bus)
 
     def handle_request(self, request: dict) -> dict:
         request_type = request.get("type")
@@ -50,7 +52,7 @@ class ExchangeAPI:
         except Exception as e:
             return {
                 "success": False,
-                "error": str(e)
+                "error": f"Internal Server Error {e}"
             }
 
     def _cancel_order(self, order_id: str) -> dict:

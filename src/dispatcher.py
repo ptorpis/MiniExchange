@@ -84,8 +84,9 @@ def validate_order(payload: dict):
 
 
 class OrderDispatcher:
-    def __init__(self):
-        self.order_book = OrderBook()
+    def __init__(self, event_bus=None):
+        self.even_bus = event_bus
+        self.order_book = OrderBook(event_bus=event_bus)
 
     def dispatch(self, order_msg: dict) -> Order:
         validate_order(order_msg)
