@@ -53,7 +53,7 @@ class UnsupportedOrderTypeError(InvalidOrderError):
 
 
 def validate_order(payload: dict):
-    required_fields = ["client_id", "side", "qty", "type"]
+    required_fields = ["client_id", "side", "qty", "order_type"]
 
     for field in required_fields:
         if field not in payload:
@@ -68,7 +68,7 @@ def validate_order(payload: dict):
         raise InvalidQuantityError(qty)
 
     price = payload.get("price")
-    order_type = payload["type"]
+    order_type = payload["order_type"]
 
     if order_type == "limit":
         if price is None:
@@ -90,14 +90,14 @@ class OrderDispatcher:
     def dispatch(self, order_msg: dict) -> Order:
         validate_order(order_msg)
 
-        if order_msg["type"] == "limit":
+        if order_msg["order_type"] == "limit":
             order = LimitOrder.create(
                 client_id=order_msg["client_id"],
                 side=order_msg["side"],
                 price=order_msg["price"],
                 qty=order_msg["qty"]
             )
-        elif order_msg["type"] == "market":
+        elif order_msg["order_type"] == "market":
             order = MarketOrder.create(
                 client_id=order_msg["client_id"],
                 side=order_msg["side"],
