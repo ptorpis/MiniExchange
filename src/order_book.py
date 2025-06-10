@@ -26,7 +26,7 @@ class OrderBook:
             return None
         return self.asks.peekitem(0)[0]  # Lowest ask will be the first
 
-    def add_order(self, order: Order):
+    def _add_order(self, order: Order):
         if not isinstance(order, LimitOrder):
             raise ValueError("Only LimitOrders can be added to the book.")
 
@@ -109,9 +109,9 @@ class OrderBook:
         elif remaining_qty < order.qty:
             order.status = OrderStatus.PARTIALLY_FILLED.value
             order.qty = remaining_qty
-            self.add_order(order)
+            self._add_order(order)
         else:
-            self.add_order(order)
+            self._add_order(order)
 
         return trades
 
@@ -196,6 +196,15 @@ class OrderBook:
                 return True
 
         return False
+
+    def get_spread(self) -> float | None:
+        best_bid = self.best_bid()
+        best_ask = self.best_ask()
+
+        if best_bid is None or best_ask is None:
+            return None
+
+        return round(best_ask - best_bid, 6)
 
     def __repr__(self):
         def format_side(side):

@@ -24,3 +24,17 @@ class ExchangeAPI:
                 "success": False,
                 "error": str(e)
             }
+
+    def cancel_order(self, order_id: str) -> dict:
+        result = self.dispatcher.cancel_order(order_id)
+
+        return {
+            "success": result
+        }
+
+    def get_spread(self) -> dict:
+        result = self.dispatcher.order_book.get_spread()
+
+        return {
+            "spread": result
+        }
