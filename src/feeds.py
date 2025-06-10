@@ -10,7 +10,7 @@ class PrivateFeed:
 
         self.event_bus.subscribe("ORDER_ADDED", self._handle_event)
         self.event_bus.subscribe("ORDER_CANCELLED", self._handle_event)
-        self.event_bus.subscribe("TRADE_EXECUTED", self._handle_event)
+        self.event_bus.subscribe("TRADE", self._handle_event)
         self.event_bus.subscribe("PRDER_PARTIALLY_FILLED", self._handle_event)
         self.event_bus.subscribe("ORDER_FILLED", self._handle_event)
 
@@ -30,13 +30,19 @@ class PublicFeed:
 
         self.event_bus.subscribe("ORDER_ADDED", self._handle_event)
         self.event_bus.subscribe("ORDER_CANCELLED", self._handle_event)
-        self.event_bus.subscribe("TRADE_EXECUTED", self._handle_event)
+        self.event_bus.subscribe("TRADE", self._handle_event)
         self.event_bus.subscribe("PRDER_PARTIALLY_FILLED", self._handle_event)
         self.event_bus.subscribe("ORDER_FILLED", self._handle_event)
 
     def _handle_event(self, event: Event):
-        event.data["client_id"] = "***"
-        event.data["order_id"] = "***"
+        if event.type == "TRADE":
+            event.data["seller_id"] = "***"
+            event.data["buyer_id"] = "***"
+            event.data["seller_order_id"] = "***"
+            event.data["buyer_order_id"] = "***"
+        else:
+            event.data["client_id"] = "***"
+            event.data["order_id"] = "***"
 
         output = {
             "timestamp": datetime.utcnow().isoformat(),

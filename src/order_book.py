@@ -301,7 +301,7 @@ class OrderBook:
                 trades.append(trade)
 
                 self.event_bus.publish(Event(
-                    type="TRADE_EXECUTED",
+                    type="TRADE",
                     data={
                         "price": best_price,
                         "qty": match_qty,
