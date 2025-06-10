@@ -14,6 +14,8 @@ class OrderBook:
         self.bids = SortedDict()
         self.asks = SortedDict()
 
+        self.order_map: dict[str, tuple[str, float, deque]] = {}
+
     def best_bid(self):
         if not self.bids:
             return None
@@ -33,7 +35,12 @@ class OrderBook:
         if order.price not in book_side:
             book_side[order.price] = deque()
 
-        book_side[order.price].append(order)
+        # book_side[order.price].append(order)
+
+        queue = book_side[order.price]
+        queue.append(order)
+
+        self.order_map[order.order_id] = (order.side, order.price, queue)
 
     def match(self, order: Order):
         if isinstance(order, LimitOrder):
@@ -164,6 +171,31 @@ class OrderBook:
             order.status = OrderStatus.CANCELLED.value
 
         return trades
+
+    def cancel_order(self, order_id: str) -> bool:
+        entry = self.order_map.get(order_id)
+
+        if not entry:
+            return False
+
+        side, price, queue = entry
+
+        for i, order in enumerate(queue):
+            if order.order_id == order_id:
+                order.status = OrderStatus.CANCELLED.value
+                del queue[i]
+
+                if not queue:
+                    if side == OrderSide.BUY.value:
+                        book = self.bids
+                    else:
+                        book = self.asks
+
+                    del book[price]
+                del self.order_map[order_id]
+                return True
+
+        return False
 
     def __repr__(self):
         def format_side(side):

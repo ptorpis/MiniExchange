@@ -107,4 +107,7 @@ class OrderDispatcher:
             raise InvalidOrderError(f"Unknown order type: {order_msg["type"]}")
 
         self.order_book.match(order)
-        return f"Dispatched Order: {order}"
+        return order
+
+    def cancel_order(self, order_id: str):
+        return self.order_book.cancel_order(order_id)
