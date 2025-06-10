@@ -10,6 +10,43 @@ class OrderBook:
     def __init__(self):
         """
         Using sortedcontainers to keep the prices sorted.
+
+        Methods:
+        Public:     - best_bid() -> float | None
+                        returns the best available bid price, or None if the
+                        book is empty
+
+                    - best_ask() -> float | None
+                        returns the best available ask price, or None if the
+                        book is empty
+
+                    - cancel_order(order_id) -> bool
+                        cancels the order, removes it from the order map and
+                        the bids/asks, returns bool to indicate success or fail
+
+                    - get_spread() -> float | None
+                        returns the current market spread or None if the
+                        book (at least one of the bid/ask) is empty
+
+                    - match(order: Order)
+                        routes the order to the correct matching function
+
+        'Private':  _match_limit_order(order: LimitOrder) -> list[Trade]
+                        matching logic for limit orders
+                        retunrs a list of trades triggered by the limit
+                        order, updates order status accordingly
+
+                    _match_market_order(order: MarketOrder) -> list[Trade]
+                        matching logic for the market orders, if no matching
+                        price is found, the order is cancelled
+                        similarly to the _match_limit_order, it returns a
+                        list of the trades triggered by the incoming order
+                        and updates the order statuses accordingly
+
+                    _add_order(order: Order)
+                        adds an order to the bids/asks
+                        this method is called internally, when the order cannot
+                        be matched
         """
         self.bids = SortedDict()
         self.asks = SortedDict()
@@ -26,21 +63,39 @@ class OrderBook:
             return None
         return self.asks.peekitem(0)[0]  # Lowest ask will be the first
 
-    def _add_order(self, order: Order):
-        if not isinstance(order, LimitOrder):
-            raise ValueError("Only LimitOrders can be added to the book.")
+    def cancel_order(self, order_id: str) -> bool:
+        entry = self.order_map.get(order_id)
 
-        book_side = self.bids if order.side == "buy" else self.asks
+        if not entry:
+            return False
 
-        if order.price not in book_side:
-            book_side[order.price] = deque()
+        side, price, queue = entry
 
-        # book_side[order.price].append(order)
+        for i, order in enumerate(queue):
+            if order.order_id == order_id:
+                order.status = OrderStatus.CANCELLED.value
+                del queue[i]
 
-        queue = book_side[order.price]
-        queue.append(order)
+                if not queue:
+                    if side == OrderSide.BUY.value:
+                        book = self.bids
+                    else:
+                        book = self.asks
 
-        self.order_map[order.order_id] = (order.side, order.price, queue)
+                    del book[price]
+                del self.order_map[order_id]
+                return True
+
+        return False
+
+    def get_spread(self) -> float | None:
+        best_bid = self.best_bid()
+        best_ask = self.best_ask()
+
+        if best_bid is None or best_ask is None:
+            return None
+
+        return round(best_ask - best_bid, 6)
 
     def match(self, order: Order):
         if isinstance(order, LimitOrder):
@@ -172,39 +227,21 @@ class OrderBook:
 
         return trades
 
-    def cancel_order(self, order_id: str) -> bool:
-        entry = self.order_map.get(order_id)
+    def _add_order(self, order: Order):
+        if not isinstance(order, LimitOrder):
+            raise ValueError("Only LimitOrders can be added to the book.")
 
-        if not entry:
-            return False
+        book_side = self.bids if order.side == "buy" else self.asks
 
-        side, price, queue = entry
+        if order.price not in book_side:
+            book_side[order.price] = deque()
 
-        for i, order in enumerate(queue):
-            if order.order_id == order_id:
-                order.status = OrderStatus.CANCELLED.value
-                del queue[i]
+        # book_side[order.price].append(order)
 
-                if not queue:
-                    if side == OrderSide.BUY.value:
-                        book = self.bids
-                    else:
-                        book = self.asks
+        queue = book_side[order.price]
+        queue.append(order)
 
-                    del book[price]
-                del self.order_map[order_id]
-                return True
-
-        return False
-
-    def get_spread(self) -> float | None:
-        best_bid = self.best_bid()
-        best_ask = self.best_ask()
-
-        if best_bid is None or best_ask is None:
-            return None
-
-        return round(best_ask - best_bid, 6)
+        self.order_map[order.order_id] = (order.side, order.price, queue)
 
     def __repr__(self):
         def format_side(side):
