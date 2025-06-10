@@ -1,5 +1,4 @@
 from src.dispatcher import OrderDispatcher, InvalidOrderError
-from src.events import EventBus
 
 
 class ExchangeAPI:

@@ -1,7 +1,9 @@
+import time
+
 from src.api import ExchangeAPI
 from src.events import EventBus
-
 from src.logger import EventLogger
+from src.feeds import PublicFeed
 
 logger = EventLogger('logs/events.jsonl')
 
@@ -12,6 +14,7 @@ event_bus.subscribe("TRADE", logger)
 event_bus.subscribe("ORDER_PARTIALLY_FILLED", logger)
 
 exchange = ExchangeAPI(event_bus=event_bus)
+feed = PublicFeed(event_bus=event_bus)
 
 request = {
     "type": "order",
@@ -25,7 +28,7 @@ request = {
 }
 
 result = exchange.handle_request(request)
-print("adding an order", result)
+time.sleep(1)
 cancel = {
     "type": "cancel",
     "payload": {
@@ -34,8 +37,7 @@ cancel = {
 }
 
 result = exchange.handle_request(cancel)
-print("cancelling that order", result)
-print(exchange.dispatcher.order_book)
+time.sleep(1)
 request = {
     "type": "order",
     "payload": {
@@ -48,8 +50,8 @@ request = {
 }
 
 result = exchange.handle_request(request)
-print("adding an order back", result)
 
+time.sleep(1)
 request = {
     "type": "order",
     "payload": {
@@ -62,8 +64,8 @@ request = {
 }
 
 result = exchange.handle_request(request)
-print("should trigger a trade, partial fill", result)
 
+time.sleep(1)
 print(exchange.dispatcher.order_book)
 event_bus.shutdown()
 logger.close()

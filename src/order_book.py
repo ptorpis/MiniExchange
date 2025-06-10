@@ -84,8 +84,10 @@ class OrderBook:
                     type="ORDER_CANCELLED",
                     data={
                         "order_id": order_id,
+                        "client_id": order.client_id,
                         "side": side,
                         "price": price,
+                        "qty": order.qty,
                         "timestamp": datetime.utcnow().isoformat()
                     }
                 )
