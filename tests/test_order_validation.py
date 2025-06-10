@@ -16,7 +16,7 @@ class TestOrderValidation(unittest.TestCase):
             "side": "buy",
             "price": 99.9,
             "qty": 10,
-            "type": "limit"
+            "order_type": "limit"
         }
         try:
             validate_order(order)
@@ -29,7 +29,7 @@ class TestOrderValidation(unittest.TestCase):
             "client_id": "bar",
             "side": "sell",
             "qty": 5,
-            "type": "market"
+            "order_type": "market"
         }
         try:
             validate_order(order)
@@ -53,7 +53,7 @@ class TestOrderValidation(unittest.TestCase):
             "side": "hold",
             "price": 100,
             "qty": 10,
-            "type": "limit"
+            "order_type": "limit"
         }
         with self.assertRaises(InvalidOrderSideError):
             validate_order(order)
@@ -64,7 +64,7 @@ class TestOrderValidation(unittest.TestCase):
             "side": "buy",
             "price": 100,
             "qty": -5,
-            "type": "limit"
+            "order_type": "limit"
         }
         with self.assertRaises(InvalidQuantityError):
             validate_order(order)
@@ -75,7 +75,7 @@ class TestOrderValidation(unittest.TestCase):
             "side": "sell",
             "price": 0,
             "qty": 10,
-            "type": "limit"
+            "order_type": "limit"
         }
         with self.assertRaises(InvalidPriceError):
             validate_order(order)

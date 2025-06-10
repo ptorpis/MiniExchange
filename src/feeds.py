@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 from src.events import Event, EventBus
@@ -16,12 +15,20 @@ class PrivateFeed:
 
     def _handle_event(self, event: Event):
         output = {
-            "timestamp": datetime.utcnow().isoformat(),
             "event_type": event.type,
+            "timestamp": datetime.utcnow().isoformat(),
             "data": event.data
         }
 
-        print(json.dumps(output, indent=2))
+        print("-"*80)
+        print("", end="| ")
+        for item in output.items():
+            if not isinstance(item[1], dict):
+                print(item[1], end=" | ")
+            else:
+                print()
+                for dataitem in item[1].items():
+                    print(f"    {dataitem[0]}: {dataitem[1]}")
 
 
 class PublicFeed:
@@ -45,9 +52,26 @@ class PublicFeed:
             event.data["order_id"] = "***"
 
         output = {
-            "timestamp": datetime.utcnow().isoformat(),
             "event_type": event.type,
+            "timestamp": datetime.utcnow().isoformat(),
             "data": event.data
         }
 
-        print(json.dumps(output, indent=2))
+        print("-"*80)
+        print("", end="| ")
+        for item in output.items():
+            if not isinstance(item[1], dict):
+                print(item[1], end=" | ")
+            else:
+                print()
+                for dataitem in item[1].items():
+                    if dataitem[0] in [
+                        "client_id",
+                        "order_id",
+                        "seller_id",
+                        "buyer_id",
+                        "seller_order_id",
+                        "buyer_order_id"
+                    ]:
+                        continue
+                    print(f"    {dataitem[0]}: {dataitem[1]}")

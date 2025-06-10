@@ -3,18 +3,21 @@ import time
 from src.api import ExchangeAPI
 from src.events import EventBus
 from src.logger import EventLogger
-from src.feeds import PublicFeed
+# from src.feeds import PublicFeed
+from src.feeds import PrivateFeed
 
-logger = EventLogger('logs/events.jsonl')
+# logger = EventLogger('logs/events.jsonl')
 
 event_bus = EventBus()
+"""
 event_bus.subscribe("ORDER_ADDED", logger)
 event_bus.subscribe("ORDER_CANCELLED", logger)
 event_bus.subscribe("TRADE", logger)
 event_bus.subscribe("ORDER_PARTIALLY_FILLED", logger)
-
+"""
 exchange = ExchangeAPI(event_bus=event_bus)
-feed = PublicFeed(event_bus=event_bus)
+# feed = PublicFeed(event_bus=event_bus)
+feed = PrivateFeed(event_bus=event_bus)
 
 request = {
     "type": "order",
@@ -66,6 +69,6 @@ request = {
 result = exchange.handle_request(request)
 
 time.sleep(1)
-print(exchange.dispatcher.order_book)
+# print(exchange.dispatcher.order_book)
 event_bus.shutdown()
-logger.close()
+# logger.close()
