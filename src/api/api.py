@@ -21,7 +21,7 @@ class ExchangeAPI:
                 return self._login(payload)
 
             case "order" | "cancel":
-                user = self._get_user(request)
+                user = self._get_user(request.get("payload"))
                 if not user:
                     return {
                         "success": False,
@@ -98,8 +98,8 @@ class ExchangeAPI:
             "spread": self.dispatcher.order_book.get_spread()
         }
 
-    def _get_user(self, request: dict) -> str | None:
-        token = request.get("token")
+    def _get_user(self, payload: dict) -> str | None:
+        token = payload.get("token")
         if not token:
             return None
         return self.session_manager.get_user(token)

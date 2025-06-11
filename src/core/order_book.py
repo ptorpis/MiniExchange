@@ -358,7 +358,6 @@ class OrderBook:
                 data={
                     "order_id": order.order_id,
                     "side": order.side,
-                    "price": order.price,
                     "qty": order.qty,
                     "client_id": order.client_id,
                     "timestamp": datetime.utcnow().isoformat()

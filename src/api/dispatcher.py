@@ -102,11 +102,10 @@ class OrderDispatcher:
             order = MarketOrder.create(
                 client_id=order_msg["client_id"],
                 side=order_msg["side"],
-                price=order_msg["price"],
+                qty=order_msg["qty"],
             )
         else:
             raise InvalidOrderError(f"Unknown order type: {order_msg["type"]}")
-
         self.order_book.match(order)
         return order
 
