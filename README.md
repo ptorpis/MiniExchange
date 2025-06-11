@@ -54,5 +54,283 @@ class LimitOrder(Order):
         )
 ```
 
-To keep the logic of the matching engine as small as possible, an intermediate layer called the order dispatcher was added that does order validation, filtering, and dispatching.
+---
 
+# MiniExchangeAPI — HTTP-like Interface Spec
+
+This API is designed to simulate a trading exchange interface, supporting user login, order submissions (limit/market), cancellations, and market data queries.
+
+---
+
+## Request Format
+
+Each request is a JSON dictionary with at least:
+
+```json
+{
+  "type": "request_type",
+  "payload": { ... }
+}
+```
+
+---
+
+## Session Management
+
+### `login`
+
+**Request:**
+
+```json
+{
+  "type": "login",
+  "payload": {
+    "username": "alice",
+    "password": "pwdalice"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "token": "abc12345"
+}
+```
+
+> If credentials are invalid:
+
+```json
+{
+  "success": false,
+  "error": "Invalid credentials"
+}
+```
+
+> If missing fields:
+
+```json
+{
+  "success": false,
+  "error": "Missing 'username' or 'password' in login request."
+}
+```
+
+---
+
+### `logout`
+
+**Request:**
+
+```json
+{
+  "type": "logout",
+  "payload": {
+    "token": "abc12345"
+  }
+}
+```
+
+**Response:**
+
+```json
+{ "success": true }
+```
+
+> If session is invalid or token is missing:
+
+```json
+{
+  "success": false,
+  "error": "Invalid session token."
+}
+```
+
+```json
+{
+  "success": false,
+  "error": "Missing session token."
+}
+```
+---
+
+##  Market Data
+
+### `spread`
+
+Returns the best bid/ask spread.
+
+**Request:**
+
+```json
+{
+  "type": "spread"
+}
+```
+
+**Response:**
+
+```json
+{
+  "spread": 0.5
+}
+```
+
+---
+
+### `spread_info`
+
+Returns detailed spread info including best bid and ask.
+
+**Request:**
+
+```json
+{
+  "type": "spread_info"
+}
+```
+
+**Response:**
+
+```json
+{
+  "best_bid": 100.0,
+  "best_ask": 100.5,
+  "spread": 0.5
+}
+```
+
+## Order Management
+
+### `order`
+
+Authenticated request to place an order.
+
+#### Limit Order
+
+**Request:**
+
+```json
+{
+  "type": "order",
+  "payload": {
+    "token": "abc12345",
+    "side": "buy",
+    "price": 100.0,
+    "qty": 10,
+    "order_type": "limit"
+  }
+}
+```
+
+#### Market Order
+
+**Request:**
+
+```json
+{
+  "type": "order",
+  "payload": {
+    "token": "abc12345",
+    "side": "sell",
+    "qty": 5,
+    "order_type": "market"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "result": {
+    "order_id": "d3adbeef",
+    ...
+  }
+}
+```
+
+> If there's an issue (e.g. missing fields, invalid token):
+
+```json
+{
+  "success": false,
+  "error": "Unauthorized or missing session token."
+}
+```
+
+---
+
+### `cancel`
+
+Cancel an existing order by ID (must be owned by the session's user).
+
+**Request:**
+
+```json
+{
+  "type": "cancel",
+  "payload": {
+    "token": "abc12345",
+    "order_id": "d3adbeef"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "success": true
+}
+```
+
+> If token or order ID is missing or invalid:
+
+```json
+{
+  "success": false,
+  "error": "Missing order_id in cancel request."
+}
+```
+
+---
+
+## Error Response Template
+
+Any unexpected behavior or misuse of the API will return:
+
+```json
+{
+  "success": false,
+  "error": "Error message here"
+}
+```
+
+---
+
+## Sample User Accounts 
+
+(currently this is being managed by an in memory dictionary)
+
+```json
+{
+  "alice": "pwdalice",
+  "bob": "pwdbob",
+  "testuser": "test"
+}
+```
+
+---
+
+## Notes 
+
+* **All authenticated requests** (`order`, `cancel`, `logout`) must include the `token`.
+* Tokens are currently 8-character UUID prefixes for simplicity.
+* Designed for both human CLI interaction and automated CSV-based testing.
+* All state is in-memory (for prototype); no persistence across runs.
+
+---

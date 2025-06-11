@@ -1,0 +1,54 @@
+{
+  "login": {
+    "type": "login",
+    "payload": {
+      "username": "alice",
+      "password": "pwdalice"
+    }
+  },
+
+  "logout": {
+    "type": "logout",
+    "payload": {
+      "token": "abc12345"
+    }
+  },
+
+  "order": {
+    "type": "order",
+    "payload": {
+      "token": "abc12345",
+      "side": "buy",
+      "price": 100.0,
+      "qty": 10,
+      "order_type": "limit"
+    }
+  },
+
+  "order": {
+    "type": "order",
+    "payload": {
+      "token": "abc12345",
+      "side": "buy",
+      "price": 100.0,
+      "order_type": "market"
+    }
+  },
+
+  "cancel": {
+    "type": "cancel",
+    "payload": {
+      "token": "abc12345",
+      "order_id": "d3adbeef"
+    }
+  },
+
+  "spread": {
+    "type": "spread"
+  },
+
+  "spread_info": {
+    "type": "spread_info"
+  }
+}
+
