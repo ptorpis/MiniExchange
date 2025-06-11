@@ -3,16 +3,48 @@ Single symbol orderbook / exchange prototype in Python.
 
 # Table of Contents
 - [Introduction](#introduction)
+- [Setup and Installation](#setup-and-installation)
+- [Usage](#usage)
+- [Command Line Interface](#command-line-interface)
 - [Design](#design)
-- [MiniExchangeAPI -- HTTP-like Interface Spec](miniexchangeapi----http-like-interface-spec)
+    - [Orders](#orders)
+    - [Trades](#trades)
+    - [Events](#events)
+    - [API](#api)
+    - [Dispatcher](#dispatcher)
+    - [Authentication and Session Management](#authentication-and-session-management)
+- [MiniExchangeAPI Specs](miniexchangeapi-specs)
+    - [Request Format](#request-format)
+    - [Session Management](#session-management)
+    - [Market Data](#market-data)
+    - [Order Management](#order-management)
+    - [Error Response Template](#error-response-template)
+    - [Sample User Accounts](#sample-user-accounts)
+    - [Examples](#examples)
 - [Testing Suite](#testing-suite)
     - [Testing Orders](#testing-orders)
+    - [How to Run Tests](#how-to-run-tests)
 # Introduction
 
 text for introduction
 
+# Setup and Installation
+
+I developed this project in Python 3.12, I cannot guarantee that it works in earlier versions, but should be fine 3.10+.
+
+## Dependencies
+I tried to keep dependencies to a minimum. The libraries needed to run are: `sortedcontainers`
+To install, run:
+```bash
+pip install -r requirements.txt
+```
+
+# Usage
+
+# Command Line Interface
+
 # Design
-Orders:
+## Orders:
 
 This is a simplified prototype, but I still wanted semi realistic behavior. An order is represented by a dataclass. I added support for both limit orders and market orders. The difference between the 2 is that with a limit order, the client specifies a price that they wish to buy the asset for, but with the market order, they just specify the quantity, and they will get whatever is the best available price at that moment in the market.
 
@@ -62,14 +94,21 @@ class LimitOrder(Order):
             qty=qty
         )
 ```
+## Trades
 
+## Events
+Pub-sub system
+
+## API
+
+## Dispatcher
+
+## Authentication and Session Management
 ---
 
-# MiniExchangeAPI -- HTTP-like Interface Spec
+# MiniExchangeAPI Specs
 
 This API is designed to simulate a trading exchange interface, supporting user login, order submissions (limit/market), cancellations, and market data queries.
-
----
 
 ## Request Format
 
@@ -81,8 +120,6 @@ Each request is a JSON dictionary with at least:
   "payload": {...}
 }
 ```
-
----
 
 ## Session Management
 
@@ -127,8 +164,6 @@ Each request is a JSON dictionary with at least:
 }
 ```
 
----
-
 ### `logout`
 
 **Request:**
@@ -163,7 +198,6 @@ Each request is a JSON dictionary with at least:
   "error": "Missing session token."
 }
 ```
----
 
 ##  Market Data
 
@@ -186,8 +220,6 @@ Returns the best bid/ask spread.
   "spread": 0.5
 }
 ```
-
----
 
 ### `spread_info`
 
@@ -271,8 +303,6 @@ Authenticated request to place an order.
 }
 ```
 
----
-
 ### `cancel`
 
 Cancel an existing order by ID (must be owned by the session's user).
@@ -306,8 +336,6 @@ Cancel an existing order by ID (must be owned by the session's user).
 }
 ```
 
----
-
 ## Error Response Template
 
 Any unexpected behavior or misuse of the API will return:
@@ -318,8 +346,6 @@ Any unexpected behavior or misuse of the API will return:
   "error": "Error message here"
 }
 ```
-
----
 
 ## Sample User Accounts 
 
@@ -332,7 +358,7 @@ Any unexpected behavior or misuse of the API will return:
   "testuser": "test"
 }
 ```
-
+## Examples
 > [!NOTE]
 > - **All authenticated requests** (`order`, `cancel`, `logout`) must include the `token`.
 > - Tokens are currently 8-character UUID prefixes for simplicity.
@@ -370,3 +396,5 @@ Test cases covered:
 21. Race conditions: placing an order while another one is processing.
 22. Resubmitting an order with the same fields: should be recorded as a new, independent order.
 23. Mass order / cancel: the system should be able to handle a large number of orders coming in.
+
+## How to Run Tests
