@@ -3,13 +3,15 @@ Single symbol orderbook / exchange prototype in Python.
 
 # Table of Contents
 - [Introduction](#introduction)
-
-
-# [Introduction]
+- [Design](#design)
+- [MiniExchangeAPI -- HTTP-like Interface Spec](miniexchangeapi----http-like-interface-spec)
+- [Testing Suite](#testing-suite)
+    - [Testing Orders](#testing-orders)
+# Introduction
 
 text for introduction
 
-# Design Notes
+# Design
 Orders:
 
 This is a simplified prototype, but I still wanted semi realistic behavior. An order is represented by a dataclass. I added support for both limit orders and market orders. The difference between the 2 is that with a limit order, the client specifies a price that they wish to buy the asset for, but with the market order, they just specify the quantity, and they will get whatever is the best available price at that moment in the market.
@@ -63,7 +65,7 @@ class LimitOrder(Order):
 
 ---
 
-# MiniExchangeAPI — HTTP-like Interface Spec
+# MiniExchangeAPI -- HTTP-like Interface Spec
 
 This API is designed to simulate a trading exchange interface, supporting user login, order submissions (limit/market), cancellations, and market data queries.
 
@@ -331,16 +333,11 @@ Any unexpected behavior or misuse of the API will return:
 }
 ```
 
----
-
-## Notes 
-
-* **All authenticated requests** (`order`, `cancel`, `logout`) must include the `token`.
-* Tokens are currently 8-character UUID prefixes for simplicity.
-* Designed for both human CLI interaction and automated CSV-based testing.
-* All state is in-memory (for prototype); no persistence across runs.
-
----
+> [!NOTE]
+> - **All authenticated requests** (`order`, `cancel`, `logout`) must include the `token`.
+> - Tokens are currently 8-character UUID prefixes for simplicity.
+> - Designed for both human CLI interaction and automated CSV-based testing.
+> - All state is in-memory (for prototype); no persistence across runs.
 
 # Testing suite
 
