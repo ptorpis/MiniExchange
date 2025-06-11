@@ -1,8 +1,15 @@
 # MiniExchange
 Single symbol orderbook / exchange prototype in Python.
 
-Design Notes:
+# Table of Contents
+- [Introduction](#introduction)
 
+
+# [Introduction]
+
+text for introduction
+
+# Design Notes
 Orders:
 
 This is a simplified prototype, but I still wanted semi realistic behavior. An order is represented by a dataclass. I added support for both limit orders and market orders. The difference between the 2 is that with a limit order, the client specifies a price that they wish to buy the asset for, but with the market order, they just specify the quantity, and they will get whatever is the best available price at that moment in the market.
@@ -69,7 +76,7 @@ Each request is a JSON dictionary with at least:
 ```json
 {
   "type": "request_type",
-  "payload": { ... }
+  "payload": {...}
 }
 ```
 
@@ -334,3 +341,35 @@ Any unexpected behavior or misuse of the API will return:
 * All state is in-memory (for prototype); no persistence across runs.
 
 ---
+
+# Testing suite
+
+There is a comprehensive testing suite provided that tests the core functionality of the system. Run it to verify that the system is working correctly. Note that this is not guarantee that *everything* works as expected, but can be a pretty good gauge that they are.
+
+## Testing Orders
+
+Test cases covered:
+
+1. Cancellation recovery: After placing an order into an empty order book, then cancelling that order, you can place new orders.
+2. FIFO at price level: The order book matches limit orders based on time priority. The order that was placed first at a price level should be the one getting filled first.
+3. Partial fills: A large order should get correctly filled with smaller orders, if the entire order cannot be filled, it should be added to the book with it's status as `partially_filled`.
+4. Market order match priority: A market order should consume the best available limit orders in price-time order.
+5. Multiple partial fills with a market order: A market order that's larger than a single price level should "walk the book" and match across price levels.
+6. Exact matching: When a buy and sell order match perfectly, they should both be filled at the same price and quantity, leaving no residue.
+7. Remaining quantity: After a partial fill, the remaining quantity should be correct.
+8. Negative quantity: an order with negative quantities should be rejected.
+9. qty = 0: an order with a quantity of 0 should be rejected.
+10. price = 0: an order with a price of 0 shoudl be rejected.
+11. price < 0: orders with negative prices should be rejected.
+12. Market orders with price fields: a market order should not have a price field, therefore a market order that contains one should be rejected.
+13. Limit orders without a price: a limit order should always contain a price, when one is submitted without it, it should be rejected.
+14. Invalid side: anything other than "buy" or "sell" should be rejected.
+15. Cancelling a non-existent order: cancelling a random `order_id` should be handled gracefully (should not cause a crash, but should be rejected).
+16. A user should not be able to cancel orders they did not create.
+17. Cancel after fill: once an order is fully filled, it should not be possible to cancel it.
+18. Placing an order without a token: should be rejected.
+19. Invalid token: invalid tokens should be rejected.
+20. Multiple orders at the same price from the same user: should all be independently recorded.
+21. Race conditions: placing an order while another one is processing.
+22. Resubmitting an order with the same fields: should be recorded as a new, independent order.
+23. Mass order / cancel: the system should be able to handle a large number of orders coming in.
