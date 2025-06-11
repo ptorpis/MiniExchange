@@ -13,7 +13,7 @@ Single symbol orderbook / exchange prototype in Python.
     - [API](#api)
     - [Dispatcher](#dispatcher)
     - [Authentication and Session Management](#authentication-and-session-management)
-- [MiniExchangeAPI Specs](miniexchangeapi-specs)
+- [MiniExchangeAPI Specs](#miniexchangeapi-specs)
     - [Request Format](#request-format)
     - [Session Management](#session-management)
     - [Market Data](#market-data)
