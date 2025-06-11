@@ -1,9 +1,50 @@
-# MiniExchange
+# UNDER CONSTRUCTION... 🚧
 Single symbol orderbook / exchange prototype in Python.
 
-Design Notes:
+# Table of Contents
+- [Introduction](#introduction)
+- [Setup and Installation](#setup-and-installation)
+- [Usage](#usage)
+- [Command Line Interface](#command-line-interface)
+- [Design](#design)
+    - [Orders](#orders)
+    - [Trades](#trades)
+    - [Events](#events)
+    - [API](#api)
+    - [Dispatcher](#dispatcher)
+    - [Authentication and Session Management](#authentication-and-session-management)
+- [MiniExchangeAPI Specs](#miniexchangeapi-specs)
+    - [Request Format](#request-format)
+    - [Session Management](#session-management)
+    - [Market Data](#market-data)
+    - [Order Management](#order-management)
+    - [Error Response Template](#error-response-template)
+    - [Sample User Accounts](#sample-user-accounts)
+    - [Examples](#examples)
+- [Testing Suite](#testing-suite)
+    - [Testing Orders](#testing-orders)
+    - [How to Run Tests](#how-to-run-tests)
+# Introduction
 
-Orders:
+text for introduction
+
+# Setup and Installation
+
+I developed this project in Python 3.12, I cannot guarantee that it works in earlier versions, but should be fine 3.10+.
+
+## Dependencies
+I tried to keep dependencies to a minimum. The libraries needed to run are: `sortedcontainers`
+To install, run:
+```bash
+pip install -r requirements.txt
+```
+
+# Usage
+
+# Command Line Interface
+
+# Design
+## Orders:
 
 This is a simplified prototype, but I still wanted semi realistic behavior. An order is represented by a dataclass. I added support for both limit orders and market orders. The difference between the 2 is that with a limit order, the client specifies a price that they wish to buy the asset for, but with the market order, they just specify the quantity, and they will get whatever is the best available price at that moment in the market.
 
@@ -53,14 +94,21 @@ class LimitOrder(Order):
             qty=qty
         )
 ```
+## Trades
 
+## Events
+Pub-sub system
+
+## API
+
+## Dispatcher
+
+## Authentication and Session Management
 ---
 
-# MiniExchangeAPI — HTTP-like Interface Spec
+# MiniExchangeAPI Specs
 
 This API is designed to simulate a trading exchange interface, supporting user login, order submissions (limit/market), cancellations, and market data queries.
-
----
 
 ## Request Format
 
@@ -69,11 +117,9 @@ Each request is a JSON dictionary with at least:
 ```json
 {
   "type": "request_type",
-  "payload": { ... }
+  "payload": {...}
 }
 ```
-
----
 
 ## Session Management
 
@@ -118,8 +164,6 @@ Each request is a JSON dictionary with at least:
 }
 ```
 
----
-
 ### `logout`
 
 **Request:**
@@ -154,7 +198,6 @@ Each request is a JSON dictionary with at least:
   "error": "Missing session token."
 }
 ```
----
 
 ##  Market Data
 
@@ -177,8 +220,6 @@ Returns the best bid/ask spread.
   "spread": 0.5
 }
 ```
-
----
 
 ### `spread_info`
 
@@ -262,8 +303,6 @@ Authenticated request to place an order.
 }
 ```
 
----
-
 ### `cancel`
 
 Cancel an existing order by ID (must be owned by the session's user).
@@ -297,8 +336,6 @@ Cancel an existing order by ID (must be owned by the session's user).
 }
 ```
 
----
-
 ## Error Response Template
 
 Any unexpected behavior or misuse of the API will return:
@@ -309,8 +346,6 @@ Any unexpected behavior or misuse of the API will return:
   "error": "Error message here"
 }
 ```
-
----
 
 ## Sample User Accounts 
 
@@ -323,14 +358,43 @@ Any unexpected behavior or misuse of the API will return:
   "testuser": "test"
 }
 ```
+## Examples
+> [!NOTE]
+> - **All authenticated requests** (`order`, `cancel`, `logout`) must include the `token`.
+> - Tokens are currently 8-character UUID prefixes for simplicity.
+> - Designed for both human CLI interaction and automated CSV-based testing.
+> - All state is in-memory (for prototype); no persistence across runs.
 
----
+# Testing suite
 
-## Notes 
+There is a comprehensive testing suite provided that tests the core functionality of the system. Run it to verify that the system is working correctly. Note that this is not guarantee that *everything* works as expected, but can be a pretty good gauge that they are.
 
-* **All authenticated requests** (`order`, `cancel`, `logout`) must include the `token`.
-* Tokens are currently 8-character UUID prefixes for simplicity.
-* Designed for both human CLI interaction and automated CSV-based testing.
-* All state is in-memory (for prototype); no persistence across runs.
+## Testing Orders
 
----
+Test cases covered:
+
+1. Cancellation recovery: After placing an order into an empty order book, then cancelling that order, you can place new orders.
+2. FIFO at price level: The order book matches limit orders based on time priority. The order that was placed first at a price level should be the one getting filled first.
+3. Partial fills: A large order should get correctly filled with smaller orders, if the entire order cannot be filled, it should be added to the book with it's status as `partially_filled`.
+4. Market order match priority: A market order should consume the best available limit orders in price-time order.
+5. Multiple partial fills with a market order: A market order that's larger than a single price level should "walk the book" and match across price levels.
+6. Exact matching: When a buy and sell order match perfectly, they should both be filled at the same price and quantity, leaving no residue.
+7. Remaining quantity: After a partial fill, the remaining quantity should be correct.
+8. Negative quantity: an order with negative quantities should be rejected.
+9. qty = 0: an order with a quantity of 0 should be rejected.
+10. price = 0: an order with a price of 0 shoudl be rejected.
+11. price < 0: orders with negative prices should be rejected.
+12. Market orders with price fields: a market order should not have a price field, therefore a market order that contains one should be rejected.
+13. Limit orders without a price: a limit order should always contain a price, when one is submitted without it, it should be rejected.
+14. Invalid side: anything other than "buy" or "sell" should be rejected.
+15. Cancelling a non-existent order: cancelling a random `order_id` should be handled gracefully (should not cause a crash, but should be rejected).
+16. A user should not be able to cancel orders they did not create.
+17. Cancel after fill: once an order is fully filled, it should not be possible to cancel it.
+18. Placing an order without a token: should be rejected.
+19. Invalid token: invalid tokens should be rejected.
+20. Multiple orders at the same price from the same user: should all be independently recorded.
+21. Race conditions: placing an order while another one is processing.
+22. Resubmitting an order with the same fields: should be recorded as a new, independent order.
+23. Mass order / cancel: the system should be able to handle a large number of orders coming in.
+
+## How to Run Tests
