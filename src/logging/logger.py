@@ -1,7 +1,7 @@
 import json
 import threading
 
-from src.events import Event
+from src.feeds.events import Event
 
 
 class EventLogger:

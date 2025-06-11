@@ -1,4 +1,4 @@
-from src.dispatcher import OrderDispatcher, InvalidOrderError
+from src.api.dispatcher import OrderDispatcher, InvalidOrderError
 
 
 class ExchangeAPI:

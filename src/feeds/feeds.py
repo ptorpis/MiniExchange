@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.events import Event, EventBus
+from src.feeds.events import Event, EventBus
 
 
 class PrivateFeed:

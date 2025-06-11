@@ -1,10 +1,10 @@
 import time
 
-from src.api import ExchangeAPI
-from src.events import EventBus
-from src.logger import EventLogger
+from src.api.api import ExchangeAPI
+from src.feeds.events import EventBus
+from src.logging.logger import EventLogger
 # from src.feeds import PublicFeed
-from src.feeds import PrivateFeed
+from src.feeds.feeds import PrivateFeed
 
 # logger = EventLogger('logs/events.jsonl')
 

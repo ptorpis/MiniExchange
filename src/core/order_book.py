@@ -2,10 +2,10 @@ from collections import deque
 from sortedcontainers import SortedDict
 from datetime import datetime
 
-from src.order import LimitOrder, MarketOrder, Order
-from src.order import OrderSide, OrderStatus
-from src.trade import Trade
-from src.events import EventBus, Event
+from src.core.order import LimitOrder, MarketOrder, Order
+from src.core.order import OrderSide, OrderStatus
+from src.core .trade import Trade
+from src.feeds.events import EventBus, Event
 
 
 class OrderBook:

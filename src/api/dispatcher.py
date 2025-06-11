@@ -1,5 +1,5 @@
-from src.order import Order, LimitOrder, MarketOrder
-from src.order_book import OrderBook
+from src.core.order import Order, LimitOrder, MarketOrder
+from src.core.order_book import OrderBook
 
 
 class InvalidOrderError(Exception):
