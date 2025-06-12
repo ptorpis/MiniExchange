@@ -359,6 +359,9 @@ Any unexpected behavior or misuse of the API will return:
 }
 ```
 ## Examples
+
+There are example request found in `docs/reference_api_requests.json`. Consult that file to get the format of every type of request.
+
 > [!NOTE]
 > - **All authenticated requests** (`order`, `cancel`, `logout`) must include the `token`.
 > - Tokens are currently 8-character UUID prefixes for simplicity.
@@ -369,32 +372,39 @@ Any unexpected behavior or misuse of the API will return:
 
 There is a comprehensive testing suite provided that tests the core functionality of the system. Run it to verify that the system is working correctly. Note that this is not guarantee that *everything* works as expected, but can be a pretty good gauge that they are.
 
+The test are broken into separate modules, where each test module is testing the behavior of a module, for example `tests/test_orders.py` is testing placing, filling, cancelling orders and possible edge cases that might arise.
+
 ## Testing Orders
 
 Test cases covered:
+1. Placing a market when the order book is empty. This should result in an order cancellation.
+2. Placing a limit buy.
+3. Placing a limit sell.
+4. Placing 2 identical, but opposite side orders and checking if they fill perfectly.
+5. Cancelling an order.
+6. Placing a limit order with a negative quantity. This should be rejected.
+7. Placing a limit order with a negative price. This should be rejected.
+8. Placing a limit order with a price of 0. This should be rejected.
+9. Testing FIFO at price level. As per the policy of the order book, an order that got to a price level first should be the one getting filled first.
 
-1. Cancellation recovery: After placing an order into an empty order book, then cancelling that order, you can place new orders.
-2. FIFO at price level: The order book matches limit orders based on time priority. The order that was placed first at a price level should be the one getting filled first.
-3. Partial fills: A large order should get correctly filled with smaller orders, if the entire order cannot be filled, it should be added to the book with it's status as `partially_filled`.
-4. Market order match priority: A market order should consume the best available limit orders in price-time order.
-5. Multiple partial fills with a market order: A market order that's larger than a single price level should "walk the book" and match across price levels.
-6. Exact matching: When a buy and sell order match perfectly, they should both be filled at the same price and quantity, leaving no residue.
-7. Remaining quantity: After a partial fill, the remaining quantity should be correct.
-8. Negative quantity: an order with negative quantities should be rejected.
-9. qty = 0: an order with a quantity of 0 should be rejected.
-10. price = 0: an order with a price of 0 shoudl be rejected.
-11. price < 0: orders with negative prices should be rejected.
-12. Market orders with price fields: a market order should not have a price field, therefore a market order that contains one should be rejected.
-13. Limit orders without a price: a limit order should always contain a price, when one is submitted without it, it should be rejected.
-14. Invalid side: anything other than "buy" or "sell" should be rejected.
-15. Cancelling a non-existent order: cancelling a random `order_id` should be handled gracefully (should not cause a crash, but should be rejected).
-16. A user should not be able to cancel orders they did not create.
-17. Cancel after fill: once an order is fully filled, it should not be possible to cancel it.
-18. Placing an order without a token: should be rejected.
-19. Invalid token: invalid tokens should be rejected.
-20. Multiple orders at the same price from the same user: should all be independently recorded.
-21. Race conditions: placing an order while another one is processing.
-22. Resubmitting an order with the same fields: should be recorded as a new, independent order.
-23. Mass order / cancel: the system should be able to handle a large number of orders coming in.
+## Testing the API
+
+There is a validation layer built into the API to make sure that bad requests don't crash the system. If a bad request is encountered, the response should contain a "success": False field.
+
+Test cases covered:
+
+1. Tesing logging in.
+2. Testing logging out.
+3. Sending a bad logout request.
+4. Sending a bad limit order. (the order side is not recognized)
+5. Sending a nonexistent request type.
 
 ## How to Run Tests
+
+The testing framework is Python's built-in `unittest`. There are other great testing frameworks available, but in keeping with the theme of keeping dependencies as lean as possible, I went with the built in option.
+
+The tests are organized into the `tests/` folder, to run everything, just run `test.py`, which is found in the project root.
+
+```bash
+python test.py
+```

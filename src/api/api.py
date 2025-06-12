@@ -1,6 +1,7 @@
 from src.api.dispatcher import OrderDispatcher, InvalidOrderError
 from src.auth.session_manager import SessionManager
 from src.feeds.events import EventBus
+from src.api.validators import validators, ValidationError
 
 
 class ExchangeAPI:
@@ -12,6 +13,22 @@ class ExchangeAPI:
     def handle_request(self, request: dict) -> dict:
         request_type = request.get("type")
         payload = request.get("payload", {})
+
+        if request_type is None or payload is None:
+            return {
+                "success": False,
+                "error": "'request_type' or 'payload' not found."
+            }
+
+        try:
+            validator = validators.get(request_type)
+            if validator:
+                validator(payload)
+        except ValidationError as e:
+            return {
+                "success": False,
+                "error": f"Invalid request: {e}"
+            }
 
         match request_type:
             case "spread" | "spread_info":

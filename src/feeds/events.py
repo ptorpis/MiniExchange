@@ -31,7 +31,7 @@ class EventBus:
     def _run(self):
         while self.running or not self.queue.empty():
             try:
-                event = self.queue.get(timeout=0.1)
+                event = self.queue.get(timeout=0.01)
                 for handler in self.subscribers.get(event.type, []):
                     try:
                         handler(event)

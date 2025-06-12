@@ -30,21 +30,6 @@ class TestOrderHandling(unittest.TestCase):
         token = result.get("token")
         return token
 
-    def test_login(self):
-        # test if login is successful
-        login_request = {
-            "type": "login",
-            "payload": {
-                "username": "testuser",
-                "password": "test"
-            }
-        }
-
-        result = self.exch.handle_request(login_request)
-        token = result.get("token")
-        self.assertIsNotNone(token)
-        self.eb.shutdown()
-
     def test_market_order_empty_ob(self):
         # A market order into an empty order book should be cancelled.
         token = self.login()
@@ -166,4 +151,106 @@ class TestOrderHandling(unittest.TestCase):
 
         self.exch.handle_request(cancel_request)
         self.assertFalse(self.exch.dispatcher.order_book.bids)
+        self.eb.shutdown()
+
+    def test_negative_limit_qty(self):
+        token = self.login()
+
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": 1.0,
+                "qty": -1.0,
+                "order_type": "limit"
+            }
+        }
+
+        response = self.exch.handle_request(buy_limit_request)
+        self.assertFalse(response.get("success"))
+        self.eb.shutdown()
+
+    def test_negative_limit_price(self):
+        token = self.login()
+
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": -1.0,
+                "qty": 1.0,
+                "order_type": "limit"
+            }
+        }
+
+        response = self.exch.handle_request(buy_limit_request)
+        self.assertFalse(response.get("success"))
+        self.eb.shutdown()
+
+    def test_zero_price(self):
+        token = self.login()
+
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": 0.0,
+                "qty": 1.0,
+                "order_type": "limit"
+            }
+        }
+
+        response = self.exch.handle_request(buy_limit_request)
+        self.assertFalse(response.get("success"))
+        self.eb.shutdown()
+
+    def test_fifo_at_price_level(self):
+        token = self.login()
+
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": 100.0,
+                "qty": 10.0,
+                "order_type": "limit"
+            }
+        }
+
+        self.exch.handle_request(buy_limit_request)
+
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": 100.0,
+                "qty": 1.0,
+                "order_type": "limit"
+            }
+        }
+
+        second_response = self.exch.handle_request(buy_limit_request)
+        second_order_id = second_response["result"].order_id
+
+        sell_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "sell",
+                "price": 100.0,
+                "qty": 10.0,
+                "order_type": "limit"
+            }
+        }
+
+        self.exch.handle_request(sell_limit_request)
+        remaining_orders = self.exch.dispatcher.order_book.bids.get(100.0, [])
+        self.assertEqual(len(remaining_orders), 1)
+        remaining_order = remaining_orders[0]
+        self.assertEqual(remaining_order.order_id, second_order_id)
         self.eb.shutdown()
