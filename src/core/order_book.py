@@ -1,6 +1,6 @@
 from collections import deque
 from sortedcontainers import SortedDict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.core.order import LimitOrder, MarketOrder, Order
 from src.core.order import OrderSide, OrderStatus
@@ -186,7 +186,7 @@ class OrderBook:
                         "seller_order_id": seller_order_id,
                         "buyer_id": buyer_id,
                         "seller_id": seller_id,
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     }
                 ))
 
@@ -204,7 +204,7 @@ class OrderBook:
                             "price": best_price,
                             "qty": match_qty,
                             "client_id": resting_order.client_id,
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                     ))
                     queue.popleft()
@@ -218,7 +218,7 @@ class OrderBook:
                             "price": best_price,
                             "qty": match_qty,
                             "client_id": resting_order.client_id,
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": datetime.now(timezone.utc).isoformat()
                         }
                     ))
 
@@ -235,7 +235,7 @@ class OrderBook:
                     "price": order.price,
                     "qty": order.qty,
                     "client_id": order.client_id,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             ))
 
@@ -251,7 +251,7 @@ class OrderBook:
                     "price": order.price,
                     "qty": order.qty - remaining_qty,
                     "client_id": order.client_id,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             ))
 
@@ -309,7 +309,7 @@ class OrderBook:
                         "seller_order_id": seller_order_id,
                         "buyer_id": buyer_id,
                         "seller_id": seller_id,
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     }
                 ))
 
@@ -329,10 +329,9 @@ class OrderBook:
                 data={
                     "order_id": order.order_id,
                     "side": order.side,
-                    "price": order.price,
                     "qty": order.qty,
                     "client_id": order.client_id,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             ))
         elif remaining_qty < order.qty:
@@ -344,10 +343,9 @@ class OrderBook:
                 data={
                     "order_id": order.order_id,
                     "side": order.side,
-                    "price": order.price,
                     "qty": order.qty - remaining_qty,
                     "client_id": order.client_id,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             ))
         else:
@@ -360,7 +358,7 @@ class OrderBook:
                     "side": order.side,
                     "qty": order.qty,
                     "client_id": order.client_id,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             ))
 
@@ -388,7 +386,7 @@ class OrderBook:
                 "price": order.price,
                 "qty": order.qty,
                 "client_id": order.client_id,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
         )
 
@@ -399,7 +397,7 @@ class OrderBook:
             lines = []
             for price, queue in side.items():
                 orders_str = ', '.join(
-                    f"[id: {order.order_id[:6]}, qty: {order.qty}, "
+                    f"[id: {order.order_id[:8]}, qty: {order.qty}, "
                     f"status: {order.status}]"
                     for order in queue
                 )

@@ -13,14 +13,15 @@ class Event:
 
 
 class EventBus:
-    def __init__(self):
+    def __init__(self, test_mode: bool = False):
         self.subscribers: DefaultDict[
                 str, list[Callable[[Event], None]]
             ] = defaultdict(list)
         self.queue = queue.Queue()
-        self.running = True
-        self.worker = threading.Thread(target=self._run)
-        self.worker.start()
+        self.running = not test_mode
+        if not test_mode:
+            self.worker = threading.Thread(target=self._run)
+            self.worker.start()
 
     def subscribe(self, event_type: str, handler):
         self.subscribers[event_type].append(handler)

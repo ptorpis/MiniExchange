@@ -8,7 +8,7 @@ from src.feeds.events import EventBus
 class TestAPI(unittest.TestCase):
 
     def setUp(self):
-        self.eb = EventBus()
+        self.eb = EventBus(test_mode=True)
         self.sess = SessionManager(user_db=VSD)
         self.exch = ExchangeAPI(event_bus=self.eb, session_manager=self.sess)
 
@@ -43,7 +43,6 @@ class TestAPI(unittest.TestCase):
         result = self.exch.handle_request(login_request)
         token = result.get("token")
         self.assertIsNotNone(token)
-        self.eb.shutdown()
 
     def test_logout(self):
         token = self.login()
@@ -58,7 +57,6 @@ class TestAPI(unittest.TestCase):
         response = self.exch.handle_request(logout_request)
 
         self.assertTrue(response.get("success"))
-        self.eb.shutdown()
 
     def test_bad_logout(self):
         token = self.login()
@@ -70,7 +68,6 @@ class TestAPI(unittest.TestCase):
 
         response = self.exch.handle_request(bad_logout_request)
         self.assertFalse(response.get("success"))
-        self.eb.shutdown()
 
     def test_bad_limit_order(self):
         token = self.login()
@@ -87,7 +84,6 @@ class TestAPI(unittest.TestCase):
         }
         respnse = self.exch.handle_request(bad_limit_order)
         self.assertFalse(respnse.get("success"))
-        self.eb.shutdown()
 
     def test_non_existent_request_type(self):
         token = self.login()
@@ -104,4 +100,3 @@ class TestAPI(unittest.TestCase):
         }
         respnse = self.exch.handle_request(bad_limit_order)
         self.assertFalse(respnse.get("success"))
-        self.eb.shutdown()
