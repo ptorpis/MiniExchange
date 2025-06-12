@@ -46,13 +46,22 @@ pip install -r requirements.txt
 # Design
 ## Orders:
 
-This is a simplified prototype, but I still wanted semi realistic behavior. An order is represented by a dataclass. I added support for both limit orders and market orders. The difference between the 2 is that with a limit order, the client specifies a price that they wish to buy the asset for, but with the market order, they just specify the quantity, and they will get whatever is the best available price at that moment in the market.
+In this system there are 2 types of orders that are currently supported. Limit Orders and Market Orders. They share the same base case and inherit from them, the only difference is that the market order does not iclude a price, while a limit order must. When sumbitting a market order, including a price will make the request invalid and will be rejected.
 
-To handle this behavior, I created an abstract Order class and 2 child classes called LimitOrder and MarketOrder, both of which inherit from Order.
+A market order will always execute at the best available price, but if the order book is empty it gets cancelled.
 
-To keep track of the market activity, I added a field called "client_id" which help identify market participants later. In the market data stream, there are 2 versions, the private feed contains the client_id's, but the public feed, much like in real systems, the identity of market participants are obfuscated to protect their privacy and to not potentially reveal certain players' trading strategies.
+Limit orders are added to price levels and then filled based on FIFO logic.
 
-To make life easier and avoid typos, created a side and a status enum:
+The order objects are created using static constructors:
+
+```python
+LimitOrder.create(client_id, side, price, qty)
+MarketOrder.create(client_id, side, qty)
+```
+
+Note that this order creation is done by the [dispatcher](#dispatcher) layer.
+
+There are currently 4 possible states an order can be in:
 
 ```python
 class OrderStatus(Enum):
@@ -60,48 +69,105 @@ class OrderStatus(Enum):
     PARTIALLY_FILLED = "partially_filled"
     FILLED = "filled"
     CANCELLED = "cancelled"
-
-
-class OrderSide(Enum):
-    BUY = "buy"
-    SELL = "sell"
 ```
 
-For now, these are the only status messages that are added for simplicity's sake.
+Orders are serializable using their `to_dict()` method.
 
-Example: LimitOrder class:
+## Trades
+
+To encapsulate the unit of exchange activities in the system, a Trade dataclass was created. This can store all the information about a single transaction.
 
 ```python
 @dataclass
-class LimitOrder(Order):
+class Trade:
+    trade_id: str
     price: float
-
-    @staticmethod
-    def create(
-        client_id: str,
-        side: OrderSide,
-        price: float,
-        qty: float
-    ) -> "LimitOrder":
-
-        if isinstance(side, str):
-            side = OrderSide(side.lower())
-        return LimitOrder(
-            client_id=client_id,
-            order_id=str(uuid4()),
-            side=side.value,
-            price=price,
-            qty=qty
-        )
+    qty: float
+    timestamp: float
+    buyer_order_id: str
+    seller_order_id: str
+    buyer_id: str
+    seller_id: str
 ```
-## Trades
+
+Much like the Orders, the Trade objects are initialized using their `create()` static methods.
+
+For more readable representation, a `__repr__()` function is included.
 
 ## Events
-Pub-sub system
+
+The `EventBus` provides an asynchronous, decoupled event-driven communication mechanism within the system, enabling logging and market feeds to exist without impacting the performance of the order book. This system uses publisher-subscribers model to handle decoupled event management.
+
+Events are made up of 2 fields, `type` - the type of event - and `data` which is a dictionary payload about all the relevant information about a certain event.
+
+The event bus creates a new thread and runs in the background. Events are placed in the queue when they are published, then they are handled by whichever component is subscribed to that event. They can also be ignored.
+
+A test mode is also included, this disables thread creation when running tests, this was added because most tests don't need events to be running, but initialization requires an event bus to exist. By passing in `test_mode=True`, the event bus can be disabled.
 
 ## API
 
+To see the specs, go [here](#miniexchangeapi-specs)
+
+The `ExchangeAPI` object is the main entry point for a client to place orders, query market data, log in an out. It takes care of request validation, routing and response formatting.
+
+Its responsibilities include:
+
+- Request Handling
+- Validation
+- Authentication, by integrating with `SessionManager`.
+- Data and Request Routing.
+- Public Data Access, it provides read-only endpoints, such as order book spread and best bid/ask information without requiring authentication.
+- Error Handling: bad requests are handled gracefully.
+
+The response format is kept consistent for ease of use; [see more](#miniexchangeapi-specs).
+
 ## Dispatcher
+
+This is the layer that sits between the API and the order book. It makes sure that the order requests are valid and make sense, then routes them into the order book.
+
+This separation of responsibility is important to make sure that the API only has to handle request format validation, while the dispatcher can take a closer look at the incoming orders before they are sumbitted to the market.
+
+In the dispatcher file, there are custom exceptions defined to help identify the reason the order was not valid.
+
+## Order Book
+
+This is the central piece of the system, it takes care of the matching of orders and execution of trades.
+
+The `OrderBook` maintains two sorted collections of limit orders:
+
+- Bids: Buy orders sorted by descending price (highest first).
+- Asks: Sell orders sorted by ascending price (lowest first).
+
+Orders are grouped in price-level queues (FIFO) to preserve time priority at each price. There are other matching policies out there, for this project, FIFO was chosen for it's simplicity.
+
+Key data structures: 
+
+- Bids and asks use `SortedDict`s from `sortedcontainers`, which is the only dependency of this project. This keeps the resting orders sorted per price level.
+- Order map: tracks every order, used for cancellations (O(1) lookup for removals)
+
+Matching Logic
+### Limit Orders (`_match_limit_order`)
+
+Attempts to match the incoming limit order against the opposite book side.
+Matches price levels that satisfy the order’s price condition:
+    - Buy orders match asks with price ≤ order.price
+    - Sell orders match bids with price ≥ order.price
+
+Uses FIFO within each price level queue.
+
+Updates order quantities and status (filled, partially_filled).
+
+Emits events:
+    - TRADE for each match.
+    - ORDER_FILLED or ORDER_PARTIALLY_FILLED as order status changes.
+Unmatched residual quantity is added to the book as a new order.
+
+### Market Orders (`_match_market_order`)
+
+- Matches against the opposite book side at the best available prices.
+- Continues matching until the order is fully filled or no prices remain.
+- If the order cannot be fully matched, it is partially filled or cancelled.
+- Emits corresponding events (TRADE, ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_CANCELLED).
 
 ## Authentication and Session Management
 ---
@@ -117,7 +183,9 @@ Each request is a JSON dictionary with at least:
 ```json
 {
   "type": "request_type",
-  "payload": {...}
+  "payload": {
+        "foo": "bar"
+    }
 }
 ```
 
