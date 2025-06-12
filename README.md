@@ -374,6 +374,8 @@ There is a comprehensive testing suite provided that tests the core functionalit
 
 The test are broken into separate modules, where each test module is testing the behavior of a module, for example `tests/test_orders.py` is testing placing, filling, cancelling orders and possible edge cases that might arise.
 
+There are most likely scenarios that I have not thought of, but I tried coming up with some critical cases to ensure correctness of behavior.
+
 ## Testing Orders
 
 Test cases covered:
@@ -386,6 +388,13 @@ Test cases covered:
 7. Placing a limit order with a negative price. This should be rejected.
 8. Placing a limit order with a price of 0. This should be rejected.
 9. Testing FIFO at price level. As per the policy of the order book, an order that got to a price level first should be the one getting filled first.
+10. Testing that partial fills behave as expected.
+11. When placing a market order, it should be filled with the best available price.
+12. When a large market order is coming in that can fill multiple resting orders, it should be able to "walk the book".
+13. Placing a market order with a price shoudl be rejected.
+14. Trying to cancel a nonexistent order should be rejected.
+15. Cancelling a filled order should not be possible.
+16. Placing 2 identical orders should be recorded as 2, separate orders.
 
 ## Testing the API
 

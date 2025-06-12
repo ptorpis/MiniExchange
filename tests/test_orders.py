@@ -46,7 +46,7 @@ class TestOrderHandling(unittest.TestCase):
 
         response = self.exch.handle_request(market_order_request)
         result = response.get("result")
-        self.assertEqual(result.status, "cancelled")
+        self.assertEqual(result.get("order")["status"], "cancelled")
 
     def test_place_limit_buy_order(self):
         token = self.login()
@@ -134,8 +134,7 @@ class TestOrderHandling(unittest.TestCase):
         }
 
         response = self.exch.handle_request(buy_limit_request)
-
-        order_id = response.get("result").order_id
+        order_id = response.get("result")["order"]["order_id"]
 
         cancel_request = {
             "type": "cancel",
@@ -227,7 +226,7 @@ class TestOrderHandling(unittest.TestCase):
         }
 
         second_response = self.exch.handle_request(buy_limit_request)
-        second_order_id = second_response["result"].order_id
+        second_order_id = second_response["result"]["order"]["order_id"]
 
         sell_limit_request = {
             "type": "order",
@@ -320,7 +319,7 @@ class TestOrderHandling(unittest.TestCase):
             "payload": {
                 "token": token,
                 "side": "buy",
-                "price": 100.0,
+                "price": 100,
                 "qty": 10.0,
                 "order_type": "limit"
             }
@@ -331,7 +330,7 @@ class TestOrderHandling(unittest.TestCase):
             "payload": {
                 "token": token,
                 "side": "buy",
-                "price": 100.0,
+                "price": 101,
                 "qty": 10.0,
                 "order_type": "limit"
             }
@@ -347,4 +346,95 @@ class TestOrderHandling(unittest.TestCase):
             }
         }
         response = self.exch.handle_request(market_order_request)
-        self.assertEqual(response.get("success"), True)
+        self.assertTrue(response.get("success"))
+        trades = response["result"]["trades"]
+        self.assertEqual(len(trades), 2)
+        order = response["result"]["order"]
+        self.assertEqual(order["remaining_qty"], 0)
+        self.assertEqual(order["filled_qty"], 19)
+        self.assertEqual(trades[0]["price"], 100)
+        self.assertEqual(trades[1]["price"], 101)
+
+    def test_market_order_with_price(self):
+        token = self.login()
+        bad_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "sell",
+                "price": 100.0,
+                "qty": 19.0,
+                "order_type": "market"
+            }
+        }
+        response = self.exch.handle_request(bad_request)
+        self.assertFalse(response["success"])
+
+    def test_cancel_nonexistent_order(self):
+        token = self.login()
+        cancel_request = {
+            "type": "cancel",
+            "payload": {
+                "token": token,
+                "order_id": "bad_order_id"
+            }
+        }
+
+        response = self.exch.handle_request(cancel_request)
+        self.assertFalse(response["success"])
+
+    def test_cancel_filled_order(self):
+        token = self.login()
+
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": 100.0,
+                "qty": 10.0,
+                "order_type": "limit"
+            }
+        }
+        response = self.exch.handle_request(buy_limit_request)
+        order_id = response["result"]["order"]["order_id"]
+
+        sell_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "sell",
+                "price": 100.0,
+                "qty": 10.0,
+                "order_type": "limit"
+            }
+        }
+        self.exch.handle_request(sell_limit_request)
+
+        cancel_request = {
+            "type": "cancel",
+            "payload": {
+                "token": token,
+                "order_id": order_id
+            }
+        }
+
+        response = self.exch.handle_request(cancel_request)
+        self.assertFalse(response["success"])
+
+    def test_same_order_twice(self):
+        token = self.login()
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": 100.0,
+                "qty": 10.0,
+                "order_type": "limit"
+            }
+        }
+        self.exch.handle_request(buy_limit_request)
+        self.exch.handle_request(buy_limit_request)
+        orders = self.exch.dispatcher.order_book.bids.get(100.0, [])
+        self.assertEqual(len(orders), 2)
