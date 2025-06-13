@@ -42,7 +42,7 @@ class ExchangeAPI:
                 if not user:
                     return {
                         "success": False,
-                        "error": "Unauthorized or missing session token."
+                        "error": "Unauthorized."
                     }
 
                 if request_type == "order":

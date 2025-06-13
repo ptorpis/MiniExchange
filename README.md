@@ -46,7 +46,7 @@ pip install -r requirements.txt
 ```MiniExchange
 login <username> <password>
 
-order <side> <qty> <type> <price-if-limit>
+order <token> <side> <qty> <type> <price-if-limit>
 
 cancel <token> <order_id>
 

@@ -1,6 +1,10 @@
+
 from src.api.api import ExchangeAPI
 from src.auth.session_manager import SessionManager, VSD
 from src.feeds.events import EventBus
+
+
+EXIT_COMMANDS = ["quit", "q", "exit"]
 
 
 class CLI:
@@ -15,6 +19,9 @@ class CLI:
     def mainloop(self):
         while True:
             user_command = input("MiniExchange > ")
+            if user_command == "":
+                continue
+
             decoded_command = self._decode_commnand(user_command)
 
             if decoded_command[0] == "unknowm":
@@ -29,17 +36,18 @@ class CLI:
                 self.help()
                 continue
 
-            elif decoded_command[0] == "quit":
+            elif decoded_command[0] in EXIT_COMMANDS:
                 print("Exiting.")
                 self.event_bus.shutdown()
                 break
 
             else:
                 request = self._construct_request(decoded_command)
-                if request.get("error") is not None:
+                if request.get("error") is None:
                     response = self.api.handle_request(request)
                 else:
                     self.error()
+                    continue
 
                 self.output(response)
 
@@ -61,12 +69,15 @@ class CLI:
                     args["token"] = parts[1]
 
                 case "order":
-                    args["side"] = parts[1]
-                    args["qty"] = float(parts[2])
-                    args["order_type"] = parts[3]
+                    username = parts[1]
+                    token = self.session_manager.get_token(username)
+                    args["token"] = token
+                    args["side"] = parts[2]
+                    args["qty"] = float(parts[3])
+                    args["order_type"] = parts[4]
 
                     if args["order_type"] == "limit":
-                        args["price"] = parts[4]
+                        args["price"] = float(parts[5])
 
                 case "cancel":
                     args["token"] = parts[1]
@@ -75,7 +86,7 @@ class CLI:
                 case "spread" | "spreadinfo":
                     pass
 
-                case "quit":
+                case "quit" | "q" | "exit":
                     pass
 
                 case "help":
@@ -150,7 +161,7 @@ class CLI:
                         "type": "spread"
                     }
 
-                case "spread_info":
+                case "spreadinfo":
                     request = {
                         "type": "spread_info"
                     }
@@ -175,21 +186,23 @@ class CLI:
         print("""
 MiniExchange CLI Help:
 -------------------------
-login <username> <password>           - Log in to the system
-logout <token>                        - Log out of the system
+login <username> <password>                     - Log in to the system
+logout <token>                                  - Log out of the system
 
-order <side> <qty> <type> [price]     - Place an order
+order <username> <side> <qty> <type> [price]    - Place an order
    • side: buy | sell
    • qty: float
    • type: market | limit
    • price: required if type is limit
 
-cancel <token> <order_id>             - Cancel an order
+cancel <token> <order_id>                       - Cancel an order
 
-spread                                - View current best bid and ask
-spreadinfo                            - Show detailed spread metrics
+spread                                          - View current best bid and ask
+spreadinfo                                      - Show detailed spread metrics
 
-help                                  - Show this help message """)
+help                                            - Show this help message
+
+quit | exit | q                                 - Quit\n""")
 
     def error(self):
         print("Error: Malformed request or missing required parameters.")

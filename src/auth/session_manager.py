@@ -35,3 +35,9 @@ class SessionManager:
 
     def get_user(self, token: str) -> str | None:
         return self.sessions.get(token)
+
+    def get_token(self, username: str) -> str | None:
+        if username in self.user_tokens:
+            return self.user_tokens[username]
+        else:
+            return None
