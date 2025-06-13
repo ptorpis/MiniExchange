@@ -33,7 +33,7 @@ This project is meant to be a prototype for a FIFO order book single symbol exch
 I developed this project in Python 3.12, I cannot guarantee that it works in earlier versions, but should be fine 3.10+.
 
 ## Dependencies
-I tried to keep dependencies to a minimum. The libraries needed to run are: `sortedcontainers`
+I tried to keep dependencies to a minimum. The only library needed to run is: `sortedcontainers`
 To install, run:
 ```bash
 pip install -r requirements.txt
@@ -118,7 +118,7 @@ After running `main.py`, the user get's promted: `MiniExchange > `, then the use
 # Design
 ## Orders:
 
-In this system there are 2 types of orders that are currently supported. Limit Orders and Market Orders. They share the same base case and inherit from them, the only difference is that the market order does not iclude a price, while a limit order must. When sumbitting a market order, including a price will make the request invalid and will be rejected.
+In this system there are 2 types of orders that are currently supported. Limit Orders and Market Orders. They share the same base class and inherit from it, the only difference is that the market order does not iclude a price, while a limit order must. When sumbitting a market order, including a price will make the request invalid and will be rejected.
 
 A market order will always execute at the best available price, but if the order book is empty it gets cancelled.
 
@@ -191,7 +191,7 @@ Its responsibilities include:
 - Public Data Access, it provides read-only endpoints, such as order book spread and best bid/ask information without requiring authentication.
 - Error Handling: bad requests are handled gracefully.
 
-The response format is kept consistent for ease of use; [see more](#miniexchangeapi-specs).
+The response format is kept consistent for ease of use.
 
 ## Dispatcher
 
@@ -234,6 +234,8 @@ Emits events:
 - ORDER_FILLED or ORDER_PARTIALLY_FILLED as order status changes.
 Unmatched residual quantity is added to the book as a new order.
 
+It is possible to cancel a limit order after it has been placed, all is needed is the client id of the user that placed the order and the order id.
+
 ### Market Orders (`_match_market_order`)
 
 - Matches against the opposite book side at the best available prices.
@@ -242,6 +244,9 @@ Unmatched residual quantity is added to the book as a new order.
 - Emits corresponding events (TRADE, ORDER_FILLED, ORDER_PARTIALLY_FILLED, ORDER_CANCELLED).
 
 ## Authentication and Session Management
+
+Docs TBA
+
 ---
 
 # MiniExchangeAPI Specs
@@ -429,7 +434,11 @@ Authenticated request to place an order.
   "success": true,
   "result": {
     "order_id": "d3adbeef",
-    ...
+    "side": "sell",
+    "original_qty": 5,
+    "remaining_qty": 0,
+    "filled_qty": 5
+    "status": "filled"
   }
 }
 ```
