@@ -85,7 +85,7 @@ class MarketOrder(Order):
             side = OrderSide(side.lower())
         return MarketOrder(
             client_id=client_id,
-            order_id=str(uuid4()),
+            order_id=str(uuid4())[:8],
             side=side.value,
             qty=qty
         )

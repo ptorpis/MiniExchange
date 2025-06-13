@@ -316,6 +316,8 @@ class OrderBook:
                 resting_order.qty -= match_qty
                 remaining_qty -= match_qty
 
+                resting_order.status = OrderStatus.PARTIALLY_FILLED.value
+
                 if resting_order.qty == 0:
                     queue.popleft()
 

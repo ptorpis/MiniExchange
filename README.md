@@ -46,13 +46,15 @@ pip install -r requirements.txt
 ```MiniExchange
 login <username> <password>
 
-order <token> <side> <qty> <type> <price-if-limit>
+order <token> <side> <qty> <type> [price]
 
 cancel <token> <order_id>
 
 spread
 
 spreadinfo
+
+book
 
 help
 

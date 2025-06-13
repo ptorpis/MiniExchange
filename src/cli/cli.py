@@ -105,6 +105,9 @@ class CLI:
                 case "spread" | "spreadinfo":
                     pass
 
+                case "book":
+                    pass
+
                 case "quit" | "q" | "exit":
                     pass
 
@@ -185,6 +188,11 @@ class CLI:
                         "type": "spread_info"
                     }
 
+                case "book":
+                    request = {
+                        "type": "book"
+                    }
+
                 case _:
                     request = {"error": "Unable to construct request."}
 
@@ -215,6 +223,7 @@ class CLI:
             f"    - qty: float\n"
             f"    - type: market | limit\n"
             f"    - price: required if type is limit\n"
+            f"             (don't include if it's a market order)\n"
             f"\n > "
             f"cancel <username> <order_id>                  - Cancel "
             f"an order\n"
@@ -224,6 +233,9 @@ class CLI:
             f"\n > "
             f"spreadinfo                                    - Show detailed "
             f"spread metrics\n"
+            f"\n > "
+            f"book                                          - Print order "
+            f"book with all resting orders\n"
             f"\n > "
             f"help                                          - Show this "
             f"help message\n"
@@ -288,10 +300,13 @@ class CLI:
 
                 fmt_rsp = (
                     f"\n  Current Market Spread Information: \n"
-                    f"    Current Bid-Ask Spread: {current_spread}\n"
-                    f"    Current Best Bid: {best_bid}\n"
-                    f"    Current Best Ask: {best_ask}\n"
+                    f"      Current Bid-Ask Spread: {current_spread}\n"
+                    f"      Current Best Bid: {best_bid}\n"
+                    f"      Current Best Ask: {best_ask}\n"
                 )
+
+            case "book":
+                fmt_rsp = response.get("result")
 
             case _:
                 fmt_rsp = "Formatting not implemented."

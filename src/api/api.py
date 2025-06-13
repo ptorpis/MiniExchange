@@ -61,6 +61,11 @@ class ExchangeAPI:
             case "logout":
                 return self._logout(payload)
 
+            case "book":
+                return {
+                    "success": True,
+                    "result": str(self.dispatcher.order_book)
+                }
             case _:
                 return {
                     "success": False,
