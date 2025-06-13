@@ -284,7 +284,7 @@ class CLI:
                     current_spread = "order book is empty."
 
                 fmt_rsp = (
-                    f"\n  Current Bid-Ask Spread: "
+                    f"\nCurrent Bid-Ask Spread: "
                     f"{current_spread}\n"
                 )
 
@@ -302,14 +302,14 @@ class CLI:
                     best_ask = "Asks are empty."
 
                 fmt_rsp = (
-                    f"\n  Current Market Spread Information: \n"
-                    f"      Current Bid-Ask Spread: {current_spread}\n"
-                    f"      Current Best Bid: {best_bid}\n"
-                    f"      Current Best Ask: {best_ask}\n"
+                    f"\nCurrent Market Spread Information: \n"
+                    f"    Current Bid-Ask Spread: {current_spread}\n"
+                    f"    Current Best Bid: {best_bid}\n"
+                    f"    Current Best Ask: {best_ask}\n"
                 )
 
             case "book":
-                fmt_rsp = response.get("result")
+                fmt_rsp = "\n" + response.get("result") + "\n"
 
             case _:
                 fmt_rsp = "Formatting not implemented."
@@ -318,13 +318,13 @@ class CLI:
 
     def __format_order(self, order):
         return (
-            f"\n  Order:\n"
-            f"      ID: {order['order_id']}\n"
-            f"      Side: {order['side']}\n"
-            f"      Status: {order['status'].upper()}\n"
-            f"      Original Quantity: {round(order['original_qty'], 3)}\n"
-            f"      Remaining Quantity: {round(order['remaining_qty'], 3)}\n"
-            f"      Filled Quantity: {round(order['filled_qty'], 3)}\n"
+            f"\nOrder:\n"
+            f"    ID: {order['order_id']}\n"
+            f"    Side: {order['side']}\n"
+            f"    Status: {order['status'].upper()}\n"
+            f"    Original Quantity: {round(order['original_qty'], 3)}\n"
+            f"    Remaining Quantity: {round(order['remaining_qty'], 3)}\n"
+            f"    Filled Quantity: {round(order['filled_qty'], 3)}\n"
         )
 
     def __format_trades(self, trades):

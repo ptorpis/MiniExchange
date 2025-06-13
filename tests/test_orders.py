@@ -352,8 +352,8 @@ class TestOrderHandling(unittest.TestCase):
         order = response["result"]["order"]
         self.assertEqual(order["remaining_qty"], 0)
         self.assertEqual(order["filled_qty"], 19)
-        self.assertEqual(trades[0]["price"], 100)
-        self.assertEqual(trades[1]["price"], 101)
+        self.assertEqual(trades[0]["price"], 101)
+        self.assertEqual(trades[1]["price"], 100)
 
     def test_market_order_with_price(self):
         token = self.login()

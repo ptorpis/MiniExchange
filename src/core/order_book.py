@@ -275,8 +275,12 @@ class OrderBook:
             book = self.bids
 
         while remaining_qty > 0 and len(book) > 0:
-            best_price = next(iter(book))
-            queue = book[best_price]
+            if order.side == OrderSide.BUY.value:
+                best_price = self.best_ask()
+                queue = book[best_price]
+            else:
+                best_price = self.best_bid()
+                queue = book[best_price]
 
             while queue and remaining_qty > 0:
                 resting_order = queue[0]
