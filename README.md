@@ -1,4 +1,4 @@
-# UNDER CONSTRUCTION... 🚧
+# MiniExchange
 Single symbol orderbook / exchange prototype in Python.
 
 # Table of Contents
@@ -26,7 +26,7 @@ Single symbol orderbook / exchange prototype in Python.
     - [How to Run Tests](#how-to-run-tests)
 # Introduction
 
-text for introduction
+This project is meant to be a prototype for a FIFO order book single symbol exchange. In it's current form, it can serve as a sandbox to run simulations in and test different microstructure behaviors. It's not meant to be production grade, and things like slippage are yet to be added. There are only 2 types of orders, limit and market, more complicated order types are not supported as of now.
 
 # Setup and Installation
 
@@ -41,25 +41,79 @@ pip install -r requirements.txt
 
 # Usage
 
+TBA
+
 # Command Line Interface
 
-```MiniExchange
-login <username> <password>
+The command line interface should be treated more like a demo toy than anything, but it works the same way, integrating with the internal API, with some quality of life features. The outputs are formatted, and the user does not have to manually write the client ID tokens, instead, when logged in, a user can just pass their username.
 
-order <token> <side> <qty> <type> [price]
-
-cancel <token> <order_id>
-
-spread
-
-spreadinfo
-
-book
-
-help
-
-logout <username> <password>
+Here is some example output and the help page that shows the usage of the CLI.
+After running `main.py`:
 ```
+MiniExchange > help
+
+MiniExchange CLI Help:
+--------------------------------------------------------------
+ > login <username> <password>                   - Log in
+
+ > logout <username>                             - Log out of the system
+
+ > order <username> <side> <qty> <type> [price]  - Place an order
+    - side: buy | sell
+    - qty: float
+    - type: market | limit
+    - price: required if type is limit
+             (don't include if it's a market order)
+
+ > cancel <username> <order_id>                  - Cancel an order
+
+ > spread                                        - View current best bid and ask
+
+ > spreadinfo                                    - Show detailed spread metrics
+
+ > book                                          - Print order book with all resting orders
+
+ > help                                          - Show this help message
+
+ > quit | exit | q                               - Quit
+--------------------------------------------------------------
+
+MiniExchange > login testuser test
+Login Success.
+MiniExchange > order testuser sell 100 limit 100
+
+  Order:
+      ID: 59d98b31
+      Side: sell
+      Status: NEW
+      Original Quantity: 100.0
+      Remaining Quantity: 100.0
+      Filled Quantity: 0
+
+  No Trades.
+
+MiniExchange > order testuser buy 100 limit 99
+
+  Order:
+      ID: dea94ee9
+      Side: buy
+      Status: NEW
+      Original Quantity: 100.0
+      Remaining Quantity: 100.0
+      Filled Quantity: 0
+
+  No Trades.
+
+MiniExchange > book
+Order Book:
+Bids:
+  99.00: [id: dea94ee9, qty: 100.0, status: new]
+Asks:
+  100.00: [id: 59d98b31, qty: 100.0, status: new]
+MiniExchange > 
+
+```
+After running `main.py`, the user get's promted: `MiniExchange > `, then the user is able to log in, run commands, see the order book, etc.
 
 # Design
 ## Orders:
@@ -168,16 +222,16 @@ Matching Logic
 
 Attempts to match the incoming limit order against the opposite book side.
 Matches price levels that satisfy the order’s price condition:
-    - Buy orders match asks with price ≤ order.price
-    - Sell orders match bids with price ≥ order.price
+- Buy orders match asks with price ≤ order.price
+- Sell orders match bids with price ≥ order.price
 
 Uses FIFO within each price level queue.
 
 Updates order quantities and status (filled, partially_filled).
 
 Emits events:
-    - TRADE for each match.
-    - ORDER_FILLED or ORDER_PARTIALLY_FILLED as order status changes.
+- TRADE for each match.
+- ORDER_FILLED or ORDER_PARTIALLY_FILLED as order status changes.
 Unmatched residual quantity is added to the book as a new order.
 
 ### Market Orders (`_match_market_order`)
