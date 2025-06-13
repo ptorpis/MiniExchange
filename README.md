@@ -43,6 +43,22 @@ pip install -r requirements.txt
 
 # Command Line Interface
 
+```MiniExchange
+login <username> <password>
+
+order <side> <qty> <type> <price-if-limit>
+
+cancel <token> <order_id>
+
+spread
+
+spreadinfo
+
+help
+
+logout <username> <password>
+```
+
 # Design
 ## Orders:
 
