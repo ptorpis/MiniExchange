@@ -67,7 +67,7 @@ class OrderBook:
             return None
         return self.asks.peekitem(0)[0]  # Lowest ask will be the first
 
-    def cancel_order(self, order_id: str) -> bool:
+    def cancel_order(self, order_id: str, client_id: str) -> bool:
         entry = self.order_map.get(order_id)
 
         if not entry:
@@ -77,6 +77,9 @@ class OrderBook:
 
         for i, order in enumerate(queue):
             if order.order_id == order_id:
+                if order.client_id != client_id:
+                    return False
+
                 order.status = OrderStatus.CANCELLED.value
                 del queue[i]
 

@@ -51,12 +51,14 @@ class ExchangeAPI:
 
                 if request_type == "cancel":
                     order_id = payload.get("order_id")
-                    if not order_id:
+                    client_id = payload.get("token")
+                    if not order_id or not client_id:
                         return {
                             "success": False,
-                            "error": "Missing order_id in cancle request."
+                            "error": "Missing 'client_id' or 'order_id' "
+                                     "in cancel request."
                         }
-                    return self._cancel_order(order_id)
+                    return self._cancel_order(order_id, client_id)
 
             case "logout":
                 return self._logout(payload)
@@ -99,8 +101,8 @@ class ExchangeAPI:
                 "error": f"Internal Server Error {e}"
             }
 
-    def _cancel_order(self, order_id: str) -> dict:
-        result = self.dispatcher.cancel_order(order_id)
+    def _cancel_order(self, order_id: str, client_id) -> dict:
+        result = self.dispatcher.cancel_order(order_id, client_id)
 
         return {
             "success": result

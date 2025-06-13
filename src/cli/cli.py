@@ -273,7 +273,10 @@ class CLI:
                 fmt_rsp = formatted_order + "\n" + formatted_trades
 
             case "cancel":
-                fmt_rsp = "Order Cancelled."
+                if response.get("success"):
+                    fmt_rsp = "Order Cancelled."
+                else:
+                    fmt_rsp = "Order couldn't be cancelled."
 
             case "spread":
                 current_spread = response.get("spread")

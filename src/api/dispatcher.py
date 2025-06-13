@@ -115,8 +115,8 @@ class OrderDispatcher:
             "trades": formatted_trades
         }
 
-    def cancel_order(self, order_id: str):
-        return self.order_book.cancel_order(order_id)
+    def cancel_order(self, order_id: str, client_id):
+        return self.order_book.cancel_order(order_id, client_id)
 
 
 def return_format_order(order: Order, order_msg: dict):
