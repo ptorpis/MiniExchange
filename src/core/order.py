@@ -64,7 +64,7 @@ class LimitOrder(Order):
             side = OrderSide(side.lower())
         return LimitOrder(
             client_id=client_id,
-            order_id=str(uuid4()),
+            order_id=str(uuid4())[:8],
             side=side.value,
             price=price,
             qty=qty
