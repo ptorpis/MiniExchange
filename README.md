@@ -481,6 +481,8 @@ Test cases covered:
 14. Trying to cancel a nonexistent order should be rejected.
 15. Cancelling a filled order should not be possible.
 16. Placing 2 identical orders should be recorded as 2, separate orders.
+17. Cancelling someone else's order should not be possible.
+18. When a limit order crosses the other side's best price, it should first take the better price and execute immediately.
 
 ## Testing the API
 
@@ -493,6 +495,11 @@ Test cases covered:
 3. Sending a bad logout request.
 4. Sending a bad limit order. (the order side is not recognized)
 5. Sending a nonexistent request type.
+6. A request that is not a dict should be handled gracefully.
+7. Logging in twice with the same user should get a response with the same token and not reset the session.
+8. Logging in with multiple users.
+9. Logging out then trying to use the token should not be possible.
+10. After logging in and out, the old token should not be valid and the new one should.
 
 ## How to Run Tests
 

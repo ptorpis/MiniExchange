@@ -11,6 +11,12 @@ class ExchangeAPI:
         self.dispatcher = OrderDispatcher(event_bus=event_bus)
 
     def handle_request(self, request: dict) -> dict:
+        if type(request) is not dict:
+            return {
+                "success": False,
+                "error": "Malformed request."
+            }
+
         request_type = request.get("type")
         payload = request.get("payload", {})
 

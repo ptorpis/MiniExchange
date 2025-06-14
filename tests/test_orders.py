@@ -438,3 +438,85 @@ class TestOrderHandling(unittest.TestCase):
         self.exch.handle_request(buy_limit_request)
         orders = self.exch.dispatcher.order_book.bids.get(100.0, [])
         self.assertEqual(len(orders), 2)
+
+    def test_cancel_not_own_order(self):
+        token = self.login()
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": 100.0,
+                "qty": 10.0,
+                "order_type": "limit"
+            }
+        }
+        order_id = self.exch.handle_request(buy_limit_request)\
+            .get("result")["order"]["order_id"]
+        login_request = {
+            "type": "login",
+            "payload": {
+                "username": "alice",
+                "password": "pwdalice"
+            }
+        }
+        login = self.exch.handle_request(login_request)
+        token2 = login.get("token")
+
+        # Alice tries to cancel the first order
+
+        cancel_request = {
+            "type": "cancel",
+            "payload": {
+                "order_id": order_id,
+                "token": token2
+            }
+        }
+        result = self.exch.handle_request(cancel_request)
+        self.assertFalse(result["success"])
+        self.assertNotEqual(len(self.exch.dispatcher.order_book.bids), 0)
+
+    def test_crossing_limit(self):
+        token = self.login()
+        order_1 = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "sell",
+                "qty": 100,
+                "price": 100,
+                "order_type": "limit"
+            }
+        }
+        self.exch.handle_request(order_1)
+        order_2 = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "sell",
+                "qty": 100,
+                "price": 101,
+                "order_type": "limit"
+            }
+        }
+
+        self.exch.handle_request(order_2)
+
+        crossing_order = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "qty": 101,
+                "price": 102,
+                "order_type": "limit"
+            }
+        }
+        result = self.exch.handle_request(crossing_order)
+
+        trades = result["result"]["trades"]
+        order = result["result"]["order"]
+
+        self.assertEqual(trades[0]["price"], 100)
+        self.assertEqual(trades[1]["price"], 101)
+        self.assertEqual(order["filled_qty"], 101)
