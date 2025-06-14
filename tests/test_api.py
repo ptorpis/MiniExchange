@@ -219,3 +219,37 @@ class TestAPI(unittest.TestCase):
         self.exch.handle_request(order_with_new_token)
         resting_orders = self.exch.dispatcher.order_book.bids.get(100, [])
         self.assertEqual(len(resting_orders), 2)
+
+    def test_price_string(self):
+        token = self.login()
+
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": "100.0",
+                "qty": 1.0,
+                "order_type": "limit"
+            }
+        }
+        respoonse = self.exch.handle_request(buy_limit_request)
+        self.assertFalse(respoonse["success"])
+        self.assertEqual(len(self.exch.dispatcher.order_book.bids), 0)
+
+    def test_qty_string(self):
+        token = self.login()
+
+        buy_limit_request = {
+            "type": "order",
+            "payload": {
+                "token": token,
+                "side": "buy",
+                "price": 100.0,
+                "qty": "1.0",
+                "order_type": "limit"
+            }
+        }
+        respoonse = self.exch.handle_request(buy_limit_request)
+        self.assertFalse(respoonse["success"])
+        self.assertEqual(len(self.exch.dispatcher.order_book.bids), 0)

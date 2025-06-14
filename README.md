@@ -500,6 +500,12 @@ Test cases covered:
 8. Logging in with multiple users.
 9. Logging out then trying to use the token should not be possible.
 10. After logging in and out, the old token should not be valid and the new one should.
+11. Passing in a price as a string should be an invalid request.
+12. Passing in a quantity as a string should be an invalid request.
+
+## Testing the CLI
+
+The testing of the CLI was done by hand to make sure that the format of the output is correct and that invalid requests are not getting through.
 
 ## How to Run Tests
 
