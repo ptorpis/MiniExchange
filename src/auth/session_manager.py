@@ -4,7 +4,8 @@ import uuid
 VSD = {                     # it stands for Very Secure Database
     "alice": "pwdalice",
     "bob": "pwdbob",
-    "testuser": "test"
+    "testuser": "test",
+    "testuser2": "test"
 }
 
 

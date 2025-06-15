@@ -1,0 +1,7 @@
+action,username,side,qty,order_type,price
+login,testuser,,,,
+login,testuser2,,,,
+order,testuser,sell,100,limit,101
+order,testuser2,buy,100,limit,100
+logout,testuser,,,,
+logout,testuser2,,,,
