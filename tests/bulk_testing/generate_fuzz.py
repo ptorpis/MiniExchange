@@ -19,12 +19,13 @@ def generate_fuzz_csv(file_path: str, num_lines: int):
             username = random.choice(USERNAMES)
 
             side = random.choice(SIDES)
-            qty = round(random.uniform(1, 1000), 2)
             order_type = random.choice(ORDER_TYPES)
             if order_type == "limit":
-                price = round(random.uniform(50, 150), 2)
+                price = round(random.normalvariate(100, 0.5), 4)
+                qty = round(random.uniform(1, 1000), 2)
             else:
                 price = ""
+                qty = round(random.uniform(1, 1000), 2)
 
             row = ["order", username, side, qty, order_type, price]
 
@@ -41,5 +42,5 @@ def main(file_path: str, num_lines: int):
 
 if __name__ == "__main__":
     file_path = "tests/bulk_testing/csvs/fuzz_test.csv"
-    n = 1_000_000
+    n = 10_000_000
     main(file_path, n)

@@ -2,6 +2,8 @@ import csv
 import time
 from datetime import datetime, UTC
 
+import objgraph
+
 from src.auth.session_manager import SessionManager, VSD
 from src.api.api import ExchangeAPI
 from src.feeds.events import EventBus
@@ -94,20 +96,25 @@ def export_benchmark_csv(
 
 def main(file_path: str, api: ExchangeAPI, sm: SessionManager):
     total_requests = 0
-    fault = 0
+    faults = 0
 
     start_time = time.perf_counter()
 
     for request in stream_csv_requests(file_path, sm):
+
+        if total_requests % 1_000_000 == 0:
+            objgraph.show_most_common_types()
+            print()
+
         response = api.handle_request(request)
-        if response["success"] is False:
-            fault += 1
+
+        if not response.get("success", True):
+            faults += 1
+
         total_requests += 1
 
-    end_time = time.perf_counter()
-
-    elapsed_time = end_time - start_time
-    return total_requests, fault, elapsed_time
+    elapsed_time = time.perf_counter() - start_time
+    return total_requests, faults, elapsed_time
 
 
 if __name__ == "__main__":
@@ -120,6 +127,7 @@ if __name__ == "__main__":
     results = main(
         file_path=file_path,
         api=api, sm=sm)
+    event_bus.shutdown()
 
     export_benchmark_csv(
         "tests/bulk_testing/csvs/benchmark_results.csv",

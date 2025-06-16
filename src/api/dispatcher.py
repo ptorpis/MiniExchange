@@ -96,7 +96,7 @@ class OrderDispatcher:
             order = LimitOrder.create(
                 client_id=order_msg["token"],
                 side=order_msg["side"],
-                price=order_msg["price"],
+                price=round(order_msg["price"], 2),
                 qty=order_msg["qty"]
             )
         elif order_msg["order_type"] == "market":

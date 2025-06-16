@@ -211,6 +211,9 @@ class OrderBook:
                         }
                     ))
                     queue.popleft()
+                    self.order_map.pop(resting_order.order_id, None)
+                    del resting_order
+
                 else:
                     resting_order.status = OrderStatus.PARTIALLY_FILLED.value
                     self.event_bus.publish(Event(
@@ -241,6 +244,8 @@ class OrderBook:
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             ))
+            self.order_map.pop(order.order_id, None)
+            del order
 
         elif remaining_qty < order.qty:
             order.status = OrderStatus.PARTIALLY_FILLED.value
@@ -327,22 +332,41 @@ class OrderBook:
 
                 if resting_order.qty == 0:
                     queue.popleft()
+                    # REMOVE FROM ORDER MAP
+                    self.event_bus.publish(Event(
+                        type="ORDER_FILLED",
+                        data={
+                            "order_id": resting_order.order_id,
+                            "side": order.side,
+                            "qty": order.qty,
+                            "price": best_price,
+                            "client_id": order.client_id,
+                            "timestamp": datetime.now(timezone.utc).isoformat()
+                        }
+                    ))
+                    self.order_map.pop(resting_order.order_id, None)
+                    del resting_order
 
             if not queue:
                 del book[best_price]
 
         if remaining_qty == 0:
             order.status = OrderStatus.FILLED.value
+            # REMOVE FROM ORDER MAP
             self.event_bus.publish(Event(
                 type="ORDER_FILLED",
                 data={
                     "order_id": order.order_id,
                     "side": order.side,
                     "qty": order.qty,
+                    "price": best_price,
                     "client_id": order.client_id,
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
             ))
+            self.order_map.pop(order.order_id, None)
+            del order
+
         elif remaining_qty < order.qty:
             order.status = OrderStatus.PARTIALLY_FILLED.value
             order.qty = remaining_qty
@@ -353,6 +377,7 @@ class OrderBook:
                     "order_id": order.order_id,
                     "side": order.side,
                     "qty": order.qty - remaining_qty,
+                    "price": best_price,
                     "client_id": order.client_id,
                     "timestamp": datetime.now(timezone.utc).isoformat()
                 }
@@ -406,7 +431,7 @@ class OrderBook:
             lines = []
             for price, queue in side.items():
                 orders_str = ', '.join(
-                    f"[id: {order.order_id[:8]}, qty: {order.qty}, "
+                    f"[id: {order.order_id[:4]}, qty: {order.qty}, "
                     f"status: {order.status}]"
                     for order in queue
                 )
