@@ -22,7 +22,7 @@ class PrivateFeed:
         self.event_bus.subscribe("ORDER_ADDED", self._handle_event)
         self.event_bus.subscribe("ORDER_CANCELLED", self._handle_event)
         self.event_bus.subscribe("TRADE", self._handle_event)
-        self.event_bus.subscribe("PRDER_PARTIALLY_FILLED", self._handle_event)
+        self.event_bus.subscribe("ORDER_PARTIALLY_FILLED", self._handle_event)
         self.event_bus.subscribe("ORDER_FILLED", self._handle_event)
         self.print_enable = print
 
