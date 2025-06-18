@@ -25,15 +25,16 @@ def generate_fuzz_csv(file_path: str, num_lines: int):
                 qty = round(random.uniform(1, 1000), 2)
             else:
                 price = ""
-                qty = round(random.uniform(1, 1000), 2)
+                qty = round(random.uniform(1, 300), 2)
 
             row = ["order", username, side, qty, order_type, price]
 
             writer.writerow(row)
-            print(f"Generated Line {i}/{num_lines}", end="\r")
+            print(f"Generated Line {i + 1}/{num_lines}", end="\r")
 
         writer.writerow(["login", "testuser", "", "", "", ""])
         writer.writerow(["login", "testuser2", "", "", "", ""])
+        print(f"File written to {file_path}")
 
 
 def main(file_path: str, num_lines: int):

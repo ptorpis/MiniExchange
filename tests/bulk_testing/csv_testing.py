@@ -2,8 +2,6 @@ import csv
 import time
 from datetime import datetime, UTC
 
-import objgraph
-
 from src.auth.session_manager import SessionManager, VSD
 from src.api.api import ExchangeAPI
 from src.feeds.events import EventBus
@@ -70,7 +68,9 @@ def export_benchmark_csv(
         test_name: str,
         total_requests: int,
         faults: int,
-        elapsed_time: float
+        elapsed_time: float,
+        bids: int,
+        asks: int
 ):
     with open(output_file, mode='a', newline='') as csvfile:
         writer = csv.writer(csvfile)
@@ -82,7 +82,9 @@ def export_benchmark_csv(
                  "total_requests",
                  "faults",
                  "elapsed_time_s",
-                 "req_per_sec"])
+                 "req_per_sec",
+                 "bids",
+                 "asks"])
 
         writer.writerow([
             datetime.now(UTC).isoformat(),
@@ -90,7 +92,9 @@ def export_benchmark_csv(
             total_requests,
             faults,
             round(elapsed_time, 4),
-            round(total_requests / elapsed_time, 2)
+            round(total_requests / elapsed_time, 2),
+            bids,
+            asks
         ])
 
 
@@ -102,10 +106,6 @@ def main(file_path: str, api: ExchangeAPI, sm: SessionManager):
 
     for request in stream_csv_requests(file_path, sm):
 
-        if total_requests % 1_000_000 == 0:
-            objgraph.show_most_common_types()
-            print()
-
         response = api.handle_request(request)
 
         if not response.get("success", True):
@@ -114,7 +114,9 @@ def main(file_path: str, api: ExchangeAPI, sm: SessionManager):
         total_requests += 1
 
     elapsed_time = time.perf_counter() - start_time
-    return total_requests, faults, elapsed_time
+    bids = len(api.dispatcher.order_book.bids)
+    asks = len(api.dispatcher.order_book.asks)
+    return total_requests, faults, elapsed_time, bids, asks
 
 
 if __name__ == "__main__":
