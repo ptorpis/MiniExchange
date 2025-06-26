@@ -41,7 +41,9 @@ pip install -r requirements.txt
 
 # Usage
 
-TBA
+Run `main.py` and use the CLI to interact with the market order by order. When restarting the application, the order book is reset to an empty state. To place an order, a user has to first log in, the login credentials are currently managed by and in memory database stored in the session manager source file.
+
+To see all commands and their usage, type `help` after running `main.py`.
 
 # Command Line Interface
 
