@@ -28,7 +28,7 @@ Single symbol orderbook / exchange prototype in Python.
 
 This project is meant to be a prototype for a FIFO order book single symbol exchange. In it's current form, it can serve as a sandbox to run simulations in and test different microstructure behaviors. It's not meant to be production grade, and things like slippage are yet to be added. There are only 2 types of orders, limit and market, more complicated order types are not supported as of now.
 
-Full breakdown in: [PDF](design-and-implementation.pdf)
+Full breakdown in: [PDF](docs/design-and-implementation.pdf)
 
 # Setup and Installation
 
