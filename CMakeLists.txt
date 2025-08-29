@@ -27,5 +27,5 @@ find_package(OpenSSL REQUIRED)
 
 target_link_libraries(MiniExchangeCore PUBLIC OpenSSL::Crypto OpenSSL::SSL)
 
-add_executable(MiniExchangeCPP "${CMAKE_SOURCE_DIR}/src/main.cpp")
-target_link_libraries(MiniExchangeCPP PRIVATE MiniExchangeCore)
+add_executable(MiniExchange "${CMAKE_SOURCE_DIR}/src/main.cpp")
+target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)

@@ -1,0 +1,476 @@
+#pragma once
+
+#include "protocol/statusCodes.hpp"
+
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+enum class MessageType : uint8_t {
+    HELLO = 0x01,
+    HELLO_ACK = 0x02,
+    HEARTBEAT = 0x03,
+    LOGOUT = 0x04,
+    LOGOUT_ACK = 0x05,
+    SESSION_TIMEOUT = 0x06,
+    NEW_ORDER = 0x0A,
+    ORDER_ACK = 0x0B,
+    CANCEL_ORDER = 0x0C,
+    CANCEL_ACK = 0x0D,
+    MODIFY_ORDER = 0x0E,
+    MODIFY_ACK = 0x0F,
+    TRADE = 0x14,
+    RESEND_REQUEST = 0x28,
+    RESEND_RESPONSE = 0x29,
+    ERROR = 0x64
+};
+
+enum class HeaderFlags : uint8_t { PROTOCOL_VERSION = 0x01 };
+
+#pragma pack(push, 1)
+struct MessageHeader {
+    uint8_t messageType;
+    uint8_t protocolVersionFlag;
+    uint8_t reservedFlags[2];
+    uint16_t payLoadLength;
+    uint32_t clientMsgSqn;
+    uint32_t serverMsgSqn;
+    uint8_t padding[2];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(messageType);
+        func(protocolVersionFlag);
+        func(reservedFlags);
+        func(payLoadLength);
+        func(clientMsgSqn);
+        func(serverMsgSqn);
+        func(padding);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct HelloPayload {
+    uint8_t apiKey[16];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(apiKey);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct HelloAckPayload {
+    uint64_t serverClientID;
+    uint8_t status;
+    uint8_t padding[7];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(status);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct HeartBeatPayload {
+    uint64_t serverClientID;
+    uint8_t padding[8];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct LogoutPayload {
+    uint64_t serverClientID;
+    uint8_t padding[8];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct LogoutAckPayload {
+    uint64_t serverClientID;
+    uint8_t status;
+    uint8_t padding[7];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(status);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct SessionTimeoutPayload {
+    uint64_t serverClientID;
+    uint64_t serverTime;
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(serverTime);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct NewOrderPayload {
+    uint64_t serverClientID;
+    uint32_t instrumentID;
+    uint8_t orderSide;
+    uint8_t orderType;
+    int64_t quantity;
+    int64_t price;
+    uint8_t timeInForce;
+    uint64_t goodTillDate;
+    uint8_t padding[9];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(instrumentID);
+        func(orderSide);
+        func(orderType);
+        func(quantity);
+        func(price);
+        func(timeInForce);
+        func(goodTillDate);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct OrderAckPayload {
+    uint64_t serverClientID;
+    uint32_t instrumentID;
+    uint64_t serverOrderID;
+    uint8_t status;
+    uint8_t rejectFlag;
+    int64_t acceptedPrice;
+    uint64_t serverTime;
+    uint32_t latency;
+    uint8_t padding[6];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(instrumentID);
+        func(serverOrderID);
+        func(status);
+        func(rejectFlag);
+        func(acceptedPrice);
+        func(serverTime);
+        func(latency);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct CancelOrderPayload {
+    uint64_t serverClientID;
+    uint64_t serverOrderID;
+    uint8_t padding[16];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(serverOrderID);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct CancelAckPayload {
+    uint64_t serverClientID;
+    uint64_t serverOrderID;
+    uint8_t status;
+    uint8_t padding[15];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(serverOrderID);
+        func(status);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct ModifyOrderPayload {
+    uint64_t serverClientID;
+    uint64_t serverOrderID;
+    int64_t newQuantity;
+    uint8_t padding[8];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(serverOrderID);
+        func(newQuantity);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct ModifyAckPayload {
+    uint64_t serverClientID;
+    uint64_t serverOrderID;
+    uint8_t status;
+    uint32_t latency;
+    uint8_t padding[11];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(serverOrderID);
+        func(status);
+        func(latency);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct TradePayload {
+    uint64_t serverClientID;
+    uint64_t serverOrderID;
+    uint64_t tradeID;
+    int64_t filledQty;
+    int64_t filledPrice;
+    uint64_t timestamp;
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(serverClientID);
+        func(serverOrderID);
+        func(tradeID);
+        func(filledQty);
+        func(filledPrice);
+        func(timestamp);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+// #pragma pack(push, 1)
+// struct ResendRequestPayload {
+//     uint32_t startSqn;
+//     uint32_t endSqn;
+//     uint8_t padding[8];
+//     uint8_t hmac[32];
+// };
+// #pragma pack(pop)
+
+// #pragma pack(push, 1)
+// struct ResendResponsePayload {
+//     uint64_t serverClientID;
+// add later
+//     uint8_t hmac[32];
+// };
+// #pragma pack(pop)
+
+#pragma pack(push, 1)
+struct ErrorMessagePayload {
+    uint16_t errorCode;
+    uint8_t padding[14];
+    uint8_t hmac[32];
+
+    template <typename F> void iterateElements(F&& func) {
+        func(errorCode);
+        func(padding);
+        func(hmac);
+    }
+};
+#pragma pack(pop)
+
+template <typename Payload> struct Message {
+    MessageHeader header;
+    Payload payload;
+};
+
+template <typename T> struct PayloadTraits;
+
+template <> struct PayloadTraits<HelloPayload> {
+    static constexpr MessageType type = MessageType::HELLO;
+    static constexpr size_t size = sizeof(HelloAckPayload);
+};
+
+template <> struct PayloadTraits<HelloAckPayload> {
+    static constexpr MessageType type = MessageType::HELLO_ACK;
+    static constexpr size_t size = sizeof(HelloAckPayload);
+};
+
+template <> struct PayloadTraits<LogoutPayload> {
+    static constexpr MessageType type = MessageType::LOGOUT;
+    static constexpr size_t size = sizeof(LogoutPayload);
+};
+
+template <> struct PayloadTraits<LogoutAckPayload> {
+    static constexpr MessageType type = MessageType::LOGOUT_ACK;
+    static constexpr size_t size = sizeof(LogoutAckPayload);
+};
+
+template <> struct PayloadTraits<OrderAckPayload> {
+    static constexpr MessageType type = MessageType::ORDER_ACK;
+    static constexpr size_t size = sizeof(OrderAckPayload);
+};
+
+template <> struct PayloadTraits<CancelAckPayload> {
+    static constexpr MessageType type = MessageType::CANCEL_ACK;
+    static constexpr size_t size = sizeof(CancelAckPayload);
+};
+
+template <> struct PayloadTraits<ModifyAckPayload> {
+    static constexpr MessageType type = MessageType::MODIFY_ACK;
+    static constexpr size_t size = sizeof(ModifyAckPayload);
+};
+
+template <> struct PayloadTraits<TradePayload> {
+    static constexpr MessageType type = MessageType::TRADE;
+    static constexpr size_t size = sizeof(TradePayload);
+};
+
+template <typename Payload> inline MessageHeader makeHeader(Session& session) {
+    MessageHeader header{};
+    header.messageType = static_cast<uint8_t>(PayloadTraits<Payload>::type);
+    header.protocolVersionFlag = Flags::PROTOCOL_VERSION;
+    header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
+    header.clientMsgSqn = session.clientSqn;
+    header.serverMsgSqn = ++session.serverSqn;
+    std::memset(header.reservedFlags, 0, sizeof(header.reservedFlags));
+    std::memset(header.padding, 0, sizeof(header.padding));
+
+    return header;
+}
+
+template <typename Payload> inline MessageHeader makeClientHeader(Session& session) {
+    MessageHeader header{};
+    header.messageType = static_cast<uint8_t>(PayloadTraits<Payload>::type);
+    header.protocolVersionFlag = Flags::PROTOCOL_VERSION;
+    header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
+    header.clientMsgSqn = ++session.clientSqn;
+    header.serverMsgSqn = session.serverSqn;
+    std::memset(header.reservedFlags, 0, sizeof(header.reservedFlags));
+    std::memset(header.padding, 0, sizeof(header.padding));
+
+    return header;
+}
+
+struct MessageFactory {
+    static Message<HelloAckPayload> makeHelloAck(Session& session,
+                                                 status::HelloStatus status) {
+        Message<HelloAckPayload> msg;
+
+        msg.header = makeHeader<HelloAckPayload>(session);
+
+        msg.payload.serverClientID = session.serverClientID;
+        msg.payload.status = static_cast<uint8_t>(status);
+
+        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
+        std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+
+        return msg;
+    }
+
+    static Message<LogoutAckPayload> makeLoutAck(Session& session,
+                                                 status::LogoutStatus status) {
+        Message<LogoutAckPayload> msg;
+
+        msg.header = makeHeader<LogoutAckPayload>(session);
+
+        msg.payload.serverClientID = session.serverClientID;
+        msg.payload.status = static_cast<uint8_t>(status);
+
+        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
+        std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+
+        return msg;
+    }
+};
+
+namespace constants {
+constexpr size_t HEADER_SIZE = 16;
+constexpr size_t HMAC_SIZE = 32;
+constexpr size_t HEADER_SIZE = 16;
+
+namespace PaylpadSize {
+inline constexpr size_t HELLO = sizeof(HelloPayload);
+inline constexpr size_t HELLO_ACK = sizeof(HelloAckPayload);
+inline constexpr size_t HEARTBEAT = sizeof(HeartBeatPayload);
+inline constexpr size_t LOGOUT = sizeof(LogoutPayload);
+inline constexpr size_t LOGOUT_ACK = sizeof(LogoutAckPayload);
+inline constexpr size_t SESSION_TIMEOUT = sizeof(SessionTimeoutPayload);
+inline constexpr size_t NEW_ORDER = sizeof(NewOrderPayload);
+inline constexpr size_t ORDER_ACk = sizeof(OrderAckPayload);
+inline constexpr size_t CANCEL_ORDER = sizeof(CancelOrderPayload);
+inline constexpr size_t CANCEL_ACK = sizeof(CancelAckPayload);
+inline constexpr size_t MODIFY_ORDER = sizeof(ModifyOrderPayload);
+inline constexpr size_t MODIFY_ACK = sizeof(ModifyAckPayload);
+inline constexpr size_t TRADE = sizeof(TradePayload);
+} // namespace PaylpadSize
+
+namespace HMACOffset {
+constexpr size_t HELLO_OFFSET = HEADER_SIZE + offsetof(HelloPayload, hmac);
+constexpr size_t LOGOUT_OFFSET = HEADER_SIZE + offsetof(LogoutPayload, hmac);
+} // namespace HMACOffset
+
+namespace HeaderOffset {
+constexpr size_t MESSAGE_TYPE = 0;
+constexpr size_t PROTOCOL_VERSION_FLAG = 1;
+constexpr size_t RESERVED_FLAGS = 2;
+constexpr size_t PAYLOAD_LENGTH = 4;
+constexpr size_t CLIENT_MSG_SQN = 6;
+constexpr size_t SERVER_MSG_SQN = 10;
+constexpr size_t PADDING = 14;
+} // namespace HeaderOffset
+
+} // namespace constants
+static_assert(sizeof(MessageHeader) == 16, "MessageHeader size incorrect");
+static_assert(sizeof(HelloPayload) == 48, "HelloPayload size incorrect");
+static_assert(sizeof(HelloAckPayload) == 48, "HelloAckPayload size incorrect");
+static_assert(sizeof(HeartBeatPayload) == 48, "HeartBeatPayload size incorrect");
+static_assert(sizeof(LogoutPayload) == 48, "LogoutPayload size incorrect");
+static_assert(sizeof(LogoutAckPayload) == 48, "LogoutAckPayload size incorrect");
+static_assert(sizeof(SessionTimeoutPayload) == 48,
+              "SessionTimeoutPayload size incorrect");
+static_assert(sizeof(NewOrderPayload) == 80, "NewOrderPayload size incorrect");
+static_assert(sizeof(OrderAckPayload) == 80, "OrderAckPayload size incorrect");
+static_assert(sizeof(CancelOrderPayload) == 64, "CancelOrderPayload size incorrect");
+static_assert(sizeof(CancelAckPayload) == 64, "CancelAckPayload size incorrect");
+static_assert(sizeof(ModifyOrderPayload) == 64, "ModifyOrderPayload size incorrect");
+static_assert(sizeof(ModifyAckPayload) == 64, "ModifyAckPayload size incorrect");
+static_assert(sizeof(TradePayload) == 80, "TradePayload size incorrect");
+static_assert(sizeof(ErrorMessagePayload) == 48, "ErrorMessagePayload size incorrect");
