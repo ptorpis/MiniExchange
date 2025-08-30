@@ -9,7 +9,7 @@
 
 class MiniExchangeAPI {
 public:
-    MiniExchangeAPI(SessionManager& sm, MatchingEngine& engine)
+    MiniExchangeAPI(MatchingEngine& engine, SessionManager& sm)
         : engine_(engine), sessionManager_(sm) {}
 
     Session& connectClient(int fd);

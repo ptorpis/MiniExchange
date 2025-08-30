@@ -30,19 +30,21 @@ public:
     void sendHello();
     void sendLogout();
 
+    void appendRecvBuffer(std::span<const uint8_t> data);
+
     bool getAuthStatus() { return session_.authenticated; }
 
     void clearSendBuffer() { session_.sendBuffer.clear(); }
+    void clearRecvBuffer() { session_.recvBuffer.clear(); }
 
 private:
     std::array<uint8_t, 16> APIKey_;
 
-    std::array<uint8_t, constants::HMAC_SIZE>
-    computeHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data, size_t dataLen);
-
     bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
                      size_t dataLen, const uint8_t* expectedHMAC, size_t HMACLen);
 
+    std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
+                                      const uint8_t* data, size_t dataLen);
     std::optional<MessageHeader> peekHeader_() const;
 
     Session session_;
