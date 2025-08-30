@@ -363,10 +363,15 @@ template <> struct PayloadTraits<TradePayload> {
     static constexpr size_t size = sizeof(TradePayload);
 };
 
+namespace constants {
+enum class HeaderFlags : uint8_t { PROTOCOL_VERSION = 0x01 };
+}
+
 template <typename Payload> inline MessageHeader makeHeader(Session& session) {
     MessageHeader header{};
     header.messageType = static_cast<uint8_t>(PayloadTraits<Payload>::type);
-    header.protocolVersionFlag = Flags::PROTOCOL_VERSION;
+    header.protocolVersionFlag =
+        static_cast<uint8_t>(constants::HeaderFlags::PROTOCOL_VERSION);
     header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
     header.clientMsgSqn = session.clientSqn;
     header.serverMsgSqn = ++session.serverSqn;
@@ -379,7 +384,8 @@ template <typename Payload> inline MessageHeader makeHeader(Session& session) {
 template <typename Payload> inline MessageHeader makeClientHeader(Session& session) {
     MessageHeader header{};
     header.messageType = static_cast<uint8_t>(PayloadTraits<Payload>::type);
-    header.protocolVersionFlag = Flags::PROTOCOL_VERSION;
+    header.protocolVersionFlag =
+        static_cast<uint8_t>(constants::HeaderFlags::PROTOCOL_VERSION);
     header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
     header.clientMsgSqn = ++session.clientSqn;
     header.serverMsgSqn = session.serverSqn;
@@ -391,7 +397,7 @@ template <typename Payload> inline MessageHeader makeClientHeader(Session& sessi
 
 struct MessageFactory {
     static Message<HelloAckPayload> makeHelloAck(Session& session,
-                                                 status::HelloStatus status) {
+                                                 statusCodes::HelloStatus status) {
         Message<HelloAckPayload> msg;
 
         msg.header = makeHeader<HelloAckPayload>(session);
@@ -406,7 +412,7 @@ struct MessageFactory {
     }
 
     static Message<LogoutAckPayload> makeLoutAck(Session& session,
-                                                 status::LogoutStatus status) {
+                                                 statusCodes::LogoutStatus status) {
         Message<LogoutAckPayload> msg;
 
         msg.header = makeHeader<LogoutAckPayload>(session);
@@ -424,9 +430,8 @@ struct MessageFactory {
 namespace constants {
 constexpr size_t HEADER_SIZE = 16;
 constexpr size_t HMAC_SIZE = 32;
-constexpr size_t HEADER_SIZE = 16;
 
-namespace PaylpadSize {
+namespace PayloadSize {
 inline constexpr size_t HELLO = sizeof(HelloPayload);
 inline constexpr size_t HELLO_ACK = sizeof(HelloAckPayload);
 inline constexpr size_t HEARTBEAT = sizeof(HeartBeatPayload);
@@ -440,7 +445,7 @@ inline constexpr size_t CANCEL_ACK = sizeof(CancelAckPayload);
 inline constexpr size_t MODIFY_ORDER = sizeof(ModifyOrderPayload);
 inline constexpr size_t MODIFY_ACK = sizeof(ModifyAckPayload);
 inline constexpr size_t TRADE = sizeof(TradePayload);
-} // namespace PaylpadSize
+} // namespace PayloadSize
 
 namespace HMACOffset {
 constexpr size_t HELLO_OFFSET = HEADER_SIZE + offsetof(HelloPayload, hmac);

@@ -1,0 +1,49 @@
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <span>
+#include <vector>
+
+#include "auth/session.hpp"
+#include "protocol/messages.hpp"
+
+class Client {
+public:
+    Client(std::array<uint8_t, constants::HMAC_SIZE> hmacKey,
+           std::array<uint8_t, 16> APIKey, int fd)
+        : APIKey_(APIKey), session_(fd) {
+        session_.hmacKey = hmacKey;
+    }
+
+    Session& getConnection() { return session_; }
+
+    template <typename Payload> void sendMessage(Message<Payload> msg);
+
+    void processIncoming();
+
+    std::array<uint8_t, 16> getAPIKey() { return APIKey_; }
+    const std::vector<uint8_t>& readRecBuffer() const { return session_.recvBuffer; }
+    const std::vector<uint8_t>& readSendBuffer() const { return session_.sendBuffer; }
+
+    void sendHello();
+    void sendLogout();
+
+    bool getAuthStatus() { return session_.authenticated; }
+
+    void clearSendBuffer() { session_.sendBuffer.clear(); }
+
+private:
+    std::array<uint8_t, 16> APIKey_;
+
+    std::array<uint8_t, constants::HMAC_SIZE>
+    computeHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data, size_t dataLen);
+
+    bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
+                     size_t dataLen, const uint8_t* expectedHMAC, size_t HMACLen);
+
+    std::optional<MessageHeader> peekHeader_() const;
+
+    Session session_;
+};

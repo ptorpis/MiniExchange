@@ -2,16 +2,21 @@
 
 #include <cstdint>
 
-namespace status {
+namespace statusCodes {
 enum class HelloStatus : uint8_t {
+    NULLSTATUS = 0x00,
     ACCEPTED = 0x01,
-    INVALID_HMAC = 0x01,
-    INVALID_API_KEY = 0x02,
+    INVALID_HMAC = 0x02,
+    INVALID_API_KEY = 0x03,
+    OUT_OF_ORDER = 0x04,
+    ILL_FORMED = 0x05
 };
 
 enum class LogoutStatus : uint8_t {
+    NULLSTATUS = 0x00,
     ACCEPTED = 0x01,
     INVALID_HMAC = 0x02,
+    OUT_OF_ORDER = 0x04
 };
 
-} // namespace status
+} // namespace statusCodes
