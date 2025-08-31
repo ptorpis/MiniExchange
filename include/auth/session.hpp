@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils/types.hpp"
+
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -7,7 +9,7 @@
 
 struct Session {
 
-    int SessionID; // fd
+    int sessionID; // fd
     uint32_t serverSqn{0};
     uint32_t clientSqn{0};
 
@@ -22,7 +24,7 @@ struct Session {
     uint64_t serverClientID{0};
 
     explicit Session(int fd)
-        : SessionID(fd), lastHeartBeat(std::chrono::steady_clock::now()) {
+        : sessionID(fd), lastHeartBeat(std::chrono::steady_clock::now()) {
         hmacKey.fill(0x00);
     }
 
@@ -34,4 +36,9 @@ struct Session {
         hmacKey.fill(0);
         serverClientID = 0;
     }
+
+    TradeID getNextExeID() { return ++exeID_; }
+
+private:
+    TradeID exeID_{0};
 };

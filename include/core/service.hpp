@@ -1,6 +1,7 @@
 #pragma once
 #include "core/order.hpp"
-#include "types.hpp"
+#include "protocol/messages.hpp"
+#include "utils/types.hpp"
 #include <chrono>
 #include <limits>
 
@@ -8,13 +9,24 @@ class OrderService {
 public:
     OrderService() : idSqn_(0) {}
 
-    Order createOrder(ClientID clientID, OrderSide side, OrderType type, Qty qty,
-                      Price price, TimeInForce tif,
-                      Timestamp goodTill = std::numeric_limits<Timestamp>::max(),
-                      OrderStatus status) {
-
-        return Order{++idSqn_, clientID, side, type, qty, price, tif, currentTimestamp_(),
-                     status};
+    std::optional<Order> createOrderFromMessage(Message<NewOrderPayload>& msg) {
+        NewOrderPayload pyld = msg.payload;
+        if (pyld.price <= 0 || pyld.quantity <= 0) {
+            return std::nullopt;
+        }
+        return Order{
+            ++idSqn_,
+            pyld.serverClientID,
+            static_cast<OrderSide>(pyld.orderSide),
+            static_cast<OrderType>(pyld.orderType),
+            pyld.instrumentID,
+            static_cast<Qty>(pyld.quantity),
+            static_cast<Price>(pyld.price),
+            static_cast<TimeInForce>(pyld.timeInForce),
+            std::numeric_limits<Timestamp>::max(),
+            OrderStatus::NEW,
+            currentTimestamp_(),
+        };
     }
 
 private:

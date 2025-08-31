@@ -17,7 +17,8 @@ int main() {
 
     MatchingEngine engine;
     SessionManager sessionManager;
-    MiniExchangeAPI api = MiniExchangeAPI(engine, sessionManager);
+    OrderService service;
+    MiniExchangeAPI api = MiniExchangeAPI(engine, sessionManager, service);
     NetworkHandler handler = NetworkHandler(api, sessionManager);
 
     std::array<uint8_t, 32> HMACKey;
@@ -30,7 +31,7 @@ int main() {
     client.sendHello();
     const std::vector<uint8_t> clientSendBuffer = client.readSendBuffer();
     std::cout << "Data sent from the client to the Server" << std::endl;
-    utils::printHex(clientSendBuffer.data(), clientSendBuffer.size());
+    utils::printHex(clientSendBuffer);
 
     Session& serverSession = sessionManager.createSession(serverFD);
     serverSession.hmacKey = HMACKey;
@@ -42,7 +43,7 @@ int main() {
 
     const std::vector<uint8_t> serverSendBuffer = serverSession.sendBuffer;
     std::cout << "Server's HELLO ACK response" << std::endl;
-    utils::printHex(serverSendBuffer.data(), serverSendBuffer.size());
+    utils::printHex(serverSendBuffer);
 
     client.clearSendBuffer();
     client.appendRecvBuffer(serverSendBuffer);

@@ -8,19 +8,10 @@
 #include <vector>
 
 #include "core/order.hpp"
+#include "core/trade.hpp"
 #include "utils/types.hpp"
 
 using OrderQueue = std::deque<Order*>;
-
-struct TradeEvent {
-    OrderID buyerOrderID;
-    OrderID sellerOrderID;
-    ClientID buyerID;
-    ClientID sellerID;
-    Qty qty;
-    Price price;
-    Timestamp timestamp;
-};
 
 class MatchingEngine {
 public:
@@ -55,9 +46,10 @@ private:
     struct BuySide {
 
         static auto& book(MatchingEngine& eng) { return eng.asks_; }
-        static TradeEvent makeTradeEvent(Order* taker, Order* maker, Price p, Qty q,
-                                         Timestamp ts) {
-            return TradeEvent{taker->clientID,
+        static TradeEvent makeTradeEvent(TradeID tradeID, Order* taker, Order* maker,
+                                         Price p, Qty q, Timestamp ts) {
+            return TradeEvent{tradeID,
+                              taker->clientID,
                               maker->clientID,
                               taker->orderID,
                               maker->orderID,
@@ -72,9 +64,10 @@ private:
 
     struct SellSide {
         static auto& book(MatchingEngine& eng) { return eng.bids_; }
-        static TradeEvent makeTradeEvent(Order* taker, Order* maker, Price p, Qty q,
-                                         Timestamp ts) {
-            return TradeEvent{maker->clientID,
+        static TradeEvent makeTradeEvent(TradeID tradeID, Order* taker, Order* maker,
+                                         Price p, Qty q, Timestamp ts) {
+            return TradeEvent{tradeID,
+                              maker->clientID,
                               taker->clientID,
                               maker->orderID,
                               taker->orderID,
@@ -128,6 +121,9 @@ private:
                    std::chrono::steady_clock::now().time_since_epoch())
             .count();
     }
+
+    TradeID tradeID{0};
+    TradeID getNextTradeID_() { return ++tradeID; }
 };
 
 template <typename SidePolicy, typename OrderTypePolicy>
@@ -152,8 +148,9 @@ std::vector<TradeEvent> MatchingEngine::matchOrder_(Order* order) {
             auto restingOrder = queue.front();
             Qty matchQty = std::min(remainingQty, restingOrder->qty);
 
-            trades.emplace_back(SidePolicy::makeTradeEvent(
-                order, restingOrder, bestPrice, matchQty, currentTimestamp_()));
+            trades.emplace_back(
+                SidePolicy::makeTradeEvent(getNextTradeID_(), order, restingOrder,
+                                           bestPrice, matchQty, currentTimestamp_()));
 
             remainingQty -= matchQty;
             restingOrder->qty -= matchQty;

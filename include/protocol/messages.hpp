@@ -1,6 +1,9 @@
 #pragma once
 
+#include "core/order.hpp"
+#include "core/trade.hpp"
 #include "protocol/statusCodes.hpp"
+#include "utils/utils.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -169,11 +172,10 @@ struct OrderAckPayload {
     uint32_t instrumentID;
     uint64_t serverOrderID;
     uint8_t status;
-    uint8_t rejectFlag;
     int64_t acceptedPrice;
     uint64_t serverTime;
     uint32_t latency;
-    uint8_t padding[6];
+    uint8_t padding[7];
     uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
@@ -181,7 +183,6 @@ struct OrderAckPayload {
         func(instrumentID);
         func(serverOrderID);
         func(status);
-        func(rejectFlag);
         func(acceptedPrice);
         func(serverTime);
         func(latency);
@@ -425,6 +426,55 @@ struct MessageFactory {
 
         return msg;
     }
+
+    static Message<OrderAckPayload> makeOrderAck(Session& session,
+                                                 Message<NewOrderPayload> msg,
+                                                 std::optional<Order> order,
+                                                 statusCodes::OrderAckStatus status) {
+
+        Message<OrderAckPayload> ack;
+        Timestamp currentTime = utils::getCurrentTimestampMicros();
+        ack.header = makeHeader<OrderAckPayload>(session);
+        ack.payload.serverClientID = session.serverClientID;
+        ack.payload.instrumentID = msg.payload.instrumentID;
+        ack.payload.status = static_cast<uint8_t>(status);
+        ack.payload.serverTime = currentTime;
+        ack.payload.latency =
+            static_cast<uint32_t>(currentTime - order.value().timestamp);
+        if (!order) {
+            ack.payload.serverOrderID = 0x00;
+            ack.payload.acceptedPrice = 0;
+        } else {
+            ack.payload.serverOrderID = order.value().orderID;
+            ack.payload.acceptedPrice = order.value().price;
+        }
+
+        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
+        std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+        return ack;
+    }
+
+    static Message<TradePayload> makeTradeEvent(Session& session, TradeEvent trade,
+                                                bool isBuyer) {
+        Message<TradePayload> msg;
+
+        msg.payload.tradeID = session.getNextExeID();
+        msg.payload.filledQty = trade.qty;
+        msg.payload.filledPrice = trade.price;
+        msg.payload.timestamp = utils::getCurrentTimestampMicros();
+
+        if (isBuyer) {
+            msg.payload.serverClientID = trade.buyerID;
+            msg.payload.serverOrderID = trade.buyerOrderID;
+        } else {
+            msg.payload.serverClientID = trade.sellerID;
+            msg.payload.serverOrderID = trade.sellerOrderID;
+        }
+
+        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
+
+        return msg;
+    }
 };
 
 namespace constants {
@@ -439,13 +489,32 @@ inline constexpr size_t LOGOUT = sizeof(LogoutPayload);
 inline constexpr size_t LOGOUT_ACK = sizeof(LogoutAckPayload);
 inline constexpr size_t SESSION_TIMEOUT = sizeof(SessionTimeoutPayload);
 inline constexpr size_t NEW_ORDER = sizeof(NewOrderPayload);
-inline constexpr size_t ORDER_ACk = sizeof(OrderAckPayload);
+inline constexpr size_t ORDER_ACK = sizeof(OrderAckPayload);
 inline constexpr size_t CANCEL_ORDER = sizeof(CancelOrderPayload);
 inline constexpr size_t CANCEL_ACK = sizeof(CancelAckPayload);
 inline constexpr size_t MODIFY_ORDER = sizeof(ModifyOrderPayload);
 inline constexpr size_t MODIFY_ACK = sizeof(ModifyAckPayload);
 inline constexpr size_t TRADE = sizeof(TradePayload);
 } // namespace PayloadSize
+
+// header + payload - HMAC
+namespace DataSize {
+inline constexpr size_t HELLO = HEADER_SIZE + PayloadSize::HELLO - HMAC_SIZE;
+inline constexpr size_t HELLO_ACK = HEADER_SIZE + PayloadSize::HELLO - HMAC_SIZE;
+inline constexpr size_t HEARTBEAT = HEADER_SIZE + PayloadSize::HELLO_ACK - HMAC_SIZE;
+inline constexpr size_t LOGOUT = HEADER_SIZE + PayloadSize::HEARTBEAT - HMAC_SIZE;
+inline constexpr size_t LOGOUT_ACK = HEADER_SIZE + PayloadSize::LOGOUT - HMAC_SIZE;
+inline constexpr size_t SESSION_TIMEOUT =
+    HEADER_SIZE + PayloadSize::LOGOUT_ACK - HMAC_SIZE;
+inline constexpr size_t NEW_ORDER =
+    HEADER_SIZE + PayloadSize::SESSION_TIMEOUT - HMAC_SIZE;
+inline constexpr size_t ORDER_ACK = HEADER_SIZE + PayloadSize::NEW_ORDER - HMAC_SIZE;
+inline constexpr size_t CANCEL_ORDER = HEADER_SIZE + PayloadSize::ORDER_ACK - HMAC_SIZE;
+inline constexpr size_t CANCEL_ACK = HEADER_SIZE + PayloadSize::CANCEL_ORDER - HMAC_SIZE;
+inline constexpr size_t MODIFY_ORDER = HEADER_SIZE + PayloadSize::CANCEL_ACK - HMAC_SIZE;
+inline constexpr size_t MODIFY_ACK = HEADER_SIZE + PayloadSize::MODIFY_ORDER - HMAC_SIZE;
+inline constexpr size_t TRADE = HEADER_SIZE + PayloadSize::MODIFY_ACK - HMAC_SIZE;
+} // namespace DataSize
 
 namespace HMACOffset {
 constexpr size_t HELLO_OFFSET = HEADER_SIZE + offsetof(HelloPayload, hmac);

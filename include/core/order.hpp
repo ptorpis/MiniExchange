@@ -6,6 +6,7 @@ struct Order {
     const ClientID clientID;
     const OrderSide side;
     const OrderType type;
+    const InstrumentID instrumentID;
     Qty qty;
     const Price price;
     TimeInForce tif;

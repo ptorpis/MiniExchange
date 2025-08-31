@@ -19,4 +19,12 @@ enum class LogoutStatus : uint8_t {
     OUT_OF_ORDER = 0x04
 };
 
+enum class OrderAckStatus : uint8_t {
+    NULLSTATUS = 0x00,
+    ACCEPTED = 0x01,
+    INVALID = 0x02,
+    OUT_OF_ORDER = 0x03,
+    NOT_AUTHENTICATED = 0x04
+};
+
 } // namespace statusCodes

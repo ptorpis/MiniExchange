@@ -13,9 +13,8 @@ void Client::sendHello() {
     std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
     auto serialized = serializeMessage(MessageType::HELLO, msg.payload, msg.header);
 
-    size_t HMACInputSize =
-        constants::HEADER_SIZE + constants::PayloadSize::HELLO - constants::HMAC_SIZE;
-    auto hmac = computeHMAC_(session_.hmacKey, serialized.data(), HMACInputSize);
+    auto hmac =
+        computeHMAC_(session_.hmacKey, serialized.data(), constants::DataSize::HELLO);
 
     std::copy(hmac.begin(), hmac.end(),
               serialized.data() + constants::HMACOffset::HELLO_OFFSET);
@@ -27,53 +26,50 @@ void Client::sendHello() {
 void Client::sendLogout() {}
 
 void Client::processIncoming() {
-    if (session_.recvBuffer.empty()) return;
     std::optional<MessageHeader> headerOpt = peekHeader_();
-
     if (!headerOpt) {
         return;
     }
 
-    const MessageHeader& parsedHeader = headerOpt.value();
+    MessageHeader header = headerOpt.value();
+    MessageType type = static_cast<MessageType>(header.messageType);
 
-    if (session_.recvBuffer.size() <
-        parsedHeader.payLoadLength + constants::HEADER_SIZE) {
-        return;
-    }
-
-    session_.serverSqn++;
-
-    switch (static_cast<MessageType>(parsedHeader.messageType)) {
-    case MessageType::HELLO_ACK: {
-        size_t msgSize =
-            constants::HEADER_SIZE + parsedHeader.payLoadLength - constants::HMAC_SIZE;
-        const uint8_t* expectedHMAC = session_.recvBuffer.data() + msgSize;
-
-        bool ok = verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(), msgSize,
-                              expectedHMAC, constants::HMAC_SIZE);
-        if (!ok) {
-            return;
-        } else {
-            std::optional<Message<HelloAckPayload>> helloAck =
-                deserializeMessage<HelloAckPayload>(session_.recvBuffer);
-            if (!helloAck) {
+    size_t totalSize = 0;
+    while (true) {
+        switch (type) {
+        case MessageType::HELLO_ACK: {
+            totalSize = constants::HEADER_SIZE + constants::PayloadSize::HELLO;
+            if (session_.recvBuffer.size() < totalSize) {
                 return;
             }
-            if (static_cast<statusCodes::HelloStatus>(helloAck.value().payload.status) ==
-                statusCodes::HelloStatus::ACCEPTED) {
-                session_.authenticated = true;
-                session_.serverClientID = helloAck.value().payload.serverClientID;
-            } else {
-                return;
+
+            const uint8_t* expectedHMAC =
+                session_.recvBuffer.data() + constants::DataSize::HELLO_ACK;
+
+            if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
+                            constants::DataSize::HELLO_ACK, expectedHMAC,
+                            constants::HMAC_SIZE)) {
+                auto msgOpt = deserializeMessage<HelloAckPayload>(session_.recvBuffer);
+                if (!msgOpt) {
+                    break;
+                }
+
+                if (statusCodes::HelloStatus::ACCEPTED ==
+                    static_cast<statusCodes::HelloStatus>(
+                        msgOpt.value().payload.status)) {
+                    session_.authenticated = true;
+                    session_.clientSqn = msgOpt.value().header.serverMsgSqn;
+                }
             }
+            break;
+        }
+        default: {
+            break;
+        }
         }
 
-        break;
-    }
-
-    default: {
-        break;
-    }
+        session_.recvBuffer.erase(session_.recvBuffer.begin(),
+                                  session_.recvBuffer.begin() + totalSize);
     }
 }
 
@@ -116,4 +112,10 @@ std::vector<uint8_t> Client::computeHMAC_(const std::array<uint8_t, 32>& key,
 void Client::appendRecvBuffer(std::span<const uint8_t> data) {
     session_.recvBuffer.insert(std::end(session_.recvBuffer), std::begin(data),
                                std::end(data));
+}
+
+void Client::sendRaw_(std::span<const uint8_t> buffer) {
+    session_.sendBuffer.insert(session_.sendBuffer.end(), buffer.begin(), buffer.end());
+
+    // actually push the bytes over the network
 }

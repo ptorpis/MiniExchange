@@ -46,6 +46,7 @@ private:
     std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
                                       const uint8_t* data, size_t dataLen);
     std::optional<MessageHeader> peekHeader_() const;
+    void sendRaw_(std::span<const uint8_t> buffer);
 
     Session session_;
 };
