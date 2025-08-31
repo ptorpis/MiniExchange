@@ -23,7 +23,21 @@ void Client::sendHello() {
                                serialized.end());
 }
 
-void Client::sendLogout() {}
+void Client::sendLogout() {
+    Message<LogoutPayload> msg;
+    msg.header = makeClientHeader<LogoutPayload>(session_);
+    msg.payload.serverClientID = session_.serverClientID;
+    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+
+    auto serialized = serializeMessage(MessageType::LOGOUT, msg.payload, msg.header);
+    auto hmac =
+        computeHMAC_(session_.hmacKey, serialized.data(), constants::DataSize::LOGOUT);
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + constants::HMACOffset::LOGOUT_OFFSET);
+
+    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
+                               serialized.end());
+}
 
 void Client::processIncoming() {
     std::optional<MessageHeader> headerOpt = peekHeader_();
@@ -61,6 +75,33 @@ void Client::processIncoming() {
                     session_.clientSqn = msgOpt.value().header.serverMsgSqn;
                 }
             }
+            break;
+        }
+        case MessageType::LOGOUT_ACK: {
+            totalSize = constants::HEADER_SIZE + constants::PayloadSize::LOGOUT_ACK;
+            if (session_.recvBuffer.size() < totalSize) {
+                return;
+            }
+            const uint8_t* expectedHMAC =
+                session_.recvBuffer.data() + constants::DataSize::LOGOUT_ACK;
+
+            if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
+                            constants::DataSize::LOGOUT_ACK, expectedHMAC,
+                            constants::HMAC_SIZE)) {
+                auto msgOpt = deserializeMessage<LogoutAckPayload>(session_.recvBuffer);
+
+                if (!msgOpt) {
+                    break;
+                }
+
+                if (statusCodes::LogoutStatus::ACCEPTED ==
+                    static_cast<statusCodes::LogoutStatus>(
+                        msgOpt.value().payload.status)) {
+                    session_.authenticated = false;
+                    session_.clientSqn = msgOpt.value().header.clientMsgSqn;
+                }
+            }
+
             break;
         }
         default: {

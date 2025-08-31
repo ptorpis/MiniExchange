@@ -56,5 +56,29 @@ int main() {
     std::cout << "Client side authenticated " << std::boolalpha << client.getAuthStatus()
               << std::endl;
 
+    client.sendLogout();
+    const std::vector<uint8_t> clientSendBufferLogout = client.readSendBuffer();
+    std::cout << "Client's logout message" << std::endl;
+    utils::printHex(clientSendBufferLogout);
+
+    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
+                                    std::begin(clientSendBufferLogout),
+                                    std::end(clientSendBufferLogout));
+
+    handler.onMessage(serverFD);
+    const std::vector<uint8_t> serverSendBufferLogout = serverSession.sendBuffer;
+    std::cout << "Server's logout ack" << std::endl;
+
+    client.clearSendBuffer();
+    client.appendRecvBuffer(serverSendBufferLogout);
+    client.processIncoming();
+
+    utils::printHex(serverSendBufferLogout);
+
+    std::cout << "Server side authenticated " << std::boolalpha
+              << serverSession.authenticated << std::endl;
+    std::cout << "Client side authenticated " << std::boolalpha << client.getAuthStatus()
+              << std::endl;
+
     return 0;
 }
