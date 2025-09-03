@@ -104,6 +104,29 @@ void Client::processIncoming() {
 
             break;
         }
+
+        case MessageType::ORDER_ACK: {
+            totalSize = constants::HEADER_SIZE + constants::PayloadSize::ORDER_ACK;
+            if (session_.recvBuffer.size() < totalSize) {
+                return;
+            }
+            const uint8_t* expectedHMAC =
+                session_.recvBuffer.data() + constants::DataSize::ORDER_ACK;
+
+            if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
+                            constants::DataSize::ORDER_ACK, expectedHMAC,
+                            constants::HMAC_SIZE)) {
+                auto msgOpt = deserializeMessage<LogoutAckPayload>(session_.recvBuffer);
+
+                if (!msgOpt) {
+                    break;
+                }
+                session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+                std::cout << "Order Accepted" << std::endl;
+                break;
+            }
+        }
+
         default: {
             break;
         }
