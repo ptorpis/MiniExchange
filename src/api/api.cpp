@@ -58,39 +58,41 @@ std::vector<OutboundMessage>
 MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg) {
     std::vector<OutboundMessage> responses;
 
-    std::optional<Order> order = service_.createOrderFromMessage(msg);
+    OrderRequest req = service_.createRequestFromMessage(msg);
+
+    if (!req.valid) {
+        responses.push_back(
+            {session.sessionID,
+             makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
+                           statusCodes::OrderAckStatus::INVALID)});
+        return responses;
+    }
 
     if (!session.authenticated) {
         responses.push_back(
             {session.sessionID,
-             makeOrderAck_(session, msg, std::nullopt,
+             makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
                            statusCodes::OrderAckStatus::NOT_AUTHENTICATED)});
         return responses;
     }
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
-        responses.push_back({session.sessionID,
-                             makeOrderAck_(session, msg, std::nullopt,
-                                           statusCodes::OrderAckStatus::OUT_OF_ORDER)});
+        responses.push_back(
+            {session.sessionID,
+             makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
+                           statusCodes::OrderAckStatus::OUT_OF_ORDER)});
         return responses;
     }
 
     session.clientSqn = msg.header.clientMsgSqn;
 
-    if (!order) {
-        responses.push_back(
-            {session.sessionID, makeOrderAck_(session, msg, std::nullopt,
-                                              statusCodes::OrderAckStatus::INVALID)});
-        return responses;
-    }
+    MatchResult result = engine_.processOrder(req);
 
     responses.push_back(
-        {session.sessionID,
-         makeOrderAck_(session, msg, order, statusCodes::OrderAckStatus::ACCEPTED)});
+        {session.sessionID, makeOrderAck_(session, req, result.orderID, result.ts,
+                                          statusCodes::OrderAckStatus::ACCEPTED)});
 
-    std::vector<TradeEvent> trades = engine_.processOrder(&order.value());
-
-    for (auto& trade : trades) {
+    for (auto& trade : result.tradeVec) {
         Session* buyerSession = getSession(trade.buyerID);
         Session* sellerSession = getSession(trade.sellerID);
 
@@ -108,11 +110,12 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg)
     return responses;
 }
 
-std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session,
-                                                    Message<NewOrderPayload>& msg,
-                                                    std::optional<Order> order,
+std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session, OrderRequest& req,
+                                                    std::optional<OrderID> orderID,
+                                                    Timestamp ts,
                                                     statusCodes::OrderAckStatus status) {
-    auto ackMsg = MessageFactory::makeOrderAck(session, msg, order, status);
+
+    auto ackMsg = MessageFactory::makeOrderAck(session, req, orderID, status, ts);
     auto serialized =
         serializeMessage(MessageType::ORDER_ACK, ackMsg.payload, ackMsg.header);
     auto hmac = computeHMAC_(session.hmacKey, serialized.data(),

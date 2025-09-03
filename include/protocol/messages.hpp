@@ -1,5 +1,6 @@
 #pragma once
 
+#include "auth/session.hpp"
 #include "core/order.hpp"
 #include "core/trade.hpp"
 #include "protocol/statusCodes.hpp"
@@ -427,30 +428,29 @@ struct MessageFactory {
         return msg;
     }
 
-    static Message<OrderAckPayload> makeOrderAck(Session& session,
-                                                 Message<NewOrderPayload> msg,
-                                                 std::optional<Order> order,
-                                                 statusCodes::OrderAckStatus status) {
+    static Message<OrderAckPayload> makeOrderAck(Session& session, OrderRequest& req,
+                                                 std::optional<OrderID> orderID,
+                                                 statusCodes::OrderAckStatus status,
+                                                 Timestamp ts) {
 
         Message<OrderAckPayload> ack;
         Timestamp currentTime = utils::getCurrentTimestampMicros();
         ack.header = makeHeader<OrderAckPayload>(session);
         ack.payload.serverClientID = session.serverClientID;
-        ack.payload.instrumentID = msg.payload.instrumentID;
+        ack.payload.instrumentID = req.instrumentID;
         ack.payload.status = static_cast<uint8_t>(status);
         ack.payload.serverTime = currentTime;
-        ack.payload.latency =
-            static_cast<uint32_t>(currentTime - order.value().timestamp);
-        if (!order) {
+        ack.payload.latency = static_cast<int32_t>(currentTime - ts);
+        if (!orderID) {
             ack.payload.serverOrderID = 0x00;
             ack.payload.acceptedPrice = 0;
         } else {
-            ack.payload.serverOrderID = order.value().orderID;
-            ack.payload.acceptedPrice = order.value().price;
+            ack.payload.serverOrderID = orderID.value();
+            ack.payload.acceptedPrice = req.price;
         }
 
-        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
-        std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+        std::fill(std::begin(ack.payload.hmac), std::end(ack.payload.hmac), 0x00);
+        std::fill(std::begin(ack.payload.padding), std::end(ack.payload.padding), 0x00);
         return ack;
     }
 

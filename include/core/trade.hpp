@@ -11,3 +11,9 @@ struct TradeEvent {
     Price price;
     Timestamp timestamp;
 };
+
+struct MatchResult {
+    OrderID orderID;
+    Timestamp ts;
+    std::vector<TradeEvent> tradeVec;
+};

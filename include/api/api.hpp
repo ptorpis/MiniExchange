@@ -22,8 +22,8 @@ public:
     std::vector<uint8_t> handleLogout(Session& session, Message<LogoutPayload> msg);
     std::vector<OutboundMessage> handleNewOrder(Session& session,
                                                 Message<NewOrderPayload>& msg);
-    std::vector<uint8_t> makeOrderAck_(Session& session, Message<NewOrderPayload>& msg,
-                                       std::optional<Order> order,
+    std::vector<uint8_t> makeOrderAck_(Session& session, OrderRequest& req,
+                                       std::optional<OrderID> orderID, Timestamp ts,
                                        statusCodes::OrderAckStatus status);
 
     void cancelOrder(int fd, const OrderID orderID);

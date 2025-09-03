@@ -5,13 +5,15 @@
 #include <map>
 #include <optional>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "core/order.hpp"
+#include "core/service.hpp"
 #include "core/trade.hpp"
 #include "utils/types.hpp"
 
-using OrderQueue = std::deque<Order*>;
+using OrderQueue = std::deque<std::unique_ptr<Order>>;
 
 class MatchingEngine {
 public:
@@ -20,9 +22,10 @@ public:
         dispatchTable_[0][1] = &MatchingEngine::matchOrder_<BuySide, MarketOrderPolicy>;
         dispatchTable_[1][0] = &MatchingEngine::matchOrder_<SellSide, LimitOrderPolicy>;
         dispatchTable_[1][1] = &MatchingEngine::matchOrder_<SellSide, MarketOrderPolicy>;
+        service_ = OrderService();
     }
 
-    std::vector<TradeEvent> processOrder(Order* order);
+    MatchResult processOrder(OrderRequest& req);
     bool cancelOrder(const OrderID, const ClientID clientID);
     void reset();
 
@@ -40,8 +43,11 @@ private:
     std::map<Price, OrderQueue, std::greater<Price>> bids_;
     std::unordered_map<OrderID, Order*> orderMap_;
 
-    using MatchFn = std::vector<TradeEvent> (MatchingEngine::*)(Order*);
+    using MatchFn = std::vector<TradeEvent> (MatchingEngine::*)(std::unique_ptr<Order>);
     MatchFn dispatchTable_[2][2];
+
+    template <typename SidePolicy, typename OrderTypePolicy>
+    std::vector<TradeEvent> matchOrder_(std::unique_ptr<Order> order);
 
     struct BuySide {
 
@@ -83,7 +89,7 @@ private:
 
     struct LimitOrderPolicy {
         static constexpr bool needsPriceCheck = true;
-        static void finalize(Order* order, Qty remaining, Qty original,
+        static void finalize(std::unique_ptr<Order> order, Qty remaining, Qty original,
                              MatchingEngine& eng) {
             if (!remaining) {
                 order->status = OrderStatus::FILLED;
@@ -92,14 +98,15 @@ private:
                     order->status = OrderStatus::PARTIALLY_FILLED;
                 }
                 order->qty = remaining;
-                eng.addToBook_(order);
+                eng.addToBook_(std::move(order));
             }
         }
     };
 
     struct MarketOrderPolicy {
         static constexpr bool needsPriceCheck = false;
-        static void finalize(Order* order, Qty remaining, Qty original, MatchingEngine&) {
+        static void finalize(std::unique_ptr<Order> order, Qty remaining, Qty original,
+                             MatchingEngine&) {
             if (!remaining) {
                 order->status = OrderStatus::FILLED;
             } else if (remaining != original) {
@@ -111,10 +118,7 @@ private:
         }
     };
 
-    template <typename SidePolicy, typename OrderTypePolicy>
-    std::vector<TradeEvent> matchOrder_(Order* order);
-
-    void addToBook_(Order* order);
+    void addToBook_(std::unique_ptr<Order> order);
 
     static Timestamp currentTimestamp_() {
         return std::chrono::duration_cast<std::chrono::microseconds>(
@@ -124,10 +128,12 @@ private:
 
     TradeID tradeID{0};
     TradeID getNextTradeID_() { return ++tradeID; }
+
+    OrderService service_;
 };
 
 template <typename SidePolicy, typename OrderTypePolicy>
-std::vector<TradeEvent> MatchingEngine::matchOrder_(Order* order) {
+std::vector<TradeEvent> MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     std::vector<TradeEvent> trades;
     Qty remainingQty = order->qty;
     const Qty originalQty = remainingQty;
@@ -145,11 +151,11 @@ std::vector<TradeEvent> MatchingEngine::matchOrder_(Order* order) {
         auto& queue = it->second;
 
         while (remainingQty && !queue.empty()) {
-            auto restingOrder = queue.front();
+            Order* restingOrder = queue.front().get();
             Qty matchQty = std::min(remainingQty, restingOrder->qty);
 
             trades.emplace_back(
-                SidePolicy::makeTradeEvent(getNextTradeID_(), order, restingOrder,
+                SidePolicy::makeTradeEvent(getNextTradeID_(), order.get(), restingOrder,
                                            bestPrice, matchQty, currentTimestamp_()));
 
             remainingQty -= matchQty;
@@ -157,8 +163,8 @@ std::vector<TradeEvent> MatchingEngine::matchOrder_(Order* order) {
 
             if (!restingOrder->qty) {
                 restingOrder->status = OrderStatus::FILLED;
-                queue.pop_front();
                 orderMap_.erase(restingOrder->orderID);
+                queue.pop_front();
             } else {
                 restingOrder->status = OrderStatus::PARTIALLY_FILLED;
             }
@@ -169,7 +175,9 @@ std::vector<TradeEvent> MatchingEngine::matchOrder_(Order* order) {
         }
     }
 
-    OrderTypePolicy::finalize(order, remainingQty, originalQty, *this);
+    // release ownership of the order, place it in the correct book / discard depending
+    // on the policy
+    OrderTypePolicy::finalize(std::move(order), remainingQty, originalQty, *this);
 
     return trades;
 }

@@ -2,38 +2,40 @@
 #include "core/order.hpp"
 #include "protocol/messages.hpp"
 #include "utils/types.hpp"
+#include "utils/utils.hpp"
 #include <chrono>
 #include <limits>
+#include <memory>
 
 class OrderService {
 public:
     OrderService() : idSqn_(0) {}
 
-    std::optional<Order> createOrderFromMessage(Message<NewOrderPayload>& msg) {
-        NewOrderPayload pyld = msg.payload;
-        if (pyld.price <= 0 || pyld.quantity <= 0) {
-            return std::nullopt;
-        }
-        return Order{
-            ++idSqn_,
-            pyld.serverClientID,
-            static_cast<OrderSide>(pyld.orderSide),
-            static_cast<OrderType>(pyld.orderType),
-            pyld.instrumentID,
-            static_cast<Qty>(pyld.quantity),
-            static_cast<Price>(pyld.price),
-            static_cast<TimeInForce>(pyld.timeInForce),
-            std::numeric_limits<Timestamp>::max(),
-            OrderStatus::NEW,
-            currentTimestamp_(),
+    static OrderRequest createRequestFromMessage(Message<NewOrderPayload>& msg) {
+
+        OrderRequest req = OrderRequest{
+            msg.payload.serverClientID,
+            static_cast<OrderSide>(msg.payload.orderSide),
+            static_cast<OrderType>(msg.payload.orderType),
+            msg.payload.instrumentID,
+            static_cast<Qty>(msg.payload.quantity),
+            static_cast<Price>(msg.payload.price),
+            static_cast<TimeInForce>(msg.payload.timeInForce),
+            msg.payload.goodTillDate,
+            // isvalid
+            (msg.payload.price <= 0 || msg.payload.quantity <= 0) ? false : true,
         };
+
+        return req;
+    }
+
+    std::unique_ptr<Order> orderFromRequest(OrderRequest& req) {
+        return std::make_unique<Order>(Order{++idSqn_, req.clientID, req.side, req.type,
+                                             req.instrumentID, req.qty, req.price,
+                                             req.tif, req.goodTill, OrderStatus::NEW,
+                                             utils::getCurrentTimestampMicros()});
     }
 
 private:
     OrderID idSqn_;
-    static Timestamp currentTimestamp_() {
-        return std::chrono::duration_cast<std::chrono::microseconds>(
-                   std::chrono::steady_clock::now().time_since_epoch())
-            .count();
-    }
 };

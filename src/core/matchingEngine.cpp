@@ -1,27 +1,25 @@
 #include "core/matchingEngine.hpp"
 
-std::vector<TradeEvent> MatchingEngine::processOrder(Order* order) {
-    if (!order) {
-        return {};
-    }
+MatchResult MatchingEngine::processOrder(OrderRequest& req) {
+
+    std::unique_ptr<Order> order = service_.orderFromRequest(req);
 
     int sideIdx = (order->side == OrderSide::BUY ? 0 : 1);
     int typeIdx = (order->type == OrderType::LIMIT ? 0 : 1);
 
-    return (this->*dispatchTable_[sideIdx][typeIdx])(order);
+    return {order->orderID, order->timestamp,
+            (this->*dispatchTable_[sideIdx][typeIdx])(std::move(order))};
 }
 
-void MatchingEngine::addToBook_(Order* order) {
-    if (!order) {
-        return;
-    }
-    if (order->side == OrderSide::BUY) {
-        bids_[order->price].push_back(order);
-    } else {
-        asks_[order->price].push_back(order);
-    }
+void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
+    Order* raw = order.get();
 
-    orderMap_[order->orderID] = order;
+    if (order->side == OrderSide::BUY) {
+        bids_[order->price].push_back(std::move(order));
+    } else {
+        asks_[order->price].push_back(std::move(order));
+    }
+    orderMap_[raw->orderID] = raw;
 }
 
 void MatchingEngine::reset() {
