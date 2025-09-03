@@ -345,6 +345,11 @@ template <> struct PayloadTraits<LogoutAckPayload> {
     static constexpr size_t size = sizeof(LogoutAckPayload);
 };
 
+template <> struct PayloadTraits<NewOrderPayload> {
+    static constexpr MessageType type = MessageType::NEW_ORDER;
+    static constexpr size_t size = sizeof(NewOrderPayload);
+};
+
 template <> struct PayloadTraits<OrderAckPayload> {
     static constexpr MessageType type = MessageType::ORDER_ACK;
     static constexpr size_t size = sizeof(OrderAckPayload);
@@ -500,20 +505,21 @@ inline constexpr size_t TRADE = sizeof(TradePayload);
 // header + payload - HMAC
 namespace DataSize {
 inline constexpr size_t HELLO = HEADER_SIZE + PayloadSize::HELLO - HMAC_SIZE;
-inline constexpr size_t HELLO_ACK = HEADER_SIZE + PayloadSize::HELLO - HMAC_SIZE;
-inline constexpr size_t HEARTBEAT = HEADER_SIZE + PayloadSize::HELLO_ACK - HMAC_SIZE;
-inline constexpr size_t LOGOUT = HEADER_SIZE + PayloadSize::HEARTBEAT - HMAC_SIZE;
-inline constexpr size_t LOGOUT_ACK = HEADER_SIZE + PayloadSize::LOGOUT - HMAC_SIZE;
+inline constexpr size_t HELLO_ACK = HEADER_SIZE + PayloadSize::HELLO_ACK - HMAC_SIZE;
+inline constexpr size_t HEARTBEAT = HEADER_SIZE + PayloadSize::HEARTBEAT - HMAC_SIZE;
+inline constexpr size_t LOGOUT = HEADER_SIZE + PayloadSize::LOGOUT - HMAC_SIZE;
+inline constexpr size_t LOGOUT_ACK = HEADER_SIZE + PayloadSize::LOGOUT_ACK - HMAC_SIZE;
 inline constexpr size_t SESSION_TIMEOUT =
-    HEADER_SIZE + PayloadSize::LOGOUT_ACK - HMAC_SIZE;
-inline constexpr size_t NEW_ORDER =
     HEADER_SIZE + PayloadSize::SESSION_TIMEOUT - HMAC_SIZE;
-inline constexpr size_t ORDER_ACK = HEADER_SIZE + PayloadSize::NEW_ORDER - HMAC_SIZE;
-inline constexpr size_t CANCEL_ORDER = HEADER_SIZE + PayloadSize::ORDER_ACK - HMAC_SIZE;
-inline constexpr size_t CANCEL_ACK = HEADER_SIZE + PayloadSize::CANCEL_ORDER - HMAC_SIZE;
-inline constexpr size_t MODIFY_ORDER = HEADER_SIZE + PayloadSize::CANCEL_ACK - HMAC_SIZE;
-inline constexpr size_t MODIFY_ACK = HEADER_SIZE + PayloadSize::MODIFY_ORDER - HMAC_SIZE;
-inline constexpr size_t TRADE = HEADER_SIZE + PayloadSize::MODIFY_ACK - HMAC_SIZE;
+inline constexpr size_t NEW_ORDER = HEADER_SIZE + PayloadSize::NEW_ORDER - HMAC_SIZE;
+inline constexpr size_t ORDER_ACK = HEADER_SIZE + PayloadSize::ORDER_ACK - HMAC_SIZE;
+inline constexpr size_t CANCEL_ORDER =
+    HEADER_SIZE + PayloadSize::CANCEL_ORDER - HMAC_SIZE;
+inline constexpr size_t CANCEL_ACK = HEADER_SIZE + PayloadSize::CANCEL_ACK - HMAC_SIZE;
+inline constexpr size_t MODIFY_ORDER =
+    HEADER_SIZE + PayloadSize::MODIFY_ORDER - HMAC_SIZE;
+inline constexpr size_t MODIFY_ACK = HEADER_SIZE + PayloadSize::MODIFY_ACK - HMAC_SIZE;
+inline constexpr size_t TRADE = HEADER_SIZE + PayloadSize::TRADE - HMAC_SIZE;
 } // namespace DataSize
 
 namespace HMACOffset {

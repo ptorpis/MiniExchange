@@ -23,8 +23,10 @@ public:
             static_cast<TimeInForce>(msg.payload.timeInForce),
             msg.payload.goodTillDate,
             // isvalid
-            (msg.payload.price <= 0 || msg.payload.quantity <= 0) ? false : true,
+            false,
         };
+
+        req.valid = (msg.payload.price <= 0 || msg.payload.quantity <= 0) ? false : true;
 
         return req;
     }

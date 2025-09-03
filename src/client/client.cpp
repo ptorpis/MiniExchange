@@ -183,3 +183,29 @@ void Client::sendRaw_(std::span<const uint8_t> buffer) {
 
     // actually push the bytes over the network
 }
+
+void Client::sendTestOrder() {
+    Message<NewOrderPayload> msg;
+    msg.header = makeClientHeader<NewOrderPayload>(session_);
+    msg.payload.serverClientID = session_.serverClientID;
+    msg.payload.instrumentID = 1;
+    msg.payload.orderSide = static_cast<uint8_t>(OrderSide::BUY);
+    msg.payload.orderType = static_cast<uint8_t>(OrderType::LIMIT);
+    msg.payload.quantity = 100;
+    msg.payload.price = 200;
+    msg.payload.timeInForce = static_cast<uint8_t>(TimeInForce::GTC);
+    msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
+    std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
+    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+
+    auto serialized = serializeMessage(MessageType::NEW_ORDER, msg.payload, msg.header);
+
+    auto hmac =
+        computeHMAC_(session_.hmacKey, serialized.data(), constants::DataSize::NEW_ORDER);
+
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + constants::DataSize::NEW_ORDER);
+
+    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
+                               serialized.end());
+}

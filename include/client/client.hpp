@@ -29,6 +29,7 @@ public:
 
     void sendHello();
     void sendLogout();
+    void sendTestOrder();
 
     void appendRecvBuffer(std::span<const uint8_t> data);
 
