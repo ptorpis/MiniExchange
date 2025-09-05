@@ -17,7 +17,7 @@ public:
         session_.hmacKey = hmacKey;
     }
 
-    Session& getConnection() { return session_; }
+    ClientSession& getSession() { return session_; }
 
     template <typename Payload> void sendMessage(Message<Payload> msg);
 
@@ -50,5 +50,5 @@ private:
     std::optional<MessageHeader> peekHeader_() const;
     void sendRaw_(std::span<const uint8_t> buffer);
 
-    Session session_;
+    ClientSession session_;
 };

@@ -62,7 +62,7 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg)
 
     if (!req.valid) {
         responses.push_back(
-            {session.sessionID,
+            {session.FD,
              makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
                            statusCodes::OrderAckStatus::INVALID)});
         return responses;
@@ -70,7 +70,7 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg)
 
     if (!session.authenticated) {
         responses.push_back(
-            {session.sessionID,
+            {session.FD,
              makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
                            statusCodes::OrderAckStatus::NOT_AUTHENTICATED)});
         return responses;
@@ -78,7 +78,7 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg)
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
         responses.push_back(
-            {session.sessionID,
+            {session.FD,
              makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
                            statusCodes::OrderAckStatus::OUT_OF_ORDER)});
         return responses;
@@ -89,17 +89,17 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg)
     MatchResult result = engine_.processOrder(req);
 
     responses.push_back(
-        {session.sessionID, makeOrderAck_(session, req, result.orderID, result.ts,
-                                          statusCodes::OrderAckStatus::ACCEPTED)});
+        {session.FD, makeOrderAck_(session, req, result.orderID, result.ts,
+                                   statusCodes::OrderAckStatus::ACCEPTED)});
 
     for (auto& trade : result.tradeVec) {
         Session* buyerSession = getSession(trade.buyerID);
         Session* sellerSession = getSession(trade.sellerID);
 
         responses.push_back(
-            {buyerSession->sessionID, makeTradeMsg_(*buyerSession, trade, true)});
+            {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
         responses.push_back(
-            {sellerSession->sessionID, makeTradeMsg_(*sellerSession, trade, false)});
+            {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
     }
 
     return responses;

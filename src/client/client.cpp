@@ -151,6 +151,7 @@ void Client::processIncoming() {
 
                 session_.serverSqn = msgOpt.value().header.serverMsgSqn;
                 std::cout << "Trade Accepted" << std::endl;
+                session_.exeID++;
                 break;
             }
             break;
