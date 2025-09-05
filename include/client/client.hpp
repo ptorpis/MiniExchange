@@ -30,6 +30,7 @@ public:
     void sendHello();
     void sendLogout();
     void sendTestOrder();
+    void testFill();
 
     void appendRecvBuffer(std::span<const uint8_t> data);
 

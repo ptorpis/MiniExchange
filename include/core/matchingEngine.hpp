@@ -55,10 +55,10 @@ private:
         static TradeEvent makeTradeEvent(TradeID tradeID, Order* taker, Order* maker,
                                          Price p, Qty q, Timestamp ts) {
             return TradeEvent{tradeID,
-                              taker->clientID,
-                              maker->clientID,
                               taker->orderID,
                               maker->orderID,
+                              taker->clientID,
+                              maker->clientID,
                               q,
                               p,
                               ts};
@@ -73,10 +73,10 @@ private:
         static TradeEvent makeTradeEvent(TradeID tradeID, Order* taker, Order* maker,
                                          Price p, Qty q, Timestamp ts) {
             return TradeEvent{tradeID,
-                              maker->clientID,
-                              taker->clientID,
                               maker->orderID,
                               taker->orderID,
+                              maker->clientID,
+                              taker->clientID,
                               q,
                               p,
                               ts};

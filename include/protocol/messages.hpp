@@ -459,9 +459,10 @@ struct MessageFactory {
         return ack;
     }
 
-    static Message<TradePayload> makeTradeEvent(Session& session, TradeEvent trade,
-                                                bool isBuyer) {
+    static Message<TradePayload> makeTradeMsg(Session& session, TradeEvent& trade,
+                                              bool isBuyer) {
         Message<TradePayload> msg;
+        msg.header = makeHeader<TradePayload>(session);
 
         msg.payload.tradeID = session.getNextExeID();
         msg.payload.filledQty = trade.qty;

@@ -29,24 +29,24 @@ int main() {
     Client client = Client(HMACKey, APIKEY, clientFD);
 
     client.sendHello();
-    const std::vector<uint8_t> clientSendBuffer = client.readSendBuffer();
+    // const std::vector<uint8_t> clientSendBuffer = client.readSendBuffer();
     std::cout << "Data sent from the client to the Server" << std::endl;
-    utils::printHex(clientSendBuffer);
+    utils::printHex(client.readSendBuffer());
 
     Session& serverSession = sessionManager.createSession(serverFD);
     serverSession.hmacKey = HMACKey;
     serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(clientSendBuffer),
-                                    std::end(clientSendBuffer));
+                                    std::begin(client.readSendBuffer()),
+                                    std::end(client.readSendBuffer()));
 
     handler.onMessage(serverFD);
 
-    const std::vector<uint8_t> serverSendBuffer = serverSession.sendBuffer;
+    // const std::vector<uint8_t> serverSendBuffer = serverSession.sendBuffer;
     std::cout << "Server's HELLO ACK response" << std::endl;
-    utils::printHex(serverSendBuffer);
+    utils::printHex(serverSession.sendBuffer);
 
     client.clearSendBuffer();
-    client.appendRecvBuffer(serverSendBuffer);
+    client.appendRecvBuffer(serverSession.sendBuffer);
     client.processIncoming();
 
     serverSession.sendBuffer.clear();
@@ -70,26 +70,41 @@ int main() {
 
     client.clearSendBuffer();
     serverSession.sendBuffer.clear();
+
+    client.testFill();
+    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
+                                    std::begin(client.readSendBuffer()),
+                                    std::end(client.readSendBuffer()));
+
+    handler.onMessage(serverFD);
+    client.clearSendBuffer();
+    client.appendRecvBuffer(serverSession.sendBuffer);
+    client.processIncoming();
+
+    client.clearSendBuffer();
+    serverSession.sendBuffer.clear();
+
     //
 
     client.sendLogout();
-    const std::vector<uint8_t> clientSendBufferLogout = client.readSendBuffer();
+    // const std::vector<uint8_t> clientSendBufferLogout =
+    // client.readSendBuffer(serverSession.sendBuffet);
     std::cout << "Client's logout message" << std::endl;
-    utils::printHex(clientSendBufferLogout);
+    utils::printHex(client.readSendBuffer());
 
     serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(clientSendBufferLogout),
-                                    std::end(clientSendBufferLogout));
+                                    std::begin(client.readSendBuffer()),
+                                    std::end(client.readSendBuffer()));
 
     handler.onMessage(serverFD);
-    const std::vector<uint8_t> serverSendBufferLogout = serverSession.sendBuffer;
+    // const std::vector<uint8_t> serverSendBufferLogout = serverSession.sendBuffer;
     std::cout << "Server's logout ack" << std::endl;
 
     client.clearSendBuffer();
-    client.appendRecvBuffer(serverSendBufferLogout);
+    client.appendRecvBuffer(serverSession.sendBuffer);
     client.processIncoming();
 
-    utils::printHex(serverSendBufferLogout);
+    utils::printHex(serverSession.sendBuffer);
 
     std::cout << "Server side authenticated " << std::boolalpha
               << serverSession.authenticated << std::endl;

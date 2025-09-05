@@ -43,5 +43,5 @@ private:
     std::vector<uint8_t> makeHelloAck_(Session& session, statusCodes::HelloStatus status);
     std::vector<uint8_t> makeLogoutAck_(Session& session,
                                         statusCodes::LogoutStatus status);
-    std::vector<uint8_t> makeTradeMsg_(Session& session, Message<TradePayload>& msg);
+    std::vector<uint8_t> makeTradeMsg_(Session& session, TradeEvent& trade, bool isBuyer);
 };

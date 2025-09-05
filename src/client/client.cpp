@@ -1,6 +1,7 @@
 #include "client/client.hpp"
 #include "protocol/serialize.hpp"
 #include <arpa/inet.h>
+#include <cassert>
 #include <cstring>
 #include <iostream>
 #include <openssl/evp.h>
@@ -40,16 +41,15 @@ void Client::sendLogout() {
 }
 
 void Client::processIncoming() {
-    std::optional<MessageHeader> headerOpt = peekHeader_();
-    if (!headerOpt) {
-        return;
-    }
-
-    MessageHeader header = headerOpt.value();
-    MessageType type = static_cast<MessageType>(header.messageType);
-
     size_t totalSize = 0;
     while (true) {
+        std::optional<MessageHeader> headerOpt = peekHeader_();
+        if (!headerOpt) {
+            return;
+        }
+
+        MessageHeader header = headerOpt.value();
+        MessageType type = static_cast<MessageType>(header.messageType);
         switch (type) {
         case MessageType::HELLO_ACK: {
             totalSize = constants::HEADER_SIZE + constants::PayloadSize::HELLO;
@@ -73,6 +73,7 @@ void Client::processIncoming() {
                         msgOpt.value().payload.status)) {
                     session_.authenticated = true;
                     session_.clientSqn = msgOpt.value().header.serverMsgSqn;
+                    session_.serverClientID = msgOpt.value().payload.serverClientID;
                 }
             }
             break;
@@ -125,6 +126,34 @@ void Client::processIncoming() {
                 std::cout << "Order Accepted" << std::endl;
                 break;
             }
+            break;
+        }
+
+        case MessageType::TRADE: {
+            totalSize = constants::HEADER_SIZE + constants::PayloadSize::TRADE;
+            if (session_.recvBuffer.size() < totalSize) {
+                return;
+            }
+
+            std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
+            std::memcpy(expectedHMAC.data(),
+                        session_.recvBuffer.data() + constants::DataSize::TRADE,
+                        constants::HMAC_SIZE);
+
+            if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
+                            constants::DataSize::TRADE, expectedHMAC.data(),
+                            constants::HMAC_SIZE)) {
+                auto msgOpt = deserializeMessage<TradePayload>(session_.recvBuffer);
+
+                if (!msgOpt) {
+                    break;
+                }
+
+                session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+                std::cout << "Trade Accepted" << std::endl;
+                break;
+            }
+            break;
         }
 
         default: {
@@ -134,6 +163,10 @@ void Client::processIncoming() {
 
         session_.recvBuffer.erase(session_.recvBuffer.begin(),
                                   session_.recvBuffer.begin() + totalSize);
+
+        if (!session_.recvBuffer.size()) {
+            return;
+        }
     }
 }
 
@@ -190,6 +223,32 @@ void Client::sendTestOrder() {
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.instrumentID = 1;
     msg.payload.orderSide = static_cast<uint8_t>(OrderSide::BUY);
+    msg.payload.orderType = static_cast<uint8_t>(OrderType::LIMIT);
+    msg.payload.quantity = 100;
+    msg.payload.price = 200;
+    msg.payload.timeInForce = static_cast<uint8_t>(TimeInForce::GTC);
+    msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
+    std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
+    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+
+    auto serialized = serializeMessage(MessageType::NEW_ORDER, msg.payload, msg.header);
+
+    auto hmac =
+        computeHMAC_(session_.hmacKey, serialized.data(), constants::DataSize::NEW_ORDER);
+
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + constants::DataSize::NEW_ORDER);
+
+    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
+                               serialized.end());
+}
+
+void Client::testFill() {
+    Message<NewOrderPayload> msg;
+    msg.header = makeClientHeader<NewOrderPayload>(session_);
+    msg.payload.serverClientID = session_.serverClientID;
+    msg.payload.instrumentID = 1;
+    msg.payload.orderSide = static_cast<uint8_t>(OrderSide::SELL);
     msg.payload.orderType = static_cast<uint8_t>(OrderType::LIMIT);
     msg.payload.quantity = 100;
     msg.payload.price = 200;

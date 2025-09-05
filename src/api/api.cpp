@@ -96,15 +96,10 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg)
         Session* buyerSession = getSession(trade.buyerID);
         Session* sellerSession = getSession(trade.sellerID);
 
-        auto buyerMsg =
-            MessageFactory::makeTradeEvent(*buyerSession, trade, /* is buyer */ true);
-        auto sellerMsg =
-            MessageFactory::makeTradeEvent(*sellerSession, trade, /* is buyer*/ false);
-
         responses.push_back(
-            {buyerSession->sessionID, makeTradeMsg_(*buyerSession, buyerMsg)});
+            {buyerSession->sessionID, makeTradeMsg_(*buyerSession, trade, true)});
         responses.push_back(
-            {sellerSession->sessionID, makeTradeMsg_(*sellerSession, sellerMsg)});
+            {sellerSession->sessionID, makeTradeMsg_(*sellerSession, trade, false)});
     }
 
     return responses;
@@ -145,8 +140,9 @@ std::vector<uint8_t> MiniExchangeAPI::makeLogoutAck_(Session& session,
     return serialized;
 }
 
-std::vector<uint8_t> MiniExchangeAPI::makeTradeMsg_(Session& session,
-                                                    Message<TradePayload>& msg) {
+std::vector<uint8_t> MiniExchangeAPI::makeTradeMsg_(Session& session, TradeEvent& trade,
+                                                    bool isBuyer) {
+    Message<TradePayload> msg = MessageFactory::makeTradeMsg(session, trade, isBuyer);
     auto serialized =
         serializeMessage<TradePayload>(MessageType::TRADE, msg.payload, msg.header);
     auto hmac =

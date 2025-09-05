@@ -3,7 +3,8 @@
 
 Session& SessionManager::createSession(int fd) {
     Session session(fd);
-    session.serverClientID = generateClientToken();
+    // session.serverClientID = generateClientToken();
+    session.serverClientID = fd;
     auto [it, inserted] = sessions_.emplace(fd, std::move(session));
     return it->second;
 }

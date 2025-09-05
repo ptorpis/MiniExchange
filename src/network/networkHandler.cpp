@@ -4,6 +4,7 @@
 #include "protocol/statusCodes.hpp"
 
 #include <arpa/inet.h>
+#include <iostream>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <stdexcept>
