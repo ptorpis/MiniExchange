@@ -388,7 +388,8 @@ template <typename Payload> inline MessageHeader makeHeader(Session& session) {
     return header;
 }
 
-template <typename Payload> inline MessageHeader makeClientHeader(Session& session) {
+template <typename Payload>
+inline MessageHeader makeClientHeader(ClientSession& session) {
     MessageHeader header{};
     header.messageType = static_cast<uint8_t>(PayloadTraits<Payload>::type);
     header.protocolVersionFlag =
