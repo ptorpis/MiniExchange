@@ -22,12 +22,7 @@ public:
     std::vector<uint8_t> handleLogout(Session& session, Message<LogoutPayload> msg);
     std::vector<OutboundMessage> handleNewOrder(Session& session,
                                                 Message<NewOrderPayload>& msg);
-    std::vector<uint8_t> makeOrderAck_(Session& session, OrderRequest& req,
-                                       std::optional<OrderID> orderID, Timestamp ts,
-                                       statusCodes::OrderAckStatus status);
-
-    void cancelOrder(int fd, const OrderID orderID);
-    void modifyOrder(int fd);
+    std::vector<uint8_t> handleCancel(Session& session, Message<CancelOrderPayload>& msg);
 
 private:
     MatchingEngine& engine_;
@@ -44,4 +39,9 @@ private:
     std::vector<uint8_t> makeLogoutAck_(Session& session,
                                         statusCodes::LogoutStatus status);
     std::vector<uint8_t> makeTradeMsg_(Session& session, TradeEvent& trade, bool isBuyer);
+    std::vector<uint8_t> makeOrderAck_(Session& session, OrderRequest& req,
+                                       std::optional<OrderID> orderID, Timestamp ts,
+                                       statusCodes::OrderAckStatus status);
+    std::vector<uint8_t> makeCancelAck_(Session& session, const OrderID orderID,
+                                        statusCodes::CancelAckStatus status);
 };

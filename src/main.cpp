@@ -56,7 +56,7 @@ int main() {
     std::cout << "Client side authenticated " << std::boolalpha << client.getAuthStatus()
               << std::endl;
 
-    //
+    // test fill
 
     client.sendTestOrder();
     serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
@@ -86,9 +86,34 @@ int main() {
 
     //
 
+    // cancel
+
+    client.sendTestOrder();
+
+    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
+                                    std::begin(client.readSendBuffer()),
+                                    std::end(client.readSendBuffer()));
+    handler.onMessage(serverFD);
+    client.clearSendBuffer();
+    client.appendRecvBuffer(serverSession.sendBuffer);
+    client.processIncoming();
+
+    serverSession.sendBuffer.clear();
+
+    OrderID orderID = 3;
+    client.sendCancel(orderID);
+    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
+                                    std::begin(client.readSendBuffer()),
+                                    std::end(client.readSendBuffer()));
+    handler.onMessage(serverFD);
+    client.clearSendBuffer();
+    client.appendRecvBuffer(serverSession.sendBuffer);
+    client.processIncoming();
+
+    serverSession.sendBuffer.clear();
+    //
+
     client.sendLogout();
-    // const std::vector<uint8_t> clientSendBufferLogout =
-    // client.readSendBuffer(serverSession.sendBuffet);
     std::cout << "Client's logout message" << std::endl;
     utils::printHex(client.readSendBuffer());
 
@@ -97,7 +122,6 @@ int main() {
                                     std::end(client.readSendBuffer()));
 
     handler.onMessage(serverFD);
-    // const std::vector<uint8_t> serverSendBufferLogout = serverSession.sendBuffer;
     std::cout << "Server's logout ack" << std::endl;
 
     client.clearSendBuffer();

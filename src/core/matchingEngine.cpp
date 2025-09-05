@@ -27,3 +27,20 @@ void MatchingEngine::reset() {
     asks_.clear();
     orderMap_.clear();
 }
+
+bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID) {
+    auto it = orderMap_.find(orderID);
+    if (it == orderMap_.end()) return false;
+
+    if (it->second->clientID != clientID) return false;
+
+    bool removed = (it->second->side == OrderSide::BUY)
+                       ? (removeFromBook_(orderID, it->second->price, bids_))
+                       : (removeFromBook_(orderID, it->second->price, asks_));
+
+    if (removed) {
+        orderMap_.erase(it);
+    }
+
+    return removed;
+}

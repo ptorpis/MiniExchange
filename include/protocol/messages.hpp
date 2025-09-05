@@ -360,6 +360,11 @@ template <> struct PayloadTraits<CancelAckPayload> {
     static constexpr size_t size = sizeof(CancelAckPayload);
 };
 
+template <> struct PayloadTraits<CancelOrderPayload> {
+    static constexpr MessageType type = MessageType::CANCEL_ORDER;
+    static constexpr size_t size = sizeof(CancelOrderPayload);
+};
+
 template <> struct PayloadTraits<ModifyAckPayload> {
     static constexpr MessageType type = MessageType::MODIFY_ACK;
     static constexpr size_t size = sizeof(ModifyAckPayload);
@@ -482,6 +487,21 @@ struct MessageFactory {
 
         return msg;
     }
+
+    static Message<CancelAckPayload> makeCancelAck(Session& session,
+                                                   const OrderID orderID,
+                                                   statusCodes::CancelAckStatus status) {
+        Message<CancelAckPayload> msg;
+        msg.header = makeHeader<CancelAckPayload>(session);
+        msg.payload.serverClientID = session.serverClientID;
+        msg.payload.serverOrderID = orderID;
+        msg.payload.status = static_cast<uint8_t>(status);
+
+        std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
+
+        return msg;
+    }
 };
 
 namespace constants {
@@ -527,6 +547,7 @@ inline constexpr size_t TRADE = HEADER_SIZE + PayloadSize::TRADE - HMAC_SIZE;
 namespace HMACOffset {
 constexpr size_t HELLO_OFFSET = HEADER_SIZE + offsetof(HelloPayload, hmac);
 constexpr size_t LOGOUT_OFFSET = HEADER_SIZE + offsetof(LogoutPayload, hmac);
+constexpr size_t CANCEL_OFFSET = HEADER_SIZE + offsetof(CancelOrderPayload, hmac);
 } // namespace HMACOffset
 
 namespace HeaderOffset {

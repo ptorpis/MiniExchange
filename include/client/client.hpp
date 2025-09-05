@@ -32,6 +32,8 @@ public:
     void sendTestOrder();
     void testFill();
 
+    void sendCancel(OrderID orderID);
+
     void appendRecvBuffer(std::span<const uint8_t> data);
 
     bool getAuthStatus() { return session_.authenticated; }

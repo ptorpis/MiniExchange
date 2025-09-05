@@ -27,4 +27,11 @@ enum class OrderAckStatus : uint8_t {
     NOT_AUTHENTICATED = 0x04
 };
 
+enum class CancelAckStatus : uint8_t {
+    NULLSTATUS = 0x00,
+    ACCEPTED = 0x01,
+    INVALID = 0x02,
+    NOT_FOUND = 0x03
+};
+
 } // namespace statusCodes

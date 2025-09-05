@@ -105,6 +105,27 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg)
     return responses;
 }
 
+std::vector<uint8_t> MiniExchangeAPI::handleCancel(Session& session,
+                                                   Message<CancelOrderPayload>& msg) {
+    std::vector<uint8_t> response;
+    if (msg.payload.serverClientID != session.serverClientID) {
+        response = makeCancelAck_(session, msg.payload.serverOrderID,
+                                  statusCodes::CancelAckStatus::INVALID);
+        return response;
+    }
+
+    bool success = engine_.cancelOrder(session.serverClientID, msg.payload.serverOrderID);
+
+    if (success) {
+        response = makeCancelAck_(session, msg.payload.serverOrderID,
+                                  statusCodes::CancelAckStatus::ACCEPTED);
+    } else {
+        response = makeCancelAck_(session, msg.payload.serverOrderID,
+                                  statusCodes::CancelAckStatus::NOT_FOUND);
+    }
+    return response;
+}
+
 std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session, OrderRequest& req,
                                                     std::optional<OrderID> orderID,
                                                     Timestamp ts,
@@ -148,6 +169,21 @@ std::vector<uint8_t> MiniExchangeAPI::makeTradeMsg_(Session& session, TradeEvent
     auto hmac =
         computeHMAC_(session.hmacKey, serialized.data(), constants::DataSize::TRADE);
     std::copy(hmac.begin(), hmac.end(), serialized.data() + constants::DataSize::TRADE);
+    return serialized;
+}
+
+std::vector<uint8_t>
+MiniExchangeAPI::makeCancelAck_(Session& session, const OrderID orderID,
+                                statusCodes::CancelAckStatus status) {
+    Message<CancelAckPayload> msg =
+        MessageFactory::makeCancelAck(session, orderID, status);
+
+    auto serialized = serializeMessage<CancelAckPayload>(MessageType::CANCEL_ACK,
+                                                         msg.payload, msg.header);
+    auto hmac =
+        computeHMAC_(session.hmacKey, serialized.data(), constants::DataSize::CANCEL_ACK);
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + constants::DataSize::CANCEL_ACK);
     return serialized;
 }
 

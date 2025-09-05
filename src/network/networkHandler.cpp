@@ -85,6 +85,27 @@ void NetworkHandler::onMessage(int fd) {
             }
             break;
         }
+
+        case MessageType::CANCEL_ORDER: {
+            totalSize = constants::HEADER_SIZE + constants::PayloadSize::CANCEL_ORDER;
+            if (session->recvBuffer.size() < totalSize) {
+                return;
+            }
+
+            const uint8_t* expectedHMAC =
+                session->recvBuffer.data() + constants::DataSize::CANCEL_ORDER;
+
+            if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
+                            constants::DataSize::CANCEL_ORDER, expectedHMAC,
+                            constants::HMAC_SIZE)) {
+                auto msgOpt = deserializeMessage<CancelOrderPayload>(session->recvBuffer);
+                if (msgOpt) {
+                    sendRaw_(*session, api_.handleCancel(*session, msgOpt.value()));
+                }
+            }
+
+            break;
+        }
         default: {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
             return;

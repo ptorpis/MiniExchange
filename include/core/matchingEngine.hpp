@@ -26,7 +26,7 @@ public:
     }
 
     MatchResult processOrder(OrderRequest& req);
-    bool cancelOrder(const OrderID, const ClientID clientID);
+    bool cancelOrder(const ClientID clientID, const OrderID orderID);
     void reset();
 
     std::optional<Price> getSpread() const;
@@ -120,6 +120,9 @@ private:
 
     void addToBook_(std::unique_ptr<Order> order);
 
+    template <typename Book>
+    bool removeFromBook_(const OrderID orderID, const Price price, Book& book);
+
     static Timestamp currentTimestamp_() {
         return std::chrono::duration_cast<std::chrono::microseconds>(
                    std::chrono::steady_clock::now().time_since_epoch())
@@ -180,4 +183,25 @@ std::vector<TradeEvent> MatchingEngine::matchOrder_(std::unique_ptr<Order> order
     OrderTypePolicy::finalize(std::move(order), remainingQty, originalQty, *this);
 
     return trades;
+}
+
+template <typename Book> bool
+MatchingEngine::removeFromBook_(const OrderID orderID, const Price price, Book& book) {
+    auto it = book.find(price);
+    if (it == book.end()) return false;
+
+    OrderQueue& queue = it->second;
+
+    for (auto qIt = queue.begin(); qIt != queue.end(); ++qIt) {
+        if ((*qIt)->orderID == orderID) {
+            queue.erase(qIt);
+
+            if (queue.empty()) {
+                book.erase(it);
+            }
+            return true;
+        }
+    }
+
+    return false;
 }

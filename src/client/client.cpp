@@ -40,6 +40,25 @@ void Client::sendLogout() {
                                serialized.end());
 }
 
+void Client::sendCancel(OrderID orderID) {
+    Message<CancelOrderPayload> msg;
+    msg.header = makeClientHeader<CancelOrderPayload>(session_);
+    msg.payload.serverClientID = session_.serverClientID;
+    msg.payload.serverOrderID = orderID;
+
+    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+
+    auto serialized =
+        serializeMessage(MessageType::CANCEL_ORDER, msg.payload, msg.header);
+    auto hmac = computeHMAC_(session_.hmacKey, serialized.data(),
+                             constants::DataSize::CANCEL_ORDER);
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + constants::HMACOffset::CANCEL_OFFSET);
+
+    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
+                               serialized.end());
+}
+
 void Client::processIncoming() {
     size_t totalSize = 0;
     while (true) {
@@ -152,6 +171,40 @@ void Client::processIncoming() {
                 session_.serverSqn = msgOpt.value().header.serverMsgSqn;
                 std::cout << "Trade Accepted" << std::endl;
                 session_.exeID++;
+                break;
+            }
+            break;
+        }
+
+        case MessageType::CANCEL_ACK: {
+            totalSize = constants::HEADER_SIZE + constants::PayloadSize::CANCEL_ACK;
+            if (session_.recvBuffer.size() < totalSize) {
+                return;
+            }
+
+            std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
+            std::memcpy(expectedHMAC.data(),
+                        session_.recvBuffer.data() + constants::DataSize::CANCEL_ACK,
+                        constants::HMAC_SIZE);
+
+            if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
+                            constants::DataSize::CANCEL_ACK, expectedHMAC.data(),
+                            constants::HMAC_SIZE)) {
+                auto msgOpt = deserializeMessage<CancelAckPayload>(session_.recvBuffer);
+
+                if (!msgOpt) {
+                    break;
+                }
+
+                session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+                if (static_cast<statusCodes::CancelAckStatus>(
+                        msgOpt.value().payload.status) ==
+                    statusCodes::CancelAckStatus::ACCEPTED) {
+                    std::cout << "Order cancellation accepted" << std::endl;
+                } else {
+                    std::cout << "Order cancellation rejected" << std::endl;
+                }
+
                 break;
             }
             break;

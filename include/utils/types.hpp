@@ -2,49 +2,6 @@
 #include <cstdint>
 #include <vector>
 
-// struct Price {
-//     int64_t value{0};
-
-//     constexpr Price() = default;
-//     explicit constexpr Price(int64_t v) : value(v) {}
-//     constexpr operator int64_t() const { return value; }
-
-//     constexpr bool operator==(const Price& other) { return value == other.value; }
-//     constexpr bool operator!=(const Price& other) { return value != other.value; }
-//     constexpr bool operator<(const Price& other) { return value < other.value; }
-//     constexpr bool operator<=(const Price& other) { return value <= other.value; }
-//     constexpr bool operator>(const Price& other) { return value > other.value; }
-//     constexpr bool operator>=(const Price& other) { return value >= other.value; }
-// };
-
-// struct Qty {
-//     int64_t value{0};
-
-//     constexpr Qty() = default;
-//     explicit constexpr Qty(int64_t v) : value(v) {}
-
-//     constexpr operator int64_t() const { return value; }
-//     constexpr bool operator==(const Qty& other) { return value == other.value; }
-//     constexpr bool operator!=(const Qty& other) { return value != other.value; }
-//     constexpr bool operator<(const Qty& other) { return value < other.value; }
-//     constexpr bool operator<=(const Qty& other) { return value <= other.value; }
-//     constexpr bool operator>(const Qty& other) { return value > other.value; }
-//     constexpr bool operator>=(const Qty& other) { return value >= other.value; }
-
-//     constexpr Qty operator+(const Qty& other) { return Qty(value + other.value); }
-//     constexpr Qty operator-(const Qty& other) { return Qty(value - other.value); }
-
-//     constexpr Qty& operator+=(const Qty& other) {
-//         value += other.value;
-//         return *this;
-//     }
-
-//     constexpr Qty& operator-=(const Qty& other) {
-//         value -= other.value;
-//         return *this;
-//     }
-// };
-
 using Price = int64_t;
 using Qty = int64_t;
 
