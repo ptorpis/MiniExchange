@@ -33,6 +33,7 @@ public:
     void testFill();
 
     void sendCancel(OrderID orderID);
+    void sendModify(OrderID orderID, Qty newQty, Price newPrice);
 
     void appendRecvBuffer(std::span<const uint8_t> data);
 

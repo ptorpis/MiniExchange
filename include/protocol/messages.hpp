@@ -232,14 +232,14 @@ struct ModifyOrderPayload {
     uint64_t serverClientID;
     uint64_t serverOrderID;
     int64_t newQuantity;
-    uint8_t padding[8];
+    int64_t newPrice;
     uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverOrderID);
         func(newQuantity);
-        func(padding);
+        func(newPrice);
         func(hmac);
     }
 };
@@ -248,17 +248,17 @@ struct ModifyOrderPayload {
 #pragma pack(push, 1)
 struct ModifyAckPayload {
     uint64_t serverClientID;
-    uint64_t serverOrderID;
+    uint64_t oldServerOrderID;
+    uint64_t newServerOrderID;
     uint8_t status;
-    uint32_t latency;
-    uint8_t padding[11];
+    uint8_t padding[7];
     uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
-        func(serverOrderID);
+        func(oldServerOrderID);
+        func(newServerOrderID);
         func(status);
-        func(latency);
         func(padding);
         func(hmac);
     }
@@ -363,6 +363,11 @@ template <> struct PayloadTraits<CancelAckPayload> {
 template <> struct PayloadTraits<CancelOrderPayload> {
     static constexpr MessageType type = MessageType::CANCEL_ORDER;
     static constexpr size_t size = sizeof(CancelOrderPayload);
+};
+
+template <> struct PayloadTraits<ModifyOrderPayload> {
+    static constexpr MessageType type = MessageType::MODIFY_ORDER;
+    static constexpr size_t size = sizeof(ModifyOrderPayload);
 };
 
 template <> struct PayloadTraits<ModifyAckPayload> {
@@ -502,6 +507,21 @@ struct MessageFactory {
 
         return msg;
     }
+
+    static Message<ModifyAckPayload> makeModifyAck(Session& session, OrderID oldOrderID,
+                                                   OrderID newOrderID,
+                                                   statusCodes::ModifyStatus status) {
+        Message<ModifyAckPayload> msg;
+        msg.header = makeHeader<ModifyAckPayload>(session);
+        msg.payload.oldServerOrderID = oldOrderID;
+        msg.payload.newServerOrderID = newOrderID;
+        msg.payload.status = static_cast<uint8_t>(status);
+
+        std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
+
+        return msg;
+    }
 };
 
 namespace constants {
@@ -548,6 +568,7 @@ namespace HMACOffset {
 constexpr size_t HELLO_OFFSET = HEADER_SIZE + offsetof(HelloPayload, hmac);
 constexpr size_t LOGOUT_OFFSET = HEADER_SIZE + offsetof(LogoutPayload, hmac);
 constexpr size_t CANCEL_OFFSET = HEADER_SIZE + offsetof(CancelOrderPayload, hmac);
+constexpr size_t MODIFY_OFFSET = HEADER_SIZE + offsetof(ModifyOrderPayload, hmac);
 } // namespace HMACOffset
 
 namespace HeaderOffset {

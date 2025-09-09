@@ -113,6 +113,33 @@ int main() {
     serverSession.sendBuffer.clear();
     //
 
+    // test modify order
+    client.sendTestOrder();
+    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
+                                    std::begin(client.readSendBuffer()),
+                                    std::end(client.readSendBuffer()));
+    handler.onMessage(serverFD);
+    client.clearSendBuffer();
+    client.appendRecvBuffer(serverSession.sendBuffer);
+    client.processIncoming();
+
+    serverSession.sendBuffer.clear();
+
+    OrderID oldID = 4;
+
+    client.sendModify(oldID, 90, 300);
+    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
+                                    std::begin(client.readSendBuffer()),
+                                    std::end(client.readSendBuffer()));
+    handler.onMessage(serverFD);
+    client.clearSendBuffer();
+    client.appendRecvBuffer(serverSession.sendBuffer);
+    client.processIncoming();
+    serverSession.sendBuffer.clear();
+
+    //
+
+    // logout
     client.sendLogout();
     std::cout << "Client's logout message" << std::endl;
     utils::printHex(client.readSendBuffer());

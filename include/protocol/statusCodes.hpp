@@ -31,7 +31,18 @@ enum class CancelAckStatus : uint8_t {
     NULLSTATUS = 0x00,
     ACCEPTED = 0x01,
     INVALID = 0x02,
-    NOT_FOUND = 0x03
+    NOT_FOUND = 0x03,
+    NOT_AUTHENTICATED = 0x04,
+    OUT_OF_ORDER = 0x05
+};
+
+enum class ModifyStatus : uint8_t {
+    NULLSTATUS = 0x00,
+    ACCEPTED = 0x01,
+    INVALID = 0x02,
+    NOT_FOUND = 0x03,
+    NOT_AUTHENTICATED = 0x04,
+    OUT_OF_ORDER = 0x05
 };
 
 } // namespace statusCodes

@@ -13,7 +13,14 @@ using TradeID = uint64_t;
 
 enum class OrderType : uint8_t { LIMIT, MARKET };
 enum class OrderSide : uint8_t { BUY, SELL };
-enum class OrderStatus : uint8_t { NEW, REJECTED, PARTIALLY_FILLED, FILLED, CANCELLED };
+enum class OrderStatus : uint8_t {
+    NEW,
+    REJECTED,
+    PARTIALLY_FILLED,
+    FILLED,
+    CANCELLED,
+    MODIFIED
+};
 enum class TimeInForce : uint8_t { GTC };
 
 struct OutboundMessage {

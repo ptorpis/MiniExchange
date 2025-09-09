@@ -38,6 +38,15 @@ public:
                                              utils::getCurrentTimestampMicros()});
     }
 
+    std::unique_ptr<Order> createModified(ClientID clientID, OrderSide side,
+                                          OrderType orderType, InstrumentID instrumentID,
+                                          Qty qty, Price price, TimeInForce tif,
+                                          Timestamp goodTill) {
+        return std::make_unique<Order>(
+            Order{++idSqn_, clientID, side, orderType, instrumentID, qty, price, tif,
+                  goodTill, OrderStatus::MODIFIED, utils::getCurrentTimestampMicros()});
+    }
+
 private:
     OrderID idSqn_;
 };

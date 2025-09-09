@@ -106,6 +106,32 @@ void NetworkHandler::onMessage(int fd) {
 
             break;
         }
+
+        case MessageType::MODIFY_ORDER: {
+            totalSize = constants::HEADER_SIZE + constants::PayloadSize::MODIFY_ORDER;
+
+            if (session->recvBuffer.size() < totalSize) {
+                return;
+            }
+
+            const uint8_t* expectedHMAC =
+                session->recvBuffer.data() + constants::DataSize::MODIFY_ORDER;
+
+            if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
+                            constants::DataSize::MODIFY_ORDER, expectedHMAC,
+                            constants::HMAC_SIZE)) {
+                auto msgOpt = deserializeMessage<ModifyOrderPayload>(session->recvBuffer);
+                if (!msgOpt) {
+                    break;
+                }
+
+                auto responses = api_.handleModify(*session, msgOpt.value());
+                for (auto& response : responses) {
+                    sendRaw_(*(api_.getSession(response.fd)), response.data);
+                }
+            }
+            break;
+        }
         default: {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
             return;

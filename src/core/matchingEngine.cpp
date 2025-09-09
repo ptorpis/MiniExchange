@@ -44,3 +44,64 @@ bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID)
 
     return removed;
 }
+
+ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID orderID,
+                                         const Qty newQty, const Price newPrice) {
+    auto it = orderMap_.find(orderID);
+    if (it == orderMap_.end()) {
+        return {ModifyEvent{clientID, orderID, 0, statusCodes::ModifyStatus::NOT_FOUND},
+                std::nullopt};
+    }
+
+    auto& order = it->second;
+    if (order->clientID != clientID) {
+        return {ModifyEvent{clientID, orderID, 0, statusCodes::ModifyStatus::INVALID},
+                std::nullopt};
+    }
+
+    if (newPrice == order->price && newQty == order->qty) {
+        return {
+            ModifyEvent{clientID, orderID, orderID, statusCodes::ModifyStatus::ACCEPTED},
+            std::nullopt};
+    }
+
+    if (newPrice == order->price && newQty < order->qty) {
+        order->qty = newQty;
+        order->status = OrderStatus::MODIFIED;
+
+        return {
+            ModifyEvent{clientID, orderID, orderID, statusCodes::ModifyStatus::ACCEPTED},
+            std::nullopt};
+    }
+
+    OrderSide tmpSide = order->side;
+    OrderType tmpType = order->type;
+    InstrumentID tmpInstrID = order->instrumentID;
+    TimeInForce tmpTif = order->tif;
+    Timestamp tmpGoodTill = order->goodTill;
+
+    if (!cancelOrder(clientID, orderID)) {
+        return {ModifyEvent{clientID, orderID, 0, statusCodes::ModifyStatus::NOT_FOUND},
+                std::nullopt};
+    }
+
+    // now, the order is cancelled, and the pointer [order] is invalidated
+
+    std::unique_ptr<Order> newOrder = service_.createModified(
+        clientID, tmpSide, tmpType, tmpInstrID, newQty, newPrice, tmpTif, tmpGoodTill);
+
+    int sideIdx = (newOrder->side == OrderSide::BUY ? 0 : 1);
+    int typeIdx = (newOrder->type == OrderType::LIMIT ? 0 : 1);
+
+    OrderID tmpNewOrderID = newOrder->orderID;
+
+    MatchResult matchResult = {
+        order->orderID, order->timestamp,
+        (this->*dispatchTable_[sideIdx][typeIdx])(std::move(newOrder))};
+
+    // now the newOrder has been moved into the book, and ownership has been handed over
+
+    return {ModifyEvent{clientID, orderID, tmpNewOrderID,
+                        statusCodes::ModifyStatus::ACCEPTED},
+            matchResult};
+}

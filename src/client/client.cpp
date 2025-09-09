@@ -59,6 +59,27 @@ void Client::sendCancel(OrderID orderID) {
                                serialized.end());
 }
 
+void Client::sendModify(OrderID orderID, Qty newQty, Price newPrice) {
+    Message<ModifyOrderPayload> msg;
+    msg.header = makeClientHeader<ModifyOrderPayload>(session_);
+
+    msg.payload.serverClientID = session_.serverClientID;
+    msg.payload.serverOrderID = orderID;
+
+    msg.payload.newQuantity = newQty;
+    msg.payload.newPrice = newPrice;
+
+    auto serialized =
+        serializeMessage(MessageType::MODIFY_ORDER, msg.payload, msg.header);
+    auto hmac = computeHMAC_(session_.hmacKey, serialized.data(),
+                             constants::DataSize::MODIFY_ORDER);
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + constants::HMACOffset::MODIFY_OFFSET);
+
+    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
+                               serialized.end());
+}
+
 void Client::processIncoming() {
     size_t totalSize = 0;
     while (true) {
@@ -207,6 +228,39 @@ void Client::processIncoming() {
 
                 break;
             }
+            break;
+        }
+
+        case MessageType::MODIFY_ACK: {
+            totalSize = constants::HEADER_SIZE + constants::PayloadSize::MODIFY_ACK;
+            if (session_.recvBuffer.size() < totalSize) {
+                return;
+            }
+
+            std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
+            std::memcpy(expectedHMAC.data(),
+                        session_.recvBuffer.data() + constants::DataSize::CANCEL_ACK,
+                        constants::HMAC_SIZE);
+
+            if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
+                            constants::DataSize::CANCEL_ACK, expectedHMAC.data(),
+                            constants::HMAC_SIZE)) {
+                auto msgOpt = deserializeMessage<ModifyAckPayload>(session_.recvBuffer);
+
+                if (!msgOpt) {
+                    break;
+                }
+
+                session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+                if (static_cast<statusCodes::ModifyStatus>(
+                        msgOpt.value().payload.status) ==
+                    statusCodes::ModifyStatus::ACCEPTED) {
+                    std::cout << "Modify Successful" << std::endl;
+                } else {
+                    std::cout << "Modify Unsuccessful" << std::endl;
+                }
+            }
+
             break;
         }
 

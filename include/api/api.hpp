@@ -23,6 +23,8 @@ public:
     std::vector<OutboundMessage> handleNewOrder(Session& session,
                                                 Message<NewOrderPayload>& msg);
     std::vector<uint8_t> handleCancel(Session& session, Message<CancelOrderPayload>& msg);
+    std::vector<OutboundMessage> handleModify(Session& session,
+                                              Message<ModifyOrderPayload>& msg);
 
 private:
     MatchingEngine& engine_;
@@ -44,4 +46,8 @@ private:
                                        statusCodes::OrderAckStatus status);
     std::vector<uint8_t> makeCancelAck_(Session& session, const OrderID orderID,
                                         statusCodes::CancelAckStatus status);
+
+    std::vector<uint8_t> makeModifyAck_(Session& session, OrderID oldOrderID,
+                                        OrderID newOrderID,
+                                        statusCodes::ModifyStatus status);
 };

@@ -114,6 +114,12 @@ std::vector<uint8_t> MiniExchangeAPI::handleCancel(Session& session,
         return response;
     }
 
+    if (!session.authenticated) {
+        response = makeCancelAck_(session, msg.payload.serverOrderID,
+                                  statusCodes::CancelAckStatus::NOT_AUTHENTICATED);
+        return response;
+    }
+
     bool success = engine_.cancelOrder(session.serverClientID, msg.payload.serverOrderID);
 
     if (success) {
@@ -124,6 +130,63 @@ std::vector<uint8_t> MiniExchangeAPI::handleCancel(Session& session,
                                   statusCodes::CancelAckStatus::NOT_FOUND);
     }
     return response;
+}
+
+std::vector<OutboundMessage>
+MiniExchangeAPI::handleModify(Session& session, Message<ModifyOrderPayload>& msg) {
+    std::vector<OutboundMessage> responses;
+
+    // new order id is automatically 0 if the status != accepted
+    if (msg.payload.serverClientID != session.serverClientID) {
+        responses.push_back(
+            {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
+                                        statusCodes::ModifyStatus::INVALID)});
+    }
+
+    if (!session.authenticated) {
+        responses.push_back(
+            {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
+                                        statusCodes::ModifyStatus::NOT_AUTHENTICATED)});
+    }
+
+    if (session.clientSqn >= msg.header.clientMsgSqn) {
+        responses.push_back(
+            {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
+                                        statusCodes::ModifyStatus::OUT_OF_ORDER)});
+    }
+
+    ModifyResult modResult =
+        engine_.modifyOrder(msg.payload.serverClientID, msg.payload.serverOrderID,
+                            msg.payload.newQuantity, msg.payload.newPrice);
+
+    if (modResult.event.status == statusCodes::ModifyStatus::ACCEPTED) {
+        responses.push_back(
+            {session.FD,
+             makeModifyAck_(session, msg.payload.serverOrderID,
+                            modResult.event.newOrderID, modResult.event.status)});
+
+        if (!modResult.result) {
+            return responses;
+        }
+
+        for (auto& trade : modResult.result.value().tradeVec) {
+            Session* buyerSession = getSession(trade.buyerID);
+            Session* sellerSession = getSession(trade.sellerID);
+
+            responses.push_back(
+                {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
+            responses.push_back(
+                {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+        }
+
+    } else {
+
+        responses.push_back(
+            {session.FD,
+             makeModifyAck_(session, modResult.event.oldOrderID,
+                            modResult.event.newOrderID, modResult.event.status)});
+    }
+    return responses;
 }
 
 std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session, OrderRequest& req,
@@ -184,6 +247,21 @@ MiniExchangeAPI::makeCancelAck_(Session& session, const OrderID orderID,
         computeHMAC_(session.hmacKey, serialized.data(), constants::DataSize::CANCEL_ACK);
     std::copy(hmac.begin(), hmac.end(),
               serialized.data() + constants::DataSize::CANCEL_ACK);
+    return serialized;
+}
+
+std::vector<uint8_t> MiniExchangeAPI::makeModifyAck_(Session& session, OrderID oldOrderID,
+                                                     OrderID newOrderID,
+                                                     statusCodes::ModifyStatus status) {
+    Message<ModifyAckPayload> msg =
+        MessageFactory::makeModifyAck(session, oldOrderID, newOrderID, status);
+
+    auto serialized = serializeMessage<ModifyAckPayload>(MessageType::MODIFY_ACK,
+                                                         msg.payload, msg.header);
+    auto hmac =
+        computeHMAC_(session.hmacKey, serialized.data(), constants::DataSize::MODIFY_ACK);
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + constants::DataSize::MODIFY_ACK);
     return serialized;
 }
 

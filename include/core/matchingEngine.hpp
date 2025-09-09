@@ -27,6 +27,8 @@ public:
 
     MatchResult processOrder(OrderRequest& req);
     bool cancelOrder(const ClientID clientID, const OrderID orderID);
+    ModifyResult modifyOrder(const ClientID clientID, const OrderID orderID,
+                             const Qty newQty, const Price newPrice);
     void reset();
 
     std::optional<Price> getSpread() const;
