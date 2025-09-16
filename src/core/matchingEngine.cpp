@@ -105,3 +105,24 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
                         statusCodes::ModifyStatus::ACCEPTED},
             matchResult};
 }
+
+std::optional<const Order*> MatchingEngine::getOrder(OrderID orderID) const {
+    auto it = orderMap_.find(orderID);
+    if (it == orderMap_.end()) return std::nullopt;
+    return it->second;
+}
+
+std::optional<Price> MatchingEngine::getBestAsk() const {
+    if (asks_.empty()) return std::nullopt;
+    return asks_.begin()->first;
+}
+
+std::optional<Price> MatchingEngine::getBestBid() const {
+    if (bids_.empty()) return std::nullopt;
+    return bids_.begin()->first;
+}
+
+std::optional<Price> MatchingEngine::getSpread() const {
+    if (asks_.empty() || bids_.empty()) return std::nullopt;
+    return asks_.begin()->first - bids_.begin()->first;
+}
