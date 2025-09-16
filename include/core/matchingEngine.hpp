@@ -69,7 +69,7 @@ private:
                               ts};
         }
         static bool pricePasses(Price orderPrice, Price bestPrice) {
-            return orderPrice >= bestPrice;
+            return orderPrice <= bestPrice;
         }
     };
 
@@ -88,7 +88,7 @@ private:
         }
 
         static bool pricePasses(Price orderPrice, Price bestPrice) {
-            return orderPrice <= bestPrice;
+            return orderPrice >= bestPrice;
         }
     };
 
@@ -158,8 +158,8 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     const Qty originalQty = remainingQty;
     auto& book = SidePolicy::book(*this);
 
-    auto it = book.begin();
     while (remainingQty && !book.empty()) {
+        auto it = book.begin();
         Price bestPrice = it->first;
 
         if constexpr (OrderTypePolicy::needsPriceCheck) {

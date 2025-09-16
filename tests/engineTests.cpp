@@ -138,3 +138,22 @@ TEST_F(MatchingEngineTest, PartialFill) {
     EXPECT_EQ(restingOrder.value()->qty, 5);
     EXPECT_EQ(restingOrder.value()->status, OrderStatus::PARTIALLY_FILLED);
 }
+
+TEST_F(MatchingEngineTest, WalkTheBook) {
+    OrderRequest req1 = createTestLimitRequest(true, 1, 200);
+    OrderRequest req2 = createTestLimitRequest(true, 1, 201);
+    OrderRequest req3 = createTestLimitRequest(true, 1, 202);
+
+    engine->processOrder(req1);
+    engine->processOrder(req2);
+    engine->processOrder(req3);
+
+    OrderRequest fillerRequest = createTestLimitRequest(false, 4, 202);
+
+    MatchResult fillResult = engine->processOrder(fillerRequest);
+
+    EXPECT_EQ(fillResult.tradeVec.size(), 3);
+    std::optional<const Order*> restingOrder = engine->getOrder(fillResult.orderID);
+    EXPECT_TRUE(restingOrder.has_value());
+    EXPECT_EQ(restingOrder.value()->qty, 1);
+}
