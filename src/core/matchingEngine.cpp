@@ -1,6 +1,6 @@
 #include "core/matchingEngine.hpp"
 
-MatchResult MatchingEngine::processOrder(OrderRequest& req) {
+MatchResult MatchingEngine::processOrder(const OrderRequest& req) {
 
     std::unique_ptr<Order> order = service_.orderFromRequest(req);
 

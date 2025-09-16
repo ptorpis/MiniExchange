@@ -42,7 +42,7 @@ public:
         return req;
     }
 
-    std::unique_ptr<Order> orderFromRequest(OrderRequest& req) {
+    std::unique_ptr<Order> orderFromRequest(const OrderRequest& req) {
         return std::make_unique<Order>(Order{++idSqn_, req.clientID, req.side, req.type,
                                              req.instrumentID, req.qty, req.price,
                                              req.tif, req.goodTill, OrderStatus::NEW,

@@ -25,7 +25,7 @@ public:
         service_ = OrderService();
     }
 
-    MatchResult processOrder(OrderRequest& req);
+    MatchResult processOrder(const OrderRequest& req);
     bool cancelOrder(const ClientID clientID, const OrderID orderID);
     ModifyResult modifyOrder(const ClientID clientID, const OrderID orderID,
                              const Qty newQty, const Price newPrice);

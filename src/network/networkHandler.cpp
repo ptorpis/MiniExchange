@@ -39,7 +39,7 @@ void NetworkHandler::onMessage(int fd) {
                             constants::DataSize::HELLO, expectedHMAC,
                             constants::HMAC_SIZE)) {
                 if (auto msgOpt = deserializeMessage<HelloPayload>(session->recvBuffer)) {
-                    sendRaw_(*session, api_.handleHello(*session, msgOpt.value()));
+                    sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
                 }
             }
             break;
@@ -58,7 +58,7 @@ void NetworkHandler::onMessage(int fd) {
                             constants::HMAC_SIZE)) {
                 if (auto msgOpt =
                         deserializeMessage<LogoutPayload>(session->recvBuffer)) {
-                    sendRaw_(*session, api_.handleLogout(*session, msgOpt.value()));
+                    sendFn_(*session, api_.handleLogout(*session, msgOpt.value()));
                 }
             }
             break;
@@ -79,7 +79,7 @@ void NetworkHandler::onMessage(int fd) {
                         deserializeMessage<NewOrderPayload>(session->recvBuffer)) {
                     auto responses = api_.handleNewOrder(*session, msgOpt.value());
                     for (auto& response : responses) {
-                        sendRaw_(*(api_.getSession(response.fd)), response.data);
+                        sendFn_(*(api_.getSession(response.fd)), response.data);
                     }
                 }
             }
@@ -100,7 +100,7 @@ void NetworkHandler::onMessage(int fd) {
                             constants::HMAC_SIZE)) {
                 auto msgOpt = deserializeMessage<CancelOrderPayload>(session->recvBuffer);
                 if (msgOpt) {
-                    sendRaw_(*session, api_.handleCancel(*session, msgOpt.value()));
+                    sendFn_(*session, api_.handleCancel(*session, msgOpt.value()));
                 }
             }
 
@@ -127,7 +127,7 @@ void NetworkHandler::onMessage(int fd) {
 
                 auto responses = api_.handleModify(*session, msgOpt.value());
                 for (auto& response : responses) {
-                    sendRaw_(*(api_.getSession(response.fd)), response.data);
+                    sendFn_(*(api_.getSession(response.fd)), response.data);
                 }
             }
             break;
@@ -158,12 +158,12 @@ std::optional<MessageHeader> NetworkHandler::peekHeader_(Session& session) const
     return header;
 }
 
-void NetworkHandler::sendRaw_(Session& session, std::span<const std::uint8_t> buffer) {
-    session.sendBuffer.insert(std::end(session.sendBuffer), std::begin(buffer),
-                              std::end(buffer));
+// void NetworkHandler::sendRaw_(Session& session, std::span<const std::uint8_t> buffer) {
+//     session.sendBuffer.insert(std::end(session.sendBuffer), std::begin(buffer),
+//                               std::end(buffer));
 
-    // actually push the bytes over the network
-}
+//     // actually push the bytes over the network
+// }
 
 bool NetworkHandler::verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
                                  size_t dataLen, const uint8_t* expectedHMAC,
