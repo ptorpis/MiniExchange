@@ -50,4 +50,5 @@ TEST_F(MatchingEngineTest, MarketIntoEmptyBook) {
     MatchResult result = engine->processOrder(mktreq);
 
     EXPECT_EQ(result.tradeVec.size(), 0);
+    EXPECT_EQ(result.status, OrderStatus::CANCELLED);
 }

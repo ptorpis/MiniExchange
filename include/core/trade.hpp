@@ -17,6 +17,7 @@ struct TradeEvent {
 struct MatchResult {
     OrderID orderID;
     Timestamp ts;
+    OrderStatus status;
     std::vector<TradeEvent> tradeVec;
 };
 

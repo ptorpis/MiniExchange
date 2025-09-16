@@ -7,9 +7,8 @@ MatchResult MatchingEngine::processOrder(OrderRequest& req) {
     int sideIdx = (order->side == OrderSide::BUY ? 0 : 1);
     int typeIdx = (order->type == OrderType::LIMIT ? 0 : 1);
 
-    return {order->orderID, order->timestamp,
-            (this->*dispatchTable_[sideIdx][typeIdx])(std::move(order))};
-}
+    return (this->*dispatchTable_[sideIdx][typeIdx])(std::move(order));
+};
 
 void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
     Order* raw = order.get();
@@ -95,9 +94,8 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
     OrderID tmpNewOrderID = newOrder->orderID;
 
-    MatchResult matchResult = {
-        order->orderID, order->timestamp,
-        (this->*dispatchTable_[sideIdx][typeIdx])(std::move(newOrder))};
+    MatchResult matchResult =
+        (this->*dispatchTable_[sideIdx][typeIdx])(std::move(newOrder));
 
     // now the newOrder has been moved into the book, and ownership has been handed over
 
