@@ -1,3 +1,14 @@
+/*
+To keep the responsibility to create request objects and order objects, this class
+will do that instead of the engine.
+
+The createRequestFromMessage() function will validate input, the orderFromRequest
+assumes that the former validation was sufficient, hence it assumes correct input.
+
+The createRequestFromMessage() function is used by the middle layers,
+the orderFromRequest() and orderModified() are for the engine.
+*/
+
 #pragma once
 #include "core/order.hpp"
 #include "protocol/messages.hpp"
