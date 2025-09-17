@@ -26,13 +26,28 @@ public:
     std::vector<OutboundMessage> handleModify(Session& session,
                                               Message<ModifyOrderPayload>& msg);
 
+    std::optional<Price> getSpread() const { return engine_.getSpread(); };
+    std::optional<Price> getBestAsk() const { return engine_.getBestAsk(); };
+    std::optional<Price> getBestBid() const { return engine_.getBestBid(); };
+
+    std::optional<const Order*> getOrder(OrderID orderID) const {
+        return engine_.getOrder(orderID);
+    }
+
+    size_t getAskSize() const { return engine_.getAskSize(); }
+    size_t getBidsSize() const { return engine_.getBidsSize(); }
+
+    size_t getAsksPriceLevelSize(Price price) {
+        return engine_.getAsksPriceLevelSize(price);
+    }
+    size_t getBidsPriceLevelSize(Price price) {
+        return engine_.getBidsPriceLevelSize(price);
+    }
+
 private:
     MatchingEngine& engine_;
     SessionManager& sessionManager_;
     OrderService& service_;
-
-    template <typename Payload>
-    void sendMessage_(Session& sesssion, const Message<Payload>& msg);
 
     bool isValidAPIKey_(Session& session, const uint8_t key[16]);
     std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,

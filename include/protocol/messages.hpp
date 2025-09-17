@@ -9,6 +9,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <utility>
+
+namespace constants {
+inline constexpr size_t HEADER_SIZE = 16;
+inline constexpr size_t HMAC_SIZE = 32;
+} // namespace constants
+
+// only specialized versions exist which contain the traits of each message
+template <typename T> struct PayloadTraits;
 
 enum class MessageType : uint8_t {
     HELLO = 0x01,
@@ -65,6 +74,15 @@ struct HelloPayload {
 };
 #pragma pack(pop)
 
+template <> struct PayloadTraits<HelloPayload> {
+    static constexpr MessageType type = MessageType::HELLO;
+    static constexpr size_t size = sizeof(HelloPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(HelloPayload, hmac);
+};
+
 #pragma pack(push, 1)
 struct HelloAckPayload {
     uint64_t serverClientID;
@@ -81,6 +99,15 @@ struct HelloAckPayload {
 };
 #pragma pack(pop)
 
+template <> struct PayloadTraits<HelloAckPayload> {
+    static constexpr MessageType type = MessageType::HELLO_ACK;
+    static constexpr size_t size = sizeof(HelloAckPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(HelloAckPayload, hmac);
+};
+
 #pragma pack(push, 1)
 struct HeartBeatPayload {
     uint64_t serverClientID;
@@ -95,6 +122,15 @@ struct HeartBeatPayload {
 };
 #pragma pack(pop)
 
+template <> struct PayloadTraits<HeartBeatPayload> {
+    static constexpr MessageType type = MessageType::HEARTBEAT;
+    static constexpr size_t size = sizeof(HeartBeatPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(HeartBeatPayload, hmac);
+};
+
 #pragma pack(push, 1)
 struct LogoutPayload {
     uint64_t serverClientID;
@@ -108,6 +144,15 @@ struct LogoutPayload {
     }
 };
 #pragma pack(pop)
+
+template <> struct PayloadTraits<LogoutPayload> {
+    static constexpr MessageType type = MessageType::LOGOUT;
+    static constexpr size_t size = sizeof(LogoutPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(LogoutPayload, hmac);
+};
 
 #pragma pack(push, 1)
 struct LogoutAckPayload {
@@ -125,6 +170,15 @@ struct LogoutAckPayload {
 };
 #pragma pack(pop)
 
+template <> struct PayloadTraits<LogoutAckPayload> {
+    static constexpr MessageType type = MessageType::LOGOUT_ACK;
+    static constexpr size_t size = sizeof(LogoutAckPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(LogoutAckPayload, hmac);
+};
+
 #pragma pack(push, 1)
 struct SessionTimeoutPayload {
     uint64_t serverClientID;
@@ -138,6 +192,15 @@ struct SessionTimeoutPayload {
     }
 };
 #pragma pack(pop)
+
+template <> struct PayloadTraits<SessionTimeoutPayload> {
+    static constexpr MessageType type = MessageType::SESSION_TIMEOUT;
+    static constexpr size_t size = sizeof(SessionTimeoutPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(SessionTimeoutPayload, hmac);
+};
 
 #pragma pack(push, 1)
 struct NewOrderPayload {
@@ -167,6 +230,15 @@ struct NewOrderPayload {
 };
 #pragma pack(pop)
 
+template <> struct PayloadTraits<NewOrderPayload> {
+    static constexpr MessageType type = MessageType::NEW_ORDER;
+    static constexpr size_t size = sizeof(NewOrderPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(NewOrderPayload, hmac);
+};
+
 #pragma pack(push, 1)
 struct OrderAckPayload {
     uint64_t serverClientID;
@@ -193,6 +265,15 @@ struct OrderAckPayload {
 };
 #pragma pack(pop)
 
+template <> struct PayloadTraits<OrderAckPayload> {
+    static constexpr MessageType type = MessageType::ORDER_ACK;
+    static constexpr size_t size = sizeof(OrderAckPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(OrderAckPayload, hmac);
+};
+
 #pragma pack(push, 1)
 struct CancelOrderPayload {
     uint64_t serverClientID;
@@ -208,6 +289,15 @@ struct CancelOrderPayload {
     }
 };
 #pragma pack(pop)
+
+template <> struct PayloadTraits<CancelOrderPayload> {
+    static constexpr MessageType type = MessageType::CANCEL_ORDER;
+    static constexpr size_t size = sizeof(CancelOrderPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(CancelOrderPayload, hmac);
+};
 
 #pragma pack(push, 1)
 struct CancelAckPayload {
@@ -227,6 +317,15 @@ struct CancelAckPayload {
 };
 #pragma pack(pop)
 
+template <> struct PayloadTraits<CancelAckPayload> {
+    static constexpr MessageType type = MessageType::CANCEL_ACK;
+    static constexpr size_t size = sizeof(CancelAckPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(CancelAckPayload, hmac);
+};
+
 #pragma pack(push, 1)
 struct ModifyOrderPayload {
     uint64_t serverClientID;
@@ -244,6 +343,15 @@ struct ModifyOrderPayload {
     }
 };
 #pragma pack(pop)
+
+template <> struct PayloadTraits<ModifyOrderPayload> {
+    static constexpr MessageType type = MessageType::MODIFY_ORDER;
+    static constexpr size_t size = sizeof(ModifyOrderPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(ModifyOrderPayload, hmac);
+};
 
 #pragma pack(push, 1)
 struct ModifyAckPayload {
@@ -264,6 +372,15 @@ struct ModifyAckPayload {
     }
 };
 #pragma pack(pop)
+
+template <> struct PayloadTraits<ModifyAckPayload> {
+    static constexpr MessageType type = MessageType::MODIFY_ACK;
+    static constexpr size_t size = sizeof(ModifyAckPayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(ModifyAckPayload, hmac);
+};
 
 #pragma pack(push, 1)
 struct TradePayload {
@@ -286,6 +403,15 @@ struct TradePayload {
     }
 };
 #pragma pack(pop)
+
+template <> struct PayloadTraits<TradePayload> {
+    static constexpr MessageType type = MessageType::MODIFY_ACK;
+    static constexpr size_t size = sizeof(TradePayload);
+    static constexpr size_t dataSize =
+        size + constants::HEADER_SIZE - constants::HMAC_SIZE;
+    static constexpr size_t hmacOffset =
+        constants::HEADER_SIZE + offsetof(TradePayload, hmac);
+};
 
 // #pragma pack(push, 1)
 // struct ResendRequestPayload {
@@ -323,72 +449,15 @@ template <typename Payload> struct Message {
     Payload payload;
 };
 
-template <typename T> struct PayloadTraits;
-
-template <> struct PayloadTraits<HelloPayload> {
-    static constexpr MessageType type = MessageType::HELLO;
-    static constexpr size_t size = sizeof(HelloAckPayload);
-};
-
-template <> struct PayloadTraits<HelloAckPayload> {
-    static constexpr MessageType type = MessageType::HELLO_ACK;
-    static constexpr size_t size = sizeof(HelloAckPayload);
-};
-
-template <> struct PayloadTraits<LogoutPayload> {
-    static constexpr MessageType type = MessageType::LOGOUT;
-    static constexpr size_t size = sizeof(LogoutPayload);
-};
-
-template <> struct PayloadTraits<LogoutAckPayload> {
-    static constexpr MessageType type = MessageType::LOGOUT_ACK;
-    static constexpr size_t size = sizeof(LogoutAckPayload);
-};
-
-template <> struct PayloadTraits<NewOrderPayload> {
-    static constexpr MessageType type = MessageType::NEW_ORDER;
-    static constexpr size_t size = sizeof(NewOrderPayload);
-};
-
-template <> struct PayloadTraits<OrderAckPayload> {
-    static constexpr MessageType type = MessageType::ORDER_ACK;
-    static constexpr size_t size = sizeof(OrderAckPayload);
-};
-
-template <> struct PayloadTraits<CancelAckPayload> {
-    static constexpr MessageType type = MessageType::CANCEL_ACK;
-    static constexpr size_t size = sizeof(CancelAckPayload);
-};
-
-template <> struct PayloadTraits<CancelOrderPayload> {
-    static constexpr MessageType type = MessageType::CANCEL_ORDER;
-    static constexpr size_t size = sizeof(CancelOrderPayload);
-};
-
-template <> struct PayloadTraits<ModifyOrderPayload> {
-    static constexpr MessageType type = MessageType::MODIFY_ORDER;
-    static constexpr size_t size = sizeof(ModifyOrderPayload);
-};
-
-template <> struct PayloadTraits<ModifyAckPayload> {
-    static constexpr MessageType type = MessageType::MODIFY_ACK;
-    static constexpr size_t size = sizeof(ModifyAckPayload);
-};
-
-template <> struct PayloadTraits<TradePayload> {
-    static constexpr MessageType type = MessageType::TRADE;
-    static constexpr size_t size = sizeof(TradePayload);
-};
-
 namespace constants {
 enum class HeaderFlags : uint8_t { PROTOCOL_VERSION = 0x01 };
 }
 
 template <typename Payload> inline MessageHeader makeHeader(Session& session) {
     MessageHeader header{};
-    header.messageType = static_cast<uint8_t>(PayloadTraits<Payload>::type);
+    header.messageType = std::to_underlying(PayloadTraits<Payload>::type);
     header.protocolVersionFlag =
-        static_cast<uint8_t>(constants::HeaderFlags::PROTOCOL_VERSION);
+        std::to_underlying(constants::HeaderFlags::PROTOCOL_VERSION);
     header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
     header.clientMsgSqn = session.clientSqn;
     header.serverMsgSqn = ++session.serverSqn;
@@ -401,9 +470,9 @@ template <typename Payload> inline MessageHeader makeHeader(Session& session) {
 template <typename Payload>
 inline MessageHeader makeClientHeader(ClientSession& session) {
     MessageHeader header{};
-    header.messageType = static_cast<uint8_t>(PayloadTraits<Payload>::type);
+    header.messageType = std::to_underlying(PayloadTraits<Payload>::type);
     header.protocolVersionFlag =
-        static_cast<uint8_t>(constants::HeaderFlags::PROTOCOL_VERSION);
+        std::to_underlying(constants::HeaderFlags::PROTOCOL_VERSION);
     header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
     header.clientMsgSqn = ++session.clientSqn;
     header.serverMsgSqn = session.serverSqn;
@@ -421,7 +490,7 @@ struct MessageFactory {
         msg.header = makeHeader<HelloAckPayload>(session);
 
         msg.payload.serverClientID = session.serverClientID;
-        msg.payload.status = static_cast<uint8_t>(status);
+        msg.payload.status = std::to_underlying(status);
 
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
@@ -436,7 +505,7 @@ struct MessageFactory {
         msg.header = makeHeader<LogoutAckPayload>(session);
 
         msg.payload.serverClientID = session.serverClientID;
-        msg.payload.status = static_cast<uint8_t>(status);
+        msg.payload.status = std::to_underlying(status);
 
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
@@ -454,7 +523,7 @@ struct MessageFactory {
         ack.header = makeHeader<OrderAckPayload>(session);
         ack.payload.serverClientID = session.serverClientID;
         ack.payload.instrumentID = req.instrumentID;
-        ack.payload.status = static_cast<uint8_t>(status);
+        ack.payload.status = std::to_underlying(status);
         ack.payload.serverTime = currentTime;
         ack.payload.latency = static_cast<int32_t>(currentTime - ts);
         if (!orderID) {
@@ -500,7 +569,7 @@ struct MessageFactory {
         msg.header = makeHeader<CancelAckPayload>(session);
         msg.payload.serverClientID = session.serverClientID;
         msg.payload.serverOrderID = orderID;
-        msg.payload.status = static_cast<uint8_t>(status);
+        msg.payload.status = std::to_underlying(status);
 
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
@@ -515,7 +584,7 @@ struct MessageFactory {
         msg.header = makeHeader<ModifyAckPayload>(session);
         msg.payload.oldServerOrderID = oldOrderID;
         msg.payload.newServerOrderID = newOrderID;
-        msg.payload.status = static_cast<uint8_t>(status);
+        msg.payload.status = std::to_underlying(status);
 
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
@@ -525,8 +594,6 @@ struct MessageFactory {
 };
 
 namespace constants {
-constexpr size_t HEADER_SIZE = 16;
-constexpr size_t HMAC_SIZE = 32;
 
 namespace PayloadSize {
 inline constexpr size_t HELLO = sizeof(HelloPayload);

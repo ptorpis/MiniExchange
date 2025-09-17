@@ -9,6 +9,7 @@
 
 #include "auth/session.hpp"
 #include "protocol/messages.hpp"
+#include "protocol/serialize.hpp"
 
 class Client {
 public:
@@ -28,13 +29,13 @@ public:
 
     ClientSession& getSession() { return session_; }
 
-    template <typename Payload> void sendMessage(Message<Payload> msg);
-
     void processIncoming();
 
     std::array<uint8_t, 16> getAPIKey() { return APIKey_; }
     const std::vector<uint8_t>& readRecBuffer() const { return session_.recvBuffer; }
     const std::vector<uint8_t>& readSendBuffer() const { return session_.sendBuffer; }
+
+    template <typename Payload> void sendMessage(Message<Payload> msg);
 
     void sendHello();
     void sendLogout();
@@ -64,3 +65,13 @@ private:
     ClientSession session_;
     SendFn sendFn_;
 };
+
+template <typename Payload> void Client::sendMessage(Message<Payload> msg) {
+    std::vector<uint8_t> serialized =
+        serializeMessage<Payload>(PayloadTraits<Payload>::type, msg.payload, msg.header);
+    auto hmac = computeHMAC_(session_.hmacKey, serialized.data(),
+                             PayloadTraits<Payload>::dataSize);
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + PayloadTraits<Payload>::hmacOffset);
+    sendFn_(serialized);
+}

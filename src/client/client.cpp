@@ -1,26 +1,18 @@
 #include "client/client.hpp"
-#include "protocol/serialize.hpp"
 #include <arpa/inet.h>
 #include <cassert>
 #include <cstring>
 #include <iostream>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <utility>
 
 void Client::sendHello() {
     Message<HelloPayload> msg;
     msg.header = makeClientHeader<HelloPayload>(session_);
     std::memcpy(msg.payload.apiKey, getAPIKey().data(), getAPIKey().size());
     std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
-    auto serialized = serializeMessage(MessageType::HELLO, msg.payload, msg.header);
-
-    auto hmac =
-        computeHMAC_(session_.hmacKey, serialized.data(), constants::DataSize::HELLO);
-
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::HMACOffset::HELLO_OFFSET);
-
-    sendFn_(serialized);
+    sendMessage(msg);
 }
 
 void Client::sendLogout() {
@@ -28,14 +20,7 @@ void Client::sendLogout() {
     msg.header = makeClientHeader<LogoutPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
-
-    auto serialized = serializeMessage(MessageType::LOGOUT, msg.payload, msg.header);
-    auto hmac =
-        computeHMAC_(session_.hmacKey, serialized.data(), constants::DataSize::LOGOUT);
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::HMACOffset::LOGOUT_OFFSET);
-
-    sendFn_(serialized);
+    sendMessage(msg);
 }
 
 void Client::sendCancel(OrderID orderID) {
@@ -45,15 +30,7 @@ void Client::sendCancel(OrderID orderID) {
     msg.payload.serverOrderID = orderID;
 
     std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
-
-    auto serialized =
-        serializeMessage(MessageType::CANCEL_ORDER, msg.payload, msg.header);
-    auto hmac = computeHMAC_(session_.hmacKey, serialized.data(),
-                             constants::DataSize::CANCEL_ORDER);
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::HMACOffset::CANCEL_OFFSET);
-
-    sendFn_(serialized);
+    sendMessage(msg);
 }
 
 void Client::sendModify(OrderID orderID, Qty newQty, Price newPrice) {
@@ -65,15 +42,7 @@ void Client::sendModify(OrderID orderID, Qty newQty, Price newPrice) {
 
     msg.payload.newQuantity = newQty;
     msg.payload.newPrice = newPrice;
-
-    auto serialized =
-        serializeMessage(MessageType::MODIFY_ORDER, msg.payload, msg.header);
-    auto hmac = computeHMAC_(session_.hmacKey, serialized.data(),
-                             constants::DataSize::MODIFY_ORDER);
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::HMACOffset::MODIFY_OFFSET);
-
-    sendFn_(serialized);
+    sendMessage(msg);
 }
 
 void Client::processIncoming() {
@@ -320,24 +289,16 @@ void Client::sendTestOrder() {
     msg.header = makeClientHeader<NewOrderPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.instrumentID = 1;
-    msg.payload.orderSide = static_cast<uint8_t>(OrderSide::BUY);
-    msg.payload.orderType = static_cast<uint8_t>(OrderType::LIMIT);
+    msg.payload.orderSide = std::to_underlying(OrderSide::BUY);
+    msg.payload.orderType = std::to_underlying(OrderType::LIMIT);
     msg.payload.quantity = 100;
     msg.payload.price = 200;
-    msg.payload.timeInForce = static_cast<uint8_t>(TimeInForce::GTC);
+    msg.payload.timeInForce = std::to_underlying(TimeInForce::GTC);
     msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
     std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
     std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
-    auto serialized = serializeMessage(MessageType::NEW_ORDER, msg.payload, msg.header);
-
-    auto hmac =
-        computeHMAC_(session_.hmacKey, serialized.data(), constants::DataSize::NEW_ORDER);
-
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::DataSize::NEW_ORDER);
-
-    sendFn_(serialized);
+    sendMessage(msg);
 }
 
 void Client::testFill() {
@@ -345,22 +306,14 @@ void Client::testFill() {
     msg.header = makeClientHeader<NewOrderPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.instrumentID = 1;
-    msg.payload.orderSide = static_cast<uint8_t>(OrderSide::SELL);
-    msg.payload.orderType = static_cast<uint8_t>(OrderType::LIMIT);
+    msg.payload.orderSide = std::to_underlying(OrderSide::SELL);
+    msg.payload.orderType = std::to_underlying(OrderType::LIMIT);
     msg.payload.quantity = 100;
     msg.payload.price = 200;
-    msg.payload.timeInForce = static_cast<uint8_t>(TimeInForce::GTC);
+    msg.payload.timeInForce = std::to_underlying(TimeInForce::GTC);
     msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
     std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
     std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
-    auto serialized = serializeMessage(MessageType::NEW_ORDER, msg.payload, msg.header);
-
-    auto hmac =
-        computeHMAC_(session_.hmacKey, serialized.data(), constants::DataSize::NEW_ORDER);
-
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::DataSize::NEW_ORDER);
-
-    sendFn_(serialized);
+    sendMessage(msg);
 }

@@ -29,7 +29,7 @@ template <typename T> T readIntegerAdvance(const uint8_t*& ptr) {
     std::memcpy(&val, ptr, sizeof(T));
     ptr += sizeof(T);
 
-    return swapEndian(val); // use your helper
+    return swapEndian(val);
 }
 
 inline void readBytesAdvance(const uint8_t*& ptr, uint8_t* out, size_t len) {

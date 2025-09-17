@@ -11,6 +11,8 @@ protected:
     // HMAC KEY is 0x11 repeating
     // API KEY is 0x22 repeating
 
+    // At the beginning of each test case, we can assume that the user is logged in
+
     void SetUp() override {
         serverFD = 1;
         clientFD = 2;
@@ -21,8 +23,10 @@ protected:
         client = std::make_unique<Client>(
             HMACKEY, APIKEY, clientFD, [this](const std::span<const uint8_t> buffer) {
                 clientCapture.insert(clientCapture.end(), buffer.begin(), buffer.end());
-                serverSession->recvBuffer.insert(serverSession->recvBuffer.end(),
-                                                 buffer.begin(), buffer.end());
+                if (serverSession) {
+                    serverSession->recvBuffer.insert(serverSession->recvBuffer.end(),
+                                                     buffer.begin(), buffer.end());
+                }
             });
 
         handler = std::make_unique<NetworkHandler>(
