@@ -11,21 +11,21 @@
 
 class NetworkHandler {
 public:
-    using SendFn = std::function<void(Session&, const std::vector<uint8_t>&)>;
+    using SendFn = std::function<void(Session&, const std::span<const uint8_t>)>;
 
     /*
     Constructs the NetworkHandler with the given API and SessionManager
 
     The optional sendFn allows customizing how outgoing messages are being handled.
 
-    The defauly funciton for this copes the outgoing message into the sendbuffer of
+    The defauly funciton for this copies the outgoing message into the sendbuffer of
     of the given session
     */
 
     NetworkHandler(
         MiniExchangeAPI& api, SessionManager& sm,
         SendFn sendFn =
-            [](Session& session, std::span<const uint8_t> buffer) {
+            [](Session& session, const std::span<const uint8_t> buffer) {
                 session.sendBuffer.insert(std::end(session.sendBuffer),
                                           std::begin(buffer), std::end(buffer));
             })
@@ -37,7 +37,7 @@ public:
 private:
     MiniExchangeAPI& api_;
     SessionManager& sessionManager_;
-    SendFn sendFn_;
+    SendFn sendFn_; // custom send function, assigned at construction
 
     std::optional<MessageHeader> peekHeader_(Session& Session) const;
     bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,

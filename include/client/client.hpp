@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <vector>
@@ -11,10 +12,18 @@
 
 class Client {
 public:
+    using SendFn = std::function<void(const std::span<const uint8_t>)>;
+
     Client(std::array<uint8_t, constants::HMAC_SIZE> hmacKey,
-           std::array<uint8_t, 16> APIKey, int fd)
-        : APIKey_(APIKey), session_(fd) {
+           std::array<uint8_t, 16> APIKey, int fd, SendFn sendFn = {})
+        : APIKey_(APIKey), session_(fd), sendFn_(std::move(sendFn)) {
         session_.hmacKey = hmacKey;
+        if (!sendFn_) {
+            sendFn_ = [this](const std::span<const uint8_t> buffer) {
+                session_.sendBuffer.insert(session_.sendBuffer.end(), buffer.begin(),
+                                           buffer.end());
+            };
+        }
     }
 
     ClientSession& getSession() { return session_; }
@@ -51,7 +60,7 @@ private:
     std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
                                       const uint8_t* data, size_t dataLen);
     std::optional<MessageHeader> peekHeader_() const;
-    void sendRaw_(std::span<const uint8_t> buffer);
 
     ClientSession session_;
+    SendFn sendFn_;
 };

@@ -10,6 +10,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(UnitTests
     # test cpp files come here
     engineTests.cpp
+    messageHandlingTests.cpp
 )
 
 target_link_libraries(UnitTests

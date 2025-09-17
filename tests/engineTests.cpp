@@ -157,3 +157,37 @@ TEST_F(MatchingEngineTest, WalkTheBook) {
     EXPECT_TRUE(restingOrder.has_value());
     EXPECT_EQ(restingOrder.value()->qty, 1);
 }
+
+TEST_F(MatchingEngineTest, ModifyReduceQty) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ModifyResult modRes = engine->modifyOrder(1, res.orderID, 99, 200);
+
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);
+    std::optional<const Order*> order = engine->getOrder(res.orderID);
+
+    // check if the modification was in-place
+    ASSERT_TRUE(order.has_value());
+    ASSERT_EQ(modRes.event.newOrderID, modRes.event.oldOrderID);
+    ASSERT_EQ(order.value()->qty, 99);
+    ASSERT_EQ(order.value()->price, 200);
+    ASSERT_EQ(order.value()->status, OrderStatus::MODIFIED);
+}
+
+TEST_F(MatchingEngineTest, ModifyIncreaseQty) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ModifyResult modRes = engine->modifyOrder(1, res.orderID, 101, 200);
+
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);
+    ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
+    std::optional<const Order*> order = engine->getOrder(modRes.event.newOrderID);
+
+    // check if the old order still exists (should not)
+    std::optional<const Order*> oldOrder = engine->getOrder(res.orderID);
+    ASSERT_TRUE(order.has_value());
+    ASSERT_FALSE(oldOrder.has_value());
+    ASSERT_EQ(order.value()->qty, 101);
+    ASSERT_EQ(order.value()->price, 200);
+    ASSERT_EQ(order.value()->status, OrderStatus::MODIFIED);
+}

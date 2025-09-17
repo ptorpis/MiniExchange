@@ -20,8 +20,7 @@ void Client::sendHello() {
     std::copy(hmac.begin(), hmac.end(),
               serialized.data() + constants::HMACOffset::HELLO_OFFSET);
 
-    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
-                               serialized.end());
+    sendFn_(serialized);
 }
 
 void Client::sendLogout() {
@@ -36,8 +35,7 @@ void Client::sendLogout() {
     std::copy(hmac.begin(), hmac.end(),
               serialized.data() + constants::HMACOffset::LOGOUT_OFFSET);
 
-    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
-                               serialized.end());
+    sendFn_(serialized);
 }
 
 void Client::sendCancel(OrderID orderID) {
@@ -55,8 +53,7 @@ void Client::sendCancel(OrderID orderID) {
     std::copy(hmac.begin(), hmac.end(),
               serialized.data() + constants::HMACOffset::CANCEL_OFFSET);
 
-    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
-                               serialized.end());
+    sendFn_(serialized);
 }
 
 void Client::sendModify(OrderID orderID, Qty newQty, Price newPrice) {
@@ -76,8 +73,7 @@ void Client::sendModify(OrderID orderID, Qty newQty, Price newPrice) {
     std::copy(hmac.begin(), hmac.end(),
               serialized.data() + constants::HMACOffset::MODIFY_OFFSET);
 
-    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
-                               serialized.end());
+    sendFn_(serialized);
 }
 
 void Client::processIncoming() {
@@ -319,12 +315,6 @@ void Client::appendRecvBuffer(std::span<const uint8_t> data) {
                                std::end(data));
 }
 
-void Client::sendRaw_(std::span<const uint8_t> buffer) {
-    session_.sendBuffer.insert(session_.sendBuffer.end(), buffer.begin(), buffer.end());
-
-    // actually push the bytes over the network
-}
-
 void Client::sendTestOrder() {
     Message<NewOrderPayload> msg;
     msg.header = makeClientHeader<NewOrderPayload>(session_);
@@ -347,8 +337,7 @@ void Client::sendTestOrder() {
     std::copy(hmac.begin(), hmac.end(),
               serialized.data() + constants::DataSize::NEW_ORDER);
 
-    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
-                               serialized.end());
+    sendFn_(serialized);
 }
 
 void Client::testFill() {
@@ -373,6 +362,5 @@ void Client::testFill() {
     std::copy(hmac.begin(), hmac.end(),
               serialized.data() + constants::DataSize::NEW_ORDER);
 
-    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
-                               serialized.end());
+    sendFn_(serialized);
 }
