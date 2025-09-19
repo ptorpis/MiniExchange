@@ -3,8 +3,11 @@
 #include "client/client.hpp"
 #include "core/service.hpp"
 #include "network/networkHandler.hpp"
+#include <arpa/inet.h>
 #include <gtest/gtest.h>
 #include <memory>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
 
 class NetworkHandlerTest : public ::testing::Test {
 protected:
@@ -109,6 +112,15 @@ protected:
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
         return msg;
+    }
+
+    std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
+                                      const uint8_t* data, size_t dataLen) {
+        unsigned int len = 32;
+
+        std::vector<uint8_t> hmac(len);
+        HMAC(EVP_sha256(), key.data(), key.size(), data, dataLen, hmac.data(), &len);
+        return hmac;
     }
 
     MatchingEngine engine;
@@ -399,4 +411,34 @@ TEST_F(NetworkHandlerTest, MultipleOrders) {
     ASSERT_EQ(engine.getBestBid().value(), 209);
     ASSERT_EQ(engine.getBidsSize(), 10);
     logout();
+}
+
+TEST_F(NetworkHandlerTest, PartialMessage) {
+    login();
+    Message<NewOrderPayload> msg =
+        testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT);
+    std::vector<uint8_t> serialized =
+        serializeMessage(MessageType::NEW_ORDER, msg.payload, msg.header);
+
+    auto hmac = computeHMAC_(client->getSession().hmacKey, serialized.data(),
+                             PayloadTraits<NewOrderPayload>::dataSize);
+
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + PayloadTraits<NewOrderPayload>::hmacOffset);
+
+    size_t half = serialized.size() / 2;
+
+    serverSession->recvBuffer.insert(serverSession->recvBuffer.end(), serialized.begin(),
+                                     serialized.begin() + half);
+    handler->onMessage(serverFD);
+    ASSERT_TRUE(serverCapture.empty());
+
+    serverSession->recvBuffer.insert(serverSession->recvBuffer.end(),
+                                     serialized.begin() + half, serialized.end());
+    handler->onMessage(serverFD);
+    ASSERT_FALSE(serverCapture.empty());
+
+    auto ack = deserializeMessage<OrderAckPayload>(serverCapture);
+    ASSERT_TRUE(ack.has_value());
+    ASSERT_EQ(ack.value().header.messageType, std::to_underlying(MessageType::ORDER_ACK));
 }
