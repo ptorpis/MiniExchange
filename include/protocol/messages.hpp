@@ -62,6 +62,11 @@ struct MessageHeader {
 };
 #pragma pack(pop)
 
+template <typename Payload> struct Message {
+    MessageHeader header;
+    Payload payload;
+};
+
 #pragma pack(push, 1)
 struct HelloPayload {
     uint8_t apiKey[16];
@@ -81,6 +86,7 @@ template <> struct PayloadTraits<HelloPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(HelloPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<HelloPayload>);
 };
 
 #pragma pack(push, 1)
@@ -106,6 +112,7 @@ template <> struct PayloadTraits<HelloAckPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(HelloAckPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<HelloAckPayload>);
 };
 
 #pragma pack(push, 1)
@@ -129,6 +136,7 @@ template <> struct PayloadTraits<HeartBeatPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(HeartBeatPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<HeartBeatPayload>);
 };
 
 #pragma pack(push, 1)
@@ -152,6 +160,7 @@ template <> struct PayloadTraits<LogoutPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(LogoutPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<LogoutPayload>);
 };
 
 #pragma pack(push, 1)
@@ -177,6 +186,7 @@ template <> struct PayloadTraits<LogoutAckPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(LogoutAckPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<LogoutAckPayload>);
 };
 
 #pragma pack(push, 1)
@@ -200,6 +210,7 @@ template <> struct PayloadTraits<SessionTimeoutPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(SessionTimeoutPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<SessionTimeoutPayload>);
 };
 
 #pragma pack(push, 1)
@@ -237,6 +248,7 @@ template <> struct PayloadTraits<NewOrderPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(NewOrderPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<NewOrderPayload>);
 };
 
 #pragma pack(push, 1)
@@ -272,6 +284,7 @@ template <> struct PayloadTraits<OrderAckPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(OrderAckPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<OrderAckPayload>);
 };
 
 #pragma pack(push, 1)
@@ -297,6 +310,7 @@ template <> struct PayloadTraits<CancelOrderPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(CancelOrderPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<CancelOrderPayload>);
 };
 
 #pragma pack(push, 1)
@@ -324,6 +338,7 @@ template <> struct PayloadTraits<CancelAckPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(CancelAckPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<CancelAckPayload>);
 };
 
 #pragma pack(push, 1)
@@ -351,6 +366,7 @@ template <> struct PayloadTraits<ModifyOrderPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(ModifyOrderPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<ModifyOrderPayload>);
 };
 
 #pragma pack(push, 1)
@@ -380,6 +396,7 @@ template <> struct PayloadTraits<ModifyAckPayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(ModifyAckPayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<ModifyAckPayload>);
 };
 
 #pragma pack(push, 1)
@@ -411,6 +428,7 @@ template <> struct PayloadTraits<TradePayload> {
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
     static constexpr size_t hmacOffset =
         constants::HEADER_SIZE + offsetof(TradePayload, hmac);
+    static constexpr size_t msgSize = sizeof(Message<TradePayload>);
 };
 
 // #pragma pack(push, 1)
@@ -443,11 +461,6 @@ struct ErrorMessagePayload {
     }
 };
 #pragma pack(pop)
-
-template <typename Payload> struct Message {
-    MessageHeader header;
-    Payload payload;
-};
 
 namespace constants {
 enum class HeaderFlags : uint8_t { PROTOCOL_VERSION = 0x01 };

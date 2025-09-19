@@ -128,7 +128,6 @@ void Client::processIncoming() {
                     break;
                 }
                 session_.serverSqn = msgOpt.value().header.serverMsgSqn;
-                std::cout << "Order Accepted" << std::endl;
                 break;
             }
             break;
@@ -155,7 +154,6 @@ void Client::processIncoming() {
                 }
 
                 session_.serverSqn = msgOpt.value().header.serverMsgSqn;
-                std::cout << "Trade Accepted" << std::endl;
                 session_.exeID++;
                 break;
             }
@@ -186,9 +184,7 @@ void Client::processIncoming() {
                 if (static_cast<statusCodes::CancelAckStatus>(
                         msgOpt.value().payload.status) ==
                     statusCodes::CancelAckStatus::ACCEPTED) {
-                    std::cout << "Order cancellation accepted" << std::endl;
                 } else {
-                    std::cout << "Order cancellation rejected" << std::endl;
                 }
 
                 break;
@@ -220,9 +216,7 @@ void Client::processIncoming() {
                 if (static_cast<statusCodes::ModifyStatus>(
                         msgOpt.value().payload.status) ==
                     statusCodes::ModifyStatus::ACCEPTED) {
-                    std::cout << "Modify Successful" << std::endl;
                 } else {
-                    std::cout << "Modify Unsuccessful" << std::endl;
                 }
             }
 

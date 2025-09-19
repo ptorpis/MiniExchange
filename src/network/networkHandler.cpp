@@ -32,6 +32,10 @@ void NetworkHandler::onMessage(int fd) {
                 return; // wait for more data
             }
 
+            if (session->authenticated) {
+                break;
+            }
+
             const uint8_t* expectedHMAC =
                 session->recvBuffer.data() + constants::DataSize::HELLO;
 
@@ -48,6 +52,10 @@ void NetworkHandler::onMessage(int fd) {
             totalSize = constants::HEADER_SIZE + constants::PayloadSize::LOGOUT;
             if (session->recvBuffer.size() < totalSize) {
                 return;
+            }
+
+            if (!session->authenticated) {
+                break;
             }
 
             const uint8_t* expectedHMAC =
@@ -67,6 +75,10 @@ void NetworkHandler::onMessage(int fd) {
             totalSize = constants::HEADER_SIZE + constants::PayloadSize::NEW_ORDER;
             if (session->recvBuffer.size() < totalSize) {
                 return;
+            }
+
+            if (!session->authenticated) {
+                break;
             }
 
             const uint8_t* expectedHMAC =
@@ -92,6 +104,10 @@ void NetworkHandler::onMessage(int fd) {
                 return;
             }
 
+            if (!session->authenticated) {
+                break;
+            }
+
             const uint8_t* expectedHMAC =
                 session->recvBuffer.data() + constants::DataSize::CANCEL_ORDER;
 
@@ -112,6 +128,10 @@ void NetworkHandler::onMessage(int fd) {
 
             if (session->recvBuffer.size() < totalSize) {
                 return;
+            }
+
+            if (!session->authenticated) {
+                break;
             }
 
             const uint8_t* expectedHMAC =
