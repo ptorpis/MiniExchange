@@ -148,7 +148,7 @@ TEST_F(MatchingEngineTest, WalkTheBook) {
     engine->processOrder(req2);
     engine->processOrder(req3);
 
-    OrderRequest fillerRequest = createTestLimitRequest(false, 4, 202);
+    OrderRequest fillerRequest = createTestLimitRequest(false, 4, 200);
 
     MatchResult fillResult = engine->processOrder(fillerRequest);
 
@@ -156,6 +156,28 @@ TEST_F(MatchingEngineTest, WalkTheBook) {
     std::optional<const Order*> restingOrder = engine->getOrder(fillResult.orderID);
     EXPECT_TRUE(restingOrder.has_value());
     EXPECT_EQ(restingOrder.value()->qty, 1);
+}
+
+TEST_F(MatchingEngineTest, CancelOrderNotFound) {
+    EXPECT_FALSE(engine->cancelOrder(1, 9999));
+}
+
+TEST_F(MatchingEngineTest, ModifyOrderNotFound) {
+    ModifyResult modRes = engine->modifyOrder(1, 9999, 100, 200);
+    EXPECT_EQ(modRes.event.status, statusCodes::ModifyStatus::NOT_FOUND);
+}
+
+TEST_F(MatchingEngineTest, LimitDoesNotCross) {
+    OrderRequest buyReq = createTestLimitRequest(true, 100, 199);
+    MatchResult buyRes = engine->processOrder(buyReq);
+    EXPECT_EQ(buyRes.status, OrderStatus::NEW);
+
+    OrderRequest sellReq = createTestLimitRequest(false, 100, 201);
+    MatchResult sellRes = engine->processOrder(sellReq);
+    EXPECT_EQ(sellRes.status, OrderStatus::NEW);
+
+    EXPECT_EQ(engine->getBidsSize(), 1);
+    EXPECT_EQ(engine->getAskSize(), 1);
 }
 
 TEST_F(MatchingEngineTest, ModifyReduceQty) {

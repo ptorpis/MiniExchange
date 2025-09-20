@@ -398,6 +398,133 @@ TEST_F(NetworkHandlerTest, ModifyOrderWithInvalidHMAC) {
     ASSERT_FALSE(modifyAck.has_value());
 }
 
+TEST_F(NetworkHandlerTest, ModifyPrice) {
+    login();
+    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(serverFD);
+    std::optional<Message<OrderAckPayload>> ack =
+        deserializeMessage<OrderAckPayload>(serverCapture);
+    ASSERT_TRUE(ack.has_value());
+    ASSERT_EQ(ack.value().payload.status,
+              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    clearSendBuffers();
+    resetServerCapture();
+    resetClientCapture();
+
+    client->sendModify(ack.value().payload.serverOrderID, 100, 250);
+    handler->onMessage(serverFD);
+
+    ASSERT_EQ(serverCapture.size(), PayloadTraits<ModifyAckPayload>::msgSize);
+
+    std::optional<Message<ModifyAckPayload>> modifyAck =
+        deserializeMessage<ModifyAckPayload>(serverCapture);
+
+    ASSERT_TRUE(modifyAck.has_value());
+    ASSERT_EQ(modifyAck.value().header.messageType,
+              std::to_underlying(MessageType::MODIFY_ACK));
+    ASSERT_EQ(modifyAck.value().payload.status,
+              std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
+
+    ASSERT_TRUE(engine.getBestBid().has_value());
+    ASSERT_EQ(engine.getBestBid().value(), 250);
+    ASSERT_EQ(ack.value().payload.serverOrderID,
+              modifyAck.value().payload.oldServerOrderID);
+
+    ASSERT_NE(modifyAck.value().payload.newServerOrderID,
+              modifyAck.value().payload.oldServerOrderID);
+    logout();
+}
+
+TEST_F(NetworkHandlerTest, MofifyPriceAndQty) {
+    login();
+    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(serverFD);
+    std::optional<Message<OrderAckPayload>> ack =
+        deserializeMessage<OrderAckPayload>(serverCapture);
+    ASSERT_TRUE(ack.has_value());
+    ASSERT_EQ(ack.value().payload.status,
+              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    clearSendBuffers();
+    resetServerCapture();
+    resetClientCapture();
+
+    client->sendModify(ack.value().payload.serverOrderID, 50, 250);
+    handler->onMessage(serverFD);
+
+    ASSERT_EQ(serverCapture.size(), PayloadTraits<ModifyAckPayload>::msgSize);
+
+    std::optional<Message<ModifyAckPayload>> modifyAck =
+        deserializeMessage<ModifyAckPayload>(serverCapture);
+
+    ASSERT_TRUE(modifyAck.has_value());
+    ASSERT_EQ(modifyAck.value().header.messageType,
+              std::to_underlying(MessageType::MODIFY_ACK));
+    ASSERT_EQ(modifyAck.value().payload.status,
+              std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
+
+    ASSERT_TRUE(engine.getBestBid().has_value());
+    ASSERT_EQ(engine.getBestBid().value(), 250);
+    ASSERT_EQ(ack.value().payload.serverOrderID,
+              modifyAck.value().payload.oldServerOrderID);
+
+    ASSERT_NE(modifyAck.value().payload.newServerOrderID,
+              modifyAck.value().payload.oldServerOrderID);
+    logout();
+}
+
+TEST_F(NetworkHandlerTest, FillFromModify) {
+    login();
+    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(serverFD);
+    std::optional<Message<OrderAckPayload>> ack =
+        deserializeMessage<OrderAckPayload>(serverCapture);
+    ASSERT_TRUE(ack.has_value());
+    ASSERT_EQ(ack.value().payload.status,
+              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    clearSendBuffers();
+    resetServerCapture();
+    resetClientCapture();
+
+    client->sendMessage(testOrderMessage(100, 201, OrderSide::SELL, OrderType::LIMIT));
+    handler->onMessage(serverFD);
+    std::optional<Message<OrderAckPayload>> sellAck =
+        deserializeMessage<OrderAckPayload>(serverCapture);
+    ASSERT_TRUE(sellAck.has_value());
+    ASSERT_EQ(sellAck.value().payload.status,
+              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    clearSendBuffers();
+    resetServerCapture();
+    resetClientCapture();
+
+    client->sendModify(ack.value().payload.serverOrderID, 100, 201);
+    handler->onMessage(serverFD);
+    ASSERT_EQ(serverCapture.size(), PayloadTraits<ModifyAckPayload>::msgSize +
+                                        PayloadTraits<TradePayload>::msgSize * 2);
+
+    auto modifyAck = deserializeMessage<ModifyAckPayload>(
+        std::span(serverCapture).subspan(0, PayloadTraits<ModifyAckPayload>::msgSize));
+    ASSERT_TRUE(modifyAck.has_value());
+    ASSERT_EQ(modifyAck.value().header.messageType,
+              std::to_underlying(MessageType::MODIFY_ACK));
+    ASSERT_EQ(modifyAck.value().payload.status,
+              std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
+    auto trade1 = deserializeMessage<TradePayload>(
+        std::span(serverCapture).subspan(PayloadTraits<ModifyAckPayload>::msgSize));
+    ASSERT_TRUE(trade1.has_value());
+    ASSERT_EQ(trade1.value().header.messageType, std::to_underlying(MessageType::TRADE));
+    ASSERT_EQ(trade1.value().payload.filledQty, 100);
+    ASSERT_EQ(trade1.value().payload.filledPrice, 201);
+
+    auto trade2 = deserializeMessage<TradePayload>(
+        std::span(serverCapture)
+            .subspan(PayloadTraits<ModifyAckPayload>::msgSize +
+                     PayloadTraits<TradePayload>::msgSize));
+    ASSERT_TRUE(trade2.has_value());
+    ASSERT_EQ(trade2.value().header.messageType, std::to_underlying(MessageType::TRADE));
+    ASSERT_EQ(trade2.value().payload.filledQty, 100);
+    ASSERT_EQ(trade2.value().payload.filledPrice, 201);
+}
+
 TEST_F(NetworkHandlerTest, MultipleOrders) {
     login();
     for (int i = 0; i < 10; ++i) {

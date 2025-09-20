@@ -69,7 +69,7 @@ private:
                               ts};
         }
         static bool pricePasses(Price orderPrice, Price bestPrice) {
-            return orderPrice <= bestPrice;
+            return orderPrice >= bestPrice;
         }
     };
 
@@ -88,7 +88,7 @@ private:
         }
 
         static bool pricePasses(Price orderPrice, Price bestPrice) {
-            return orderPrice >= bestPrice;
+            return orderPrice <= bestPrice;
         }
     };
 
