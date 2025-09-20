@@ -58,6 +58,11 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
                 std::nullopt};
     }
 
+    if (newQty <= 0 || newPrice <= 0) {
+        return {ModifyEvent{clientID, orderID, 0, statusCodes::ModifyStatus::INVALID},
+                std::nullopt};
+    }
+
     if (newPrice == order->price && newQty == order->qty) {
         return {
             ModifyEvent{clientID, orderID, orderID, statusCodes::ModifyStatus::ACCEPTED},

@@ -213,3 +213,149 @@ TEST_F(MatchingEngineTest, ModifyIncreaseQty) {
     ASSERT_EQ(order.value()->price, 200);
     ASSERT_EQ(order.value()->status, OrderStatus::MODIFIED);
 }
+
+TEST_F(MatchingEngineTest, ModifyChangePrice) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ModifyResult modRes = engine->modifyOrder(1, res.orderID, 100, 250);
+
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);
+    ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
+    std::optional<const Order*> order = engine->getOrder(modRes.event.newOrderID);
+
+    // check if the old order still exists (should not)
+    std::optional<const Order*> oldOrder = engine->getOrder(res.orderID);
+    ASSERT_TRUE(order.has_value());
+    ASSERT_FALSE(oldOrder.has_value());
+    ASSERT_EQ(order.value()->qty, 100);
+    ASSERT_EQ(order.value()->price, 250);
+    ASSERT_EQ(order.value()->status, OrderStatus::MODIFIED);
+}
+
+TEST_F(MatchingEngineTest, ModifyInvalidClient) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ModifyResult modRes = engine->modifyOrder(2, res.orderID, 100, 250);
+
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    std::optional<const Order*> order = engine->getOrder(res.orderID);
+
+    ASSERT_TRUE(order.has_value());
+    ASSERT_EQ(order.value()->qty, 100);
+    ASSERT_EQ(order.value()->price, 200);
+    ASSERT_EQ(order.value()->status, OrderStatus::NEW);
+}
+
+TEST_F(MatchingEngineTest, ModifyToCross) {
+    OrderRequest buyReq = createTestLimitRequest(true, 100, 200);
+    MatchResult buyRes = engine->processOrder(buyReq);
+    ASSERT_EQ(buyRes.status, OrderStatus::NEW);
+
+    OrderRequest sellReq = createTestLimitRequest(false, 100, 300);
+    MatchResult sellRes = engine->processOrder(sellReq);
+    ASSERT_EQ(sellRes.status, OrderStatus::NEW);
+
+    ModifyResult modRes = engine->modifyOrder(1, buyRes.orderID, 100, 350);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);
+    ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
+
+    ASSERT_EQ(modRes.result.value().tradeVec.size(), 1);
+
+    std::optional<const Order*> modifiedOrder = engine->getOrder(modRes.event.newOrderID);
+    ASSERT_FALSE(modifiedOrder.has_value());
+
+    std::optional<const Order*> restingSellOrder = engine->getOrder(sellRes.orderID);
+    ASSERT_FALSE(restingSellOrder.has_value());
+}
+
+TEST_F(MatchingEngineTest, CancelInvalidClient) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ASSERT_FALSE(engine->cancelOrder(2, res.orderID));
+}
+
+TEST_F(MatchingEngineTest, DoubleCancel) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ASSERT_TRUE(engine->cancelOrder(1, res.orderID));
+    ASSERT_FALSE(engine->cancelOrder(1, res.orderID));
+}
+
+TEST_F(MatchingEngineTest, TryToFillCancelled) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ASSERT_TRUE(engine->cancelOrder(1, res.orderID));
+
+    OrderRequest fillerReq = createTestLimitRequest(false, 100, 200);
+    MatchResult fillRes = engine->processOrder(fillerReq);
+    ASSERT_EQ(fillRes.tradeVec.size(), 0);
+}
+
+// modifying the price or qty to 0 is invalid
+TEST_F(MatchingEngineTest, ModifyToZeroQty) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ModifyResult modRes = engine->modifyOrder(1, res.orderID, 0, 200);
+
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    std::optional<const Order*> order = engine->getOrder(res.orderID);
+
+    ASSERT_TRUE(order.has_value());
+    ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
+    ASSERT_EQ(modRes.event.newOrderID, 0);
+}
+
+TEST_F(MatchingEngineTest, ModifyToZeroPrice) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ModifyResult modRes = engine->modifyOrder(1, res.orderID, 100, 0);
+
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    std::optional<const Order*> order = engine->getOrder(res.orderID);
+
+    ASSERT_TRUE(order.has_value());
+    ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
+    ASSERT_EQ(modRes.event.newOrderID, 0);
+}
+
+TEST_F(MatchingEngineTest, ModifyToNegativeQty) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ModifyResult modRes = engine->modifyOrder(1, res.orderID, -10, 200);
+
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    std::optional<const Order*> order = engine->getOrder(res.orderID);
+
+    ASSERT_TRUE(order.has_value());
+    ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
+    ASSERT_EQ(modRes.event.newOrderID, 0);
+}
+
+TEST_F(MatchingEngineTest, ModifyToNegativePrice) {
+    OrderRequest req = createTestLimitRequest(true, 100, 200);
+    MatchResult res = engine->processOrder(req);
+    ModifyResult modRes = engine->modifyOrder(1, res.orderID, 100, -50);
+
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    std::optional<const Order*> order = engine->getOrder(res.orderID);
+
+    ASSERT_TRUE(order.has_value());
+    ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
+    ASSERT_EQ(modRes.event.newOrderID, 0);
+}
+
+TEST_F(MatchingEngineTest, ResetEngine) {
+    OrderRequest req1 = createTestLimitRequest(true, 100, 200);
+    OrderRequest req2 = createTestLimitRequest(false, 100, 300);
+
+    engine->processOrder(req1);
+    engine->processOrder(req2);
+
+    ASSERT_EQ(engine->getBidsSize(), 1);
+    ASSERT_EQ(engine->getAskSize(), 1);
+
+    engine->reset();
+
+    ASSERT_EQ(engine->getBidsSize(), 0);
+    ASSERT_EQ(engine->getAskSize(), 0);
+}
