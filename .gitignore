@@ -170,3 +170,5 @@ logs/
 _tests/
 tests/bulk_testing/csvs/fuzz_test.csv
 tests/bulk_testing/csvs/benchmark/
+
+*.svg
