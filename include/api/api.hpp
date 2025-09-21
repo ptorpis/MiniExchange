@@ -17,14 +17,16 @@ public:
     Session* getSession(int fd);
     void disconnectClient(int fd);
 
-    std::vector<uint8_t> handleHello(Session& session, Message<HelloPayload> msg);
+    std::vector<uint8_t> handleHello(Session& session, Message<client::HelloPayload> msg);
 
-    std::vector<uint8_t> handleLogout(Session& session, Message<LogoutPayload> msg);
+    std::vector<uint8_t> handleLogout(Session& session,
+                                      Message<client::LogoutPayload> msg);
     std::vector<OutboundMessage> handleNewOrder(Session& session,
-                                                Message<NewOrderPayload>& msg);
-    std::vector<uint8_t> handleCancel(Session& session, Message<CancelOrderPayload>& msg);
+                                                Message<client::NewOrderPayload>& msg);
+    std::vector<uint8_t> handleCancel(Session& session,
+                                      Message<client::CancelOrderPayload>& msg);
     std::vector<OutboundMessage> handleModify(Session& session,
-                                              Message<ModifyOrderPayload>& msg);
+                                              Message<client::ModifyOrderPayload>& msg);
 
     std::optional<Price> getSpread() const { return engine_.getSpread(); };
     std::optional<Price> getBestAsk() const { return engine_.getBestAsk(); };

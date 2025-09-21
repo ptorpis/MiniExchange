@@ -1,4 +1,8 @@
 #include "client/client.hpp"
+#include "protocol/client/clientMessageFactory.hpp"
+#include "protocol/client/clientMessages.hpp"
+#include "protocol/server/serverMessages.hpp"
+#include "protocol/traits.hpp"
 #include <arpa/inet.h>
 #include <cassert>
 #include <cstring>
@@ -8,24 +12,24 @@
 #include <utility>
 
 void Client::sendHello() {
-    Message<HelloPayload> msg;
-    msg.header = makeClientHeader<HelloPayload>(session_);
+    Message<client::HelloPayload> msg;
+    msg.header = client::makeClientHeader<client::HelloPayload>(session_);
     std::memcpy(msg.payload.apiKey, getAPIKey().data(), getAPIKey().size());
     std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
     sendMessage(msg);
 }
 
 void Client::sendLogout() {
-    Message<LogoutPayload> msg;
-    msg.header = makeClientHeader<LogoutPayload>(session_);
+    Message<client::LogoutPayload> msg;
+    msg.header = client::makeClientHeader<client::LogoutPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
     sendMessage(msg);
 }
 
 void Client::sendCancel(OrderID orderID) {
-    Message<CancelOrderPayload> msg;
-    msg.header = makeClientHeader<CancelOrderPayload>(session_);
+    Message<client::CancelOrderPayload> msg;
+    msg.header = client::makeClientHeader<client::CancelOrderPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.serverOrderID = orderID;
 
@@ -34,8 +38,8 @@ void Client::sendCancel(OrderID orderID) {
 }
 
 void Client::sendModify(OrderID orderID, Qty newQty, Price newPrice) {
-    Message<ModifyOrderPayload> msg;
-    msg.header = makeClientHeader<ModifyOrderPayload>(session_);
+    Message<client::ModifyOrderPayload> msg;
+    msg.header = client::makeClientHeader<client::ModifyOrderPayload>(session_);
 
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.serverOrderID = orderID;
@@ -57,18 +61,21 @@ void Client::processIncoming() {
         MessageType type = static_cast<MessageType>(header.messageType);
         switch (type) {
         case MessageType::HELLO_ACK: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::HELLO;
+            totalSize = constants::HEADER_SIZE +
+                        server::PayloadTraits<server::HelloAckPayload>::size;
             if (session_.recvBuffer.size() < totalSize) {
                 return;
             }
 
             const uint8_t* expectedHMAC =
-                session_.recvBuffer.data() + constants::DataSize::HELLO_ACK;
+                session_.recvBuffer.data() +
+                server::PayloadTraits<server::HelloAckPayload>::dataSize;
 
             if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                            constants::DataSize::HELLO_ACK, expectedHMAC,
-                            constants::HMAC_SIZE)) {
-                auto msgOpt = deserializeMessage<HelloAckPayload>(session_.recvBuffer);
+                            server::PayloadTraits<server::HelloAckPayload>::dataSize,
+                            expectedHMAC, constants::HMAC_SIZE)) {
+                auto msgOpt =
+                    deserializeMessage<server::HelloAckPayload>(session_.recvBuffer);
                 if (!msgOpt) {
                     break;
                 }
@@ -84,17 +91,20 @@ void Client::processIncoming() {
             break;
         }
         case MessageType::LOGOUT_ACK: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::LOGOUT_ACK;
+            totalSize = constants::HEADER_SIZE +
+                        server::PayloadTraits<server::LogoutAckPayload>::size;
             if (session_.recvBuffer.size() < totalSize) {
                 return;
             }
             const uint8_t* expectedHMAC =
-                session_.recvBuffer.data() + constants::DataSize::LOGOUT_ACK;
+                session_.recvBuffer.data() +
+                server::PayloadTraits<server::LogoutAckPayload>::dataSize;
 
             if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                            constants::DataSize::LOGOUT_ACK, expectedHMAC,
-                            constants::HMAC_SIZE)) {
-                auto msgOpt = deserializeMessage<LogoutAckPayload>(session_.recvBuffer);
+                            server::PayloadTraits<server::LogoutAckPayload>::dataSize,
+                            expectedHMAC, constants::HMAC_SIZE)) {
+                auto msgOpt =
+                    deserializeMessage<server::LogoutAckPayload>(session_.recvBuffer);
 
                 if (!msgOpt) {
                     break;
@@ -112,17 +122,20 @@ void Client::processIncoming() {
         }
 
         case MessageType::ORDER_ACK: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::ORDER_ACK;
+            totalSize = constants::HEADER_SIZE +
+                        server::PayloadTraits<server::OrderAckPayload>::size;
             if (session_.recvBuffer.size() < totalSize) {
                 return;
             }
             const uint8_t* expectedHMAC =
-                session_.recvBuffer.data() + constants::DataSize::ORDER_ACK;
+                session_.recvBuffer.data() +
+                server::PayloadTraits<server::OrderAckPayload>::dataSize;
 
             if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                            constants::DataSize::ORDER_ACK, expectedHMAC,
-                            constants::HMAC_SIZE)) {
-                auto msgOpt = deserializeMessage<LogoutAckPayload>(session_.recvBuffer);
+                            server::PayloadTraits<server::OrderAckPayload>::dataSize,
+                            expectedHMAC, constants::HMAC_SIZE)) {
+                auto msgOpt =
+                    deserializeMessage<server::OrderAckPayload>(session_.recvBuffer);
 
                 if (!msgOpt) {
                     break;
@@ -134,20 +147,23 @@ void Client::processIncoming() {
         }
 
         case MessageType::TRADE: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::TRADE;
+            totalSize = constants::HEADER_SIZE +
+                        server::PayloadTraits<server::TradePayload>::size;
             if (session_.recvBuffer.size() < totalSize) {
                 return;
             }
 
             std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
             std::memcpy(expectedHMAC.data(),
-                        session_.recvBuffer.data() + constants::DataSize::TRADE,
+                        session_.recvBuffer.data() +
+                            server::PayloadTraits<server::TradePayload>::dataSize,
                         constants::HMAC_SIZE);
 
             if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                            constants::DataSize::TRADE, expectedHMAC.data(),
-                            constants::HMAC_SIZE)) {
-                auto msgOpt = deserializeMessage<TradePayload>(session_.recvBuffer);
+                            server::PayloadTraits<server::TradePayload>::dataSize,
+                            expectedHMAC.data(), constants::HMAC_SIZE)) {
+                auto msgOpt =
+                    deserializeMessage<server::TradePayload>(session_.recvBuffer);
 
                 if (!msgOpt) {
                     break;
@@ -161,20 +177,23 @@ void Client::processIncoming() {
         }
 
         case MessageType::CANCEL_ACK: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::CANCEL_ACK;
+            totalSize = constants::HEADER_SIZE +
+                        server::PayloadTraits<server::CancelAckPayload>::size;
             if (session_.recvBuffer.size() < totalSize) {
                 return;
             }
 
             std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
             std::memcpy(expectedHMAC.data(),
-                        session_.recvBuffer.data() + constants::DataSize::CANCEL_ACK,
+                        session_.recvBuffer.data() +
+                            server::PayloadTraits<server::CancelAckPayload>::dataSize,
                         constants::HMAC_SIZE);
 
             if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                            constants::DataSize::CANCEL_ACK, expectedHMAC.data(),
-                            constants::HMAC_SIZE)) {
-                auto msgOpt = deserializeMessage<CancelAckPayload>(session_.recvBuffer);
+                            server::PayloadTraits<server::CancelAckPayload>::dataSize,
+                            expectedHMAC.data(), constants::HMAC_SIZE)) {
+                auto msgOpt =
+                    deserializeMessage<server::CancelAckPayload>(session_.recvBuffer);
 
                 if (!msgOpt) {
                     break;
@@ -193,20 +212,23 @@ void Client::processIncoming() {
         }
 
         case MessageType::MODIFY_ACK: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::MODIFY_ACK;
+            totalSize = constants::HEADER_SIZE +
+                        server::PayloadTraits<server::ModifyAckPayload>::size;
             if (session_.recvBuffer.size() < totalSize) {
                 return;
             }
 
             std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
             std::memcpy(expectedHMAC.data(),
-                        session_.recvBuffer.data() + constants::DataSize::CANCEL_ACK,
+                        session_.recvBuffer.data() +
+                            server::PayloadTraits<server::ModifyAckPayload>::dataSize,
                         constants::HMAC_SIZE);
 
             if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                            constants::DataSize::CANCEL_ACK, expectedHMAC.data(),
-                            constants::HMAC_SIZE)) {
-                auto msgOpt = deserializeMessage<ModifyAckPayload>(session_.recvBuffer);
+                            server::PayloadTraits<server::ModifyAckPayload>::dataSize,
+                            expectedHMAC.data(), constants::HMAC_SIZE)) {
+                auto msgOpt =
+                    deserializeMessage<server::ModifyAckPayload>(session_.recvBuffer);
 
                 if (!msgOpt) {
                     break;
@@ -224,6 +246,7 @@ void Client::processIncoming() {
         }
 
         default: {
+            session_.recvBuffer.clear();
             break;
         }
         }
@@ -279,8 +302,8 @@ void Client::appendRecvBuffer(std::span<const uint8_t> data) {
 }
 
 void Client::sendTestOrder() {
-    Message<NewOrderPayload> msg;
-    msg.header = makeClientHeader<NewOrderPayload>(session_);
+    Message<client::NewOrderPayload> msg;
+    msg.header = client::makeClientHeader<client::NewOrderPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.instrumentID = 1;
     msg.payload.orderSide = std::to_underlying(OrderSide::BUY);
@@ -296,8 +319,8 @@ void Client::sendTestOrder() {
 }
 
 void Client::testFill() {
-    Message<NewOrderPayload> msg;
-    msg.header = makeClientHeader<NewOrderPayload>(session_);
+    Message<client::NewOrderPayload> msg;
+    msg.header = client::makeClientHeader<client::NewOrderPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.instrumentID = 1;
     msg.payload.orderSide = std::to_underlying(OrderSide::SELL);

@@ -67,11 +67,11 @@ private:
 };
 
 template <typename Payload> void Client::sendMessage(Message<Payload> msg) {
-    std::vector<uint8_t> serialized =
-        serializeMessage<Payload>(PayloadTraits<Payload>::type, msg.payload, msg.header);
+    std::vector<uint8_t> serialized = serializeMessage<Payload>(
+        client::PayloadTraits<Payload>::type, msg.payload, msg.header);
     auto hmac = computeHMAC_(session_.hmacKey, serialized.data(),
-                             PayloadTraits<Payload>::dataSize);
+                             client::PayloadTraits<Payload>::dataSize);
     std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + PayloadTraits<Payload>::hmacOffset);
+              serialized.data() + client::PayloadTraits<Payload>::hmacOffset);
     sendFn_(serialized);
 }

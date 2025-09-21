@@ -1,5 +1,8 @@
 #include "api/api.hpp"
 #include "protocol/serialize.hpp"
+#include "protocol/server/serverMessageFactory.hpp"
+#include "protocol/server/serverMessages.hpp"
+#include "protocol/traits.hpp"
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 
@@ -16,10 +19,10 @@ Session* MiniExchangeAPI::getSession(int fd) {
 }
 
 std::vector<uint8_t> MiniExchangeAPI::handleHello(Session& session,
-                                                  Message<HelloPayload> msg) {
+                                                  Message<client::HelloPayload> msg) {
 
     std::vector<uint8_t> ack;
-    ack.reserve(sizeof(MessageHeader) + sizeof(HelloAckPayload));
+    ack.reserve(sizeof(MessageHeader) + sizeof(server::HelloAckPayload));
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
         ack = makeHelloAck_(session, statusCodes::HelloStatus::OUT_OF_ORDER);
@@ -39,9 +42,9 @@ std::vector<uint8_t> MiniExchangeAPI::handleHello(Session& session,
 }
 
 std::vector<uint8_t> MiniExchangeAPI::handleLogout(Session& session,
-                                                   Message<LogoutPayload> msg) {
+                                                   Message<client::LogoutPayload> msg) {
     std::vector<uint8_t> ack;
-    ack.reserve(sizeof(MessageHeader) + sizeof(LogoutAckPayload));
+    ack.reserve(sizeof(MessageHeader) + sizeof(server::LogoutAckPayload));
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
         ack = makeLogoutAck_(session, statusCodes::LogoutStatus::OUT_OF_ORDER);
@@ -55,7 +58,7 @@ std::vector<uint8_t> MiniExchangeAPI::handleLogout(Session& session,
 }
 
 std::vector<OutboundMessage>
-MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg) {
+MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayload>& msg) {
     std::vector<OutboundMessage> responses;
 
     OrderRequest req = service_.createRequestFromMessage(msg);
@@ -105,8 +108,9 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<NewOrderPayload>& msg)
     return responses;
 }
 
-std::vector<uint8_t> MiniExchangeAPI::handleCancel(Session& session,
-                                                   Message<CancelOrderPayload>& msg) {
+std::vector<uint8_t>
+MiniExchangeAPI::handleCancel(Session& session,
+                              Message<client::CancelOrderPayload>& msg) {
     std::vector<uint8_t> response;
     if (msg.payload.serverClientID != session.serverClientID) {
         response = makeCancelAck_(session, msg.payload.serverOrderID,
@@ -133,7 +137,8 @@ std::vector<uint8_t> MiniExchangeAPI::handleCancel(Session& session,
 }
 
 std::vector<OutboundMessage>
-MiniExchangeAPI::handleModify(Session& session, Message<ModifyOrderPayload>& msg) {
+MiniExchangeAPI::handleModify(Session& session,
+                              Message<client::ModifyOrderPayload>& msg) {
     std::vector<OutboundMessage> responses;
 
     // new order id is automatically 0 if the status != accepted
@@ -194,7 +199,7 @@ std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session, OrderReque
                                                     Timestamp ts,
                                                     statusCodes::OrderAckStatus status) {
 
-    auto ackMsg = MessageFactory::makeOrderAck(session, req, orderID, status, ts);
+    auto ackMsg = server::MessageFactory::makeOrderAck(session, req, orderID, status, ts);
     auto serialized =
         serializeMessage(MessageType::ORDER_ACK, ackMsg.payload, ackMsg.header);
     auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
@@ -205,18 +210,21 @@ std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session, OrderReque
 
 std::vector<uint8_t> MiniExchangeAPI::makeHelloAck_(Session& session,
                                                     statusCodes::HelloStatus status) {
-    Message<HelloAckPayload> msg = MessageFactory::makeHelloAck(session, status);
+    Message<server::HelloAckPayload> msg =
+        server::MessageFactory::makeHelloAck(session, status);
     auto serialized = serializeMessage(MessageType::HELLO_ACK, msg.payload, msg.header);
-    auto hmac =
-        computeHMAC_(session.hmacKey, serialized.data(), constants::DataSize::HELLO_ACK);
+    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
+                             server::PayloadTraits<server::HelloAckPayload>::dataSize);
     std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::DataSize::HELLO_ACK);
+              serialized.data() +
+                  server::PayloadTraits<server::HelloAckPayload>::dataSize);
     return serialized;
 }
 
 std::vector<uint8_t> MiniExchangeAPI::makeLogoutAck_(Session& session,
                                                      statusCodes::LogoutStatus status) {
-    Message<LogoutAckPayload> msg = MessageFactory::makeLoutAck(session, status);
+    Message<server::LogoutAckPayload> msg =
+        server::MessageFactory::makeLoutAck(session, status);
     auto serialized = serializeMessage(MessageType::LOGOUT_ACK, msg.payload, msg.header);
     size_t dataLen = serialized.size() - constants::HMAC_SIZE;
     auto hmac = computeHMAC_(session.hmacKey, serialized.data(), dataLen);
@@ -226,42 +234,46 @@ std::vector<uint8_t> MiniExchangeAPI::makeLogoutAck_(Session& session,
 
 std::vector<uint8_t> MiniExchangeAPI::makeTradeMsg_(Session& session, TradeEvent& trade,
                                                     bool isBuyer) {
-    Message<TradePayload> msg = MessageFactory::makeTradeMsg(session, trade, isBuyer);
-    auto serialized =
-        serializeMessage<TradePayload>(MessageType::TRADE, msg.payload, msg.header);
-    auto hmac =
-        computeHMAC_(session.hmacKey, serialized.data(), constants::DataSize::TRADE);
-    std::copy(hmac.begin(), hmac.end(), serialized.data() + constants::DataSize::TRADE);
+    Message<server::TradePayload> msg =
+        server::MessageFactory::makeTradeMsg(session, trade, isBuyer);
+    auto serialized = serializeMessage<server::TradePayload>(MessageType::TRADE,
+                                                             msg.payload, msg.header);
+    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
+                             server::PayloadTraits<server::TradePayload>::dataSize);
+    std::copy(hmac.begin(), hmac.end(),
+              serialized.data() + server::PayloadTraits<server::TradePayload>::dataSize);
     return serialized;
 }
 
 std::vector<uint8_t>
 MiniExchangeAPI::makeCancelAck_(Session& session, const OrderID orderID,
                                 statusCodes::CancelAckStatus status) {
-    Message<CancelAckPayload> msg =
-        MessageFactory::makeCancelAck(session, orderID, status);
+    Message<server::CancelAckPayload> msg =
+        server::MessageFactory::makeCancelAck(session, orderID, status);
 
-    auto serialized = serializeMessage<CancelAckPayload>(MessageType::CANCEL_ACK,
-                                                         msg.payload, msg.header);
-    auto hmac =
-        computeHMAC_(session.hmacKey, serialized.data(), constants::DataSize::CANCEL_ACK);
+    auto serialized = serializeMessage<server::CancelAckPayload>(MessageType::CANCEL_ACK,
+                                                                 msg.payload, msg.header);
+    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
+                             server::PayloadTraits<server::CancelAckPayload>::dataSize);
     std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::DataSize::CANCEL_ACK);
+              serialized.data() +
+                  server::PayloadTraits<server::CancelAckPayload>::dataSize);
     return serialized;
 }
 
 std::vector<uint8_t> MiniExchangeAPI::makeModifyAck_(Session& session, OrderID oldOrderID,
                                                      OrderID newOrderID,
                                                      statusCodes::ModifyStatus status) {
-    Message<ModifyAckPayload> msg =
-        MessageFactory::makeModifyAck(session, oldOrderID, newOrderID, status);
+    Message<server::ModifyAckPayload> msg =
+        server::MessageFactory::makeModifyAck(session, oldOrderID, newOrderID, status);
 
-    auto serialized = serializeMessage<ModifyAckPayload>(MessageType::MODIFY_ACK,
-                                                         msg.payload, msg.header);
-    auto hmac =
-        computeHMAC_(session.hmacKey, serialized.data(), constants::DataSize::MODIFY_ACK);
+    auto serialized = serializeMessage<server::ModifyAckPayload>(MessageType::MODIFY_ACK,
+                                                                 msg.payload, msg.header);
+    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
+                             server::PayloadTraits<server::ModifyAckPayload>::dataSize);
     std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + constants::DataSize::MODIFY_ACK);
+              serialized.data() +
+                  server::PayloadTraits<server::ModifyAckPayload>::dataSize);
     return serialized;
 }
 

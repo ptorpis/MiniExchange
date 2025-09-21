@@ -1,7 +1,9 @@
 #include "network/networkHandler.hpp"
+#include "protocol/client/clientMessages.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/serialize.hpp"
 #include "protocol/statusCodes.hpp"
+#include "protocol/traits.hpp"
 
 #include <arpa/inet.h>
 #include <iostream>
@@ -27,7 +29,8 @@ void NetworkHandler::onMessage(int fd) {
 
         switch (type) {
         case MessageType::HELLO: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::HELLO;
+            totalSize = constants::HEADER_SIZE +
+                        client::PayloadTraits<client::HelloPayload>::size;
             if (session->recvBuffer.size() < totalSize) {
                 return; // wait for more data
             }
@@ -37,19 +40,22 @@ void NetworkHandler::onMessage(int fd) {
             }
 
             const uint8_t* expectedHMAC =
-                session->recvBuffer.data() + constants::DataSize::HELLO;
+                session->recvBuffer.data() +
+                client::PayloadTraits<client::HelloPayload>::dataSize;
 
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            constants::DataSize::HELLO, expectedHMAC,
-                            constants::HMAC_SIZE)) {
-                if (auto msgOpt = deserializeMessage<HelloPayload>(session->recvBuffer)) {
+                            client::PayloadTraits<client::HelloPayload>::dataSize,
+                            expectedHMAC, constants::HMAC_SIZE)) {
+                if (auto msgOpt =
+                        deserializeMessage<client::HelloPayload>(session->recvBuffer)) {
                     sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
                 }
             }
             break;
         }
         case MessageType::LOGOUT: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::LOGOUT;
+            totalSize = constants::HEADER_SIZE +
+                        client::PayloadTraits<client::LogoutPayload>::size;
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
@@ -59,20 +65,22 @@ void NetworkHandler::onMessage(int fd) {
             }
 
             const uint8_t* expectedHMAC =
-                session->recvBuffer.data() + constants::DataSize::LOGOUT;
+                session->recvBuffer.data() +
+                client::PayloadTraits<client::LogoutPayload>::dataSize;
 
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            constants::DataSize::LOGOUT, expectedHMAC,
-                            constants::HMAC_SIZE)) {
+                            client::PayloadTraits<client::LogoutPayload>::dataSize,
+                            expectedHMAC, constants::HMAC_SIZE)) {
                 if (auto msgOpt =
-                        deserializeMessage<LogoutPayload>(session->recvBuffer)) {
+                        deserializeMessage<client::LogoutPayload>(session->recvBuffer)) {
                     sendFn_(*session, api_.handleLogout(*session, msgOpt.value()));
                 }
             }
             break;
         }
         case MessageType::NEW_ORDER: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::NEW_ORDER;
+            totalSize = constants::HEADER_SIZE +
+                        client::PayloadTraits<client::NewOrderPayload>::size;
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
@@ -82,13 +90,14 @@ void NetworkHandler::onMessage(int fd) {
             }
 
             const uint8_t* expectedHMAC =
-                session->recvBuffer.data() + constants::DataSize::NEW_ORDER;
+                session->recvBuffer.data() +
+                client::PayloadTraits<client::NewOrderPayload>::dataSize;
 
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            constants::DataSize::NEW_ORDER, expectedHMAC,
-                            constants::HMAC_SIZE)) {
-                if (auto msgOpt =
-                        deserializeMessage<NewOrderPayload>(session->recvBuffer)) {
+                            client::PayloadTraits<client::NewOrderPayload>::dataSize,
+                            expectedHMAC, constants::HMAC_SIZE)) {
+                if (auto msgOpt = deserializeMessage<client::NewOrderPayload>(
+                        session->recvBuffer)) {
                     auto responses = api_.handleNewOrder(*session, msgOpt.value());
                     for (auto& response : responses) {
                         sendFn_(*(api_.getSession(response.fd)), response.data);
@@ -99,7 +108,8 @@ void NetworkHandler::onMessage(int fd) {
         }
 
         case MessageType::CANCEL_ORDER: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::CANCEL_ORDER;
+            totalSize = constants::HEADER_SIZE +
+                        client::PayloadTraits<client::CancelOrderPayload>::size;
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
@@ -109,12 +119,14 @@ void NetworkHandler::onMessage(int fd) {
             }
 
             const uint8_t* expectedHMAC =
-                session->recvBuffer.data() + constants::DataSize::CANCEL_ORDER;
+                session->recvBuffer.data() +
+                client::PayloadTraits<client::CancelOrderPayload>::dataSize;
 
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            constants::DataSize::CANCEL_ORDER, expectedHMAC,
-                            constants::HMAC_SIZE)) {
-                auto msgOpt = deserializeMessage<CancelOrderPayload>(session->recvBuffer);
+                            client::PayloadTraits<client::CancelOrderPayload>::dataSize,
+                            expectedHMAC, constants::HMAC_SIZE)) {
+                auto msgOpt =
+                    deserializeMessage<client::CancelOrderPayload>(session->recvBuffer);
                 if (msgOpt) {
                     sendFn_(*session, api_.handleCancel(*session, msgOpt.value()));
                 }
@@ -124,7 +136,8 @@ void NetworkHandler::onMessage(int fd) {
         }
 
         case MessageType::MODIFY_ORDER: {
-            totalSize = constants::HEADER_SIZE + constants::PayloadSize::MODIFY_ORDER;
+            totalSize = constants::HEADER_SIZE +
+                        client::PayloadTraits<client::ModifyOrderPayload>::size;
 
             if (session->recvBuffer.size() < totalSize) {
                 return;
@@ -135,12 +148,14 @@ void NetworkHandler::onMessage(int fd) {
             }
 
             const uint8_t* expectedHMAC =
-                session->recvBuffer.data() + constants::DataSize::MODIFY_ORDER;
+                session->recvBuffer.data() +
+                client::PayloadTraits<client::ModifyOrderPayload>::dataSize;
 
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            constants::DataSize::MODIFY_ORDER, expectedHMAC,
-                            constants::HMAC_SIZE)) {
-                auto msgOpt = deserializeMessage<ModifyOrderPayload>(session->recvBuffer);
+                            client::PayloadTraits<client::ModifyOrderPayload>::dataSize,
+                            expectedHMAC, constants::HMAC_SIZE)) {
+                auto msgOpt =
+                    deserializeMessage<client::ModifyOrderPayload>(session->recvBuffer);
                 if (!msgOpt) {
                     break;
                 }
@@ -154,6 +169,7 @@ void NetworkHandler::onMessage(int fd) {
         }
         default: {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
+            session->recvBuffer.clear();
             return;
         }
         }

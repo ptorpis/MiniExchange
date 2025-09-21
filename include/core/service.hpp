@@ -11,6 +11,7 @@ the orderFromRequest() and orderModified() are for the engine.
 
 #pragma once
 #include "core/order.hpp"
+#include "protocol/client/clientMessages.hpp"
 #include "protocol/messages.hpp"
 #include "utils/types.hpp"
 #include "utils/utils.hpp"
@@ -22,7 +23,7 @@ class OrderService {
 public:
     OrderService() : idSqn_(0) {}
 
-    static OrderRequest createRequestFromMessage(Message<NewOrderPayload>& msg) {
+    static OrderRequest createRequestFromMessage(Message<client::NewOrderPayload>& msg) {
 
         OrderRequest req = OrderRequest{
             msg.payload.serverClientID,
