@@ -94,7 +94,6 @@ int main() {
                     epoll_ctl(epollFD, EPOLL_CTL_ADD, clientFD, &clientEv);
                     uint8_t tmp[4096];
                     ssize_t count = recv(clientFD, tmp, sizeof(tmp), 0);
-                    std::cout << "count " << count << std::endl;
 
                     Session& sess = sessionManager.createSession(clientFD);
 

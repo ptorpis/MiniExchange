@@ -58,9 +58,7 @@ int main() {
     std::cout << "something" << std::endl;
     uint8_t recvBuf[4096];
     while (true) {
-        std::cout << "inside the loop" << std::endl;
         ssize_t n = recv(sock, recvBuf, sizeof(recvBuf), 0);
-        std::cout << "after recv" << std::endl;
         if (n == 0) {
             std::cout << "Server closed connection\n";
             break;
@@ -70,7 +68,6 @@ int main() {
         }
 
         // Feed into client buffer
-        std::cout << "something something" << std::endl;
         utils::printHex(std::span(recvBuf, n));
         client.appendRecvBuffer(std::span(recvBuf, n));
         client.processIncoming();
