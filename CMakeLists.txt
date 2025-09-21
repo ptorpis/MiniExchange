@@ -32,11 +32,21 @@ endif()
 
 # --- Source files ---
 file(GLOB_RECURSE ALL_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
-list(REMOVE_ITEM ALL_SRC "${CMAKE_SOURCE_DIR}/src/main.cpp")
+file(GLOB_RECURSE CLIENT_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/client/*.cpp")
+list(REMOVE_ITEM ALL_SRC 
+"${CMAKE_SOURCE_DIR}/src/main.cpp"
+"${CMAKE_SOURCE_DIR}/src/client_main.cpp"
+
+)
 set(CORE_SOURCES ${ALL_SRC})
 
 # --- Core library ---
 add_library(MiniExchangeCore STATIC ${CORE_SOURCES})
+add_library(MiniExchangeClient STATIC ${CLIENT_SRC})
+target_include_directories(MiniExchangeClient
+    PUBLIC ${PROJECT_SOURCE_DIR}/include
+)
+target_link_libraries(MiniExchangeClient PUBLIC MiniExchangeCore)
 
 target_include_directories(MiniExchangeCore
     PUBLIC ${PROJECT_SOURCE_DIR}/include
@@ -48,3 +58,7 @@ target_link_libraries(MiniExchangeCore PUBLIC OpenSSL::Crypto OpenSSL::SSL)
 # --- Executable ---
 add_executable(MiniExchange "${CMAKE_SOURCE_DIR}/src/main.cpp")
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
+# --- Client executable ---
+add_executable(ClientBin "${CMAKE_SOURCE_DIR}/src/client_main.cpp")
+target_link_libraries(ClientBin PRIVATE MiniExchangeClient)
+

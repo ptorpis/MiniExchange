@@ -1,5 +1,9 @@
 #include <algorithm>
+#include <arpa/inet.h>
 #include <iostream>
+#include <sys/epoll.h>
+#include <unistd.h>
+#include <vector>
 
 #include "api/api.hpp"
 #include "auth/sessionManager.hpp"
@@ -11,156 +15,146 @@
 #include "utils/utils.hpp"
 
 int main() {
+    int listenFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listenFd < 0) {
+        perror("socket");
+        return 1;
+    }
 
-    int clientFD = 1;
-    int serverFD = 2;
+    int opt = 2;
 
+    setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(12345);
+
+    if (bind(listenFd, (sockaddr*)&addr, sizeof(addr)) < 0) {
+        perror("bind");
+        return 1;
+    }
+    if (listen(listenFd, SOMAXCONN) < 0) {
+        perror("listen");
+        return 1;
+    }
+
+    int epollFD = epoll_create1(0);
+    if (epollFD < 0) {
+        perror("epoll_create1");
+        return 1;
+    }
+
+    epoll_event ev{};
+    ev.events = EPOLLIN;
+    ev.data.fd = listenFd;
+    epoll_ctl(epollFD, EPOLL_CTL_ADD, listenFd, &ev);
     MatchingEngine engine;
     SessionManager sessionManager;
     OrderService service;
-    MiniExchangeAPI api = MiniExchangeAPI(engine, sessionManager, service);
-    NetworkHandler handler = NetworkHandler(api, sessionManager);
+    MiniExchangeAPI api(engine, sessionManager, service);
+    NetworkHandler handler(
+        api, sessionManager, [](Session& session, const std::span<const uint8_t> buffer) {
+            ssize_t sent = ::send(session.FD, buffer.data(), buffer.size(), 0);
+            if (sent < 0) {
+                perror("send");
+                return;
+            } else if (sent < static_cast<ssize_t>(buffer.size())) {
+                std::cout << "server sending this" << std::endl;
+                utils::printHex(buffer);
+                session.sendBuffer.insert(session.sendBuffer.end(), buffer.begin() + sent,
+                                          buffer.end());
+            }
+        });
 
-    std::array<uint8_t, 32> HMACKey;
-    std::fill(HMACKey.begin(), HMACKey.end(), 0x11);
-    std::array<uint8_t, 16> APIKEY;
-    std::fill(APIKEY.begin(), APIKEY.end(), 0x22);
+    std::vector<uint8_t> ioBuffer(4096);
 
-    Client client = Client(HMACKey, APIKEY, clientFD);
+    std::cout << "server running" << std::endl;
 
-    client.sendHello();
-    // const std::vector<uint8_t> clientSendBuffer = client.readSendBuffer();
-    std::cout << "Data sent from the client to the Server" << std::endl;
-    utils::printHex(client.readSendBuffer());
+    while (true) {
+        epoll_event events[64];
+        int n = epoll_wait(epollFD, events, 64, -1);
+        if (n < 0) {
+            perror("epoll_wait");
+            break;
+        }
 
-    Session& serverSession = sessionManager.createSession(serverFD);
-    serverSession.hmacKey = HMACKey;
-    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(client.readSendBuffer()),
-                                    std::end(client.readSendBuffer()));
+        for (int i{}; i < n; ++i) {
+            int fd = events[i].data.fd;
 
-    handler.onMessage(serverFD);
+            if (fd == listenFd) {
+                sockaddr_in clientAddr{};
+                socklen_t clientLen = sizeof(clientAddr);
+                int clientFD = accept(listenFd, (sockaddr*)&clientAddr, &clientLen);
+                if (clientFD >= 0) {
+                    std::cout << "New Connection: " << clientFD << std::endl;
 
-    // const std::vector<uint8_t> serverSendBuffer = serverSession.sendBuffer;
-    std::cout << "Server's HELLO ACK response" << std::endl;
-    utils::printHex(serverSession.sendBuffer);
+                    epoll_event clientEv{};
+                    clientEv.events = EPOLLIN | EPOLLOUT | EPOLLET;
+                    clientEv.data.fd = clientFD;
+                    epoll_ctl(epollFD, EPOLL_CTL_ADD, clientFD, &clientEv);
+                    uint8_t tmp[4096];
+                    ssize_t count = recv(clientFD, tmp, sizeof(tmp), 0);
+                    std::cout << "count " << count << std::endl;
 
-    client.clearSendBuffer();
-    client.appendRecvBuffer(serverSession.sendBuffer);
-    client.processIncoming();
+                    Session& sess = sessionManager.createSession(clientFD);
 
-    serverSession.sendBuffer.clear();
+                    std::fill(sess.hmacKey.begin(), sess.hmacKey.end(), 0x11);
 
-    std::cout << "Server side authenticated " << std::boolalpha
-              << serverSession.authenticated << std::endl;
-    std::cout << "Client side authenticated " << std::boolalpha << client.getAuthStatus()
-              << std::endl;
+                    if (count > 0) {
+                        sess.recvBuffer.insert(sess.recvBuffer.end(), tmp, tmp + count);
 
-    // test fill
+                        handler.onMessage(clientFD);
+                    }
+                } else {
+                    if (events[i].events & EPOLLIN) {
+                        // Incoming data
+                        Session* session = sessionManager.getSession(fd);
+                        if (!session) continue;
 
-    client.sendTestOrder();
-    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(client.readSendBuffer()),
-                                    std::end(client.readSendBuffer()));
+                        ssize_t count = recv(fd, ioBuffer.data(), ioBuffer.size(), 0);
+                        if (count <= 0) {
+                            std::cout << "Client " << fd << " disconnected\n";
+                            handler.onDisconnect(fd);
+                            close(fd);
+                            sessionManager.removeSession(fd);
+                            continue;
+                        }
 
-    handler.onMessage(serverFD);
-    client.clearSendBuffer();
-    client.appendRecvBuffer(serverSession.sendBuffer);
-    client.processIncoming();
+                        // Append into recvBuffer
+                        session->recvBuffer.insert(session->recvBuffer.end(),
+                                                   ioBuffer.begin(),
+                                                   ioBuffer.begin() + count);
 
-    client.clearSendBuffer();
-    serverSession.sendBuffer.clear();
+                        handler.onMessage(fd);
+                    }
+                    if (events[i].events & EPOLLOUT) {
+                        // Flush outgoing
+                        Session* session = sessionManager.getSession(fd);
+                        if (!session) continue;
 
-    client.testFill();
-    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(client.readSendBuffer()),
-                                    std::end(client.readSendBuffer()));
+                        if (!session->sendBuffer.empty()) {
+                            ssize_t sent = send(fd, session->sendBuffer.data(),
+                                                session->sendBuffer.size(), 0);
+                            if (sent > 0) {
+                                session->sendBuffer.erase(session->sendBuffer.begin(),
+                                                          session->sendBuffer.begin() +
+                                                              sent);
+                            }
+                        }
+                    }
 
-    handler.onMessage(serverFD);
-    client.clearSendBuffer();
-    client.appendRecvBuffer(serverSession.sendBuffer);
-    client.processIncoming();
+                    if (events[i].events & (EPOLLERR | EPOLLHUP)) {
+                        std::cout << "Client " << fd << " error/hangup\n";
+                        handler.onDisconnect(fd);
+                        close(fd);
+                        sessionManager.removeSession(fd);
+                    }
+                }
+            }
+        }
+    }
 
-    client.clearSendBuffer();
-    serverSession.sendBuffer.clear();
-
-    //
-
-    // cancel
-
-    client.sendTestOrder();
-
-    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(client.readSendBuffer()),
-                                    std::end(client.readSendBuffer()));
-    handler.onMessage(serverFD);
-    client.clearSendBuffer();
-    client.appendRecvBuffer(serverSession.sendBuffer);
-    client.processIncoming();
-
-    serverSession.sendBuffer.clear();
-
-    OrderID orderID = 3;
-    client.sendCancel(orderID);
-    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(client.readSendBuffer()),
-                                    std::end(client.readSendBuffer()));
-    handler.onMessage(serverFD);
-    client.clearSendBuffer();
-    client.appendRecvBuffer(serverSession.sendBuffer);
-    client.processIncoming();
-
-    serverSession.sendBuffer.clear();
-    //
-
-    // test modify order
-    client.sendTestOrder();
-    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(client.readSendBuffer()),
-                                    std::end(client.readSendBuffer()));
-    handler.onMessage(serverFD);
-    client.clearSendBuffer();
-    client.appendRecvBuffer(serverSession.sendBuffer);
-    client.processIncoming();
-
-    serverSession.sendBuffer.clear();
-
-    OrderID oldID = 4;
-
-    client.sendModify(oldID, 90, 300);
-    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(client.readSendBuffer()),
-                                    std::end(client.readSendBuffer()));
-    handler.onMessage(serverFD);
-    client.clearSendBuffer();
-    client.appendRecvBuffer(serverSession.sendBuffer);
-    client.processIncoming();
-    serverSession.sendBuffer.clear();
-
-    //
-
-    // logout
-    client.sendLogout();
-    std::cout << "Client's logout message" << std::endl;
-    utils::printHex(client.readSendBuffer());
-
-    serverSession.recvBuffer.insert(std::end(serverSession.recvBuffer),
-                                    std::begin(client.readSendBuffer()),
-                                    std::end(client.readSendBuffer()));
-
-    handler.onMessage(serverFD);
-    std::cout << "Server's logout ack" << std::endl;
-
-    client.clearSendBuffer();
-    client.appendRecvBuffer(serverSession.sendBuffer);
-    client.processIncoming();
-
-    utils::printHex(serverSession.sendBuffer);
-
-    std::cout << "Server side authenticated " << std::boolalpha
-              << serverSession.authenticated << std::endl;
-    std::cout << "Client side authenticated " << std::boolalpha << client.getAuthStatus()
-              << std::endl;
-
+    close(listenFd);
+    close(epollFD);
     return 0;
 }

@@ -16,6 +16,7 @@ add_executable(UnitTests
 target_link_libraries(UnitTests
     PRIVATE
         MiniExchangeCore
+        MiniExchangeClient
         GTest::gtest_main
 )
 

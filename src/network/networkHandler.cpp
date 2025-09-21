@@ -169,6 +169,7 @@ void NetworkHandler::onMessage(int fd) {
         }
         default: {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
+            std::cout << "Unknown Message Type" << std::endl;
             session->recvBuffer.clear();
             return;
         }
@@ -214,4 +215,8 @@ std::vector<uint8_t> NetworkHandler::computeHMAC_(const std::array<uint8_t, 32>&
     std::vector<uint8_t> hmac(len);
     HMAC(EVP_sha256(), key.data(), key.size(), data, dataLen, hmac.data(), &len);
     return hmac;
+}
+
+void NetworkHandler::onDisconnect(int fd) {
+    sessionManager_.removeSession(fd);
 }
