@@ -148,7 +148,6 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Order sending thread
     std::thread orderThread([&]() {
         std::mt19937 rng(std::random_device{}());
         std::uniform_int_distribution<Qty> qtyDist(1, 1000);
@@ -175,7 +174,7 @@ int main(int argc, char* argv[]) {
     while (running) {
         int n = epoll_wait(epoll_fd, events.data(), MAX_EVENTS, 1000);
         if (n == -1) {
-            if (errno == EINTR) continue; // signal, just retry
+            if (errno == EINTR) continue;
             perror("epoll_wait");
             break;
         }
@@ -193,7 +192,6 @@ int main(int argc, char* argv[]) {
                         std::cout << "Server closed connection" << std::endl;
                         running = false;
                     } else {
-                        // Feed into client buffer
                         client.appendRecvBuffer(std::span(buffer, count));
                         client.processIncoming();
                     }
