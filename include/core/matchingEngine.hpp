@@ -41,7 +41,11 @@ public:
     size_t getBidsSize() const { return bids_.size(); }
 
     size_t getAsksPriceLevelSize(Price price) { return asks_.at(price).size(); }
-    size_t getBidsPriceLevelSize(Price price) { return bids_.at(price).size(); };
+    size_t getBidsPriceLevelSize(Price price) { return bids_.at(price).size(); }
+
+    OrderRequest createRequestFromMessage(Message<client::NewOrderPayload>& msg) {
+        return service_.createRequestFromMessage(msg);
+    }
 
 private:
     std::map<Price, OrderQueue, std::less<Price>> asks_;

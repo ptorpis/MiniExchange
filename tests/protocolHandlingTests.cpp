@@ -1,53 +1,59 @@
-#include "api/api.hpp"
-#include "auth/sessionManager.hpp"
 #include "client/client.hpp"
-#include "core/service.hpp"
-#include "network/networkHandler.hpp"
 #include "protocol/client/clientMessageFactory.hpp"
 #include "protocol/client/clientMessages.hpp"
-#include "protocol/server/serverMessages.hpp"
+#include "protocol/protocolHandler.hpp"
 #include "protocol/traits.hpp"
 #include <arpa/inet.h>
+#include <array>
 #include <gtest/gtest.h>
 #include <memory>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <stdexcept>
+#include <vector>
 
-class NetworkHandlerTest : public ::testing::Test {
+class ProtocolHandlingTests : public ::testing::Test {
 protected:
-    // HMAC KEY is 0x11 repeating
-    // API KEY is 0x22 repeating
-
-    // After the SetUp(), the client is ready to log in, but the login()
-    // method has been moved into the test cases
-
     void SetUp() override {
         serverFD = 1;
         clientFD = 2;
+
         std::fill(HMACKEY.begin(), HMACKEY.end(), 0x11);
         std::fill(APIKEY.begin(), APIKEY.end(), 0x22);
-        api = std::make_unique<MiniExchangeAPI>(engine, sessionManager, service);
-        serverSession = &sessionManager.createSession(serverFD);
-        client = std::make_unique<Client>(
-            HMACKEY, APIKEY, clientFD, [this](const std::span<const uint8_t> buffer) {
-                clientCapture.insert(clientCapture.end(), buffer.begin(), buffer.end());
-                if (serverSession) {
-                    serverSession->recvBuffer.insert(serverSession->recvBuffer.end(),
-                                                     buffer.begin(), buffer.end());
-                }
-            });
 
-        handler = std::make_unique<NetworkHandler>(
-            *api, sessionManager,
-            [this]([[maybe_unused]] Session& session, std::span<const uint8_t> buffer) {
+        handler = std::make_unique<ProtocolHandler>(
+            [this]([[maybe_unused]] Session& session,
+                   const std::span<const uint8_t> buffer) {
                 serverCapture.insert(serverCapture.end(), buffer.begin(), buffer.end());
 
                 if (client) {
                     client->appendRecvBuffer(buffer);
+                } else {
+                    throw std::runtime_error("client is null");
                 }
             });
-
+        serverSession = &handler->createSession(serverFD);
         serverSession->hmacKey = HMACKEY;
+
+        client = std::make_unique<Client>(
+            HMACKEY, APIKEY, clientFD, [this](const std::span<const uint8_t> buffer) {
+                clientCapture.insert(clientCapture.end(), buffer.begin(), buffer.end());
+
+                serverSession->recvBuffer.insert(serverSession->recvBuffer.end(),
+                                                 buffer.begin(), buffer.end());
+            });
+
+        api = handler->getAPI();
+        ASSERT_TRUE(api);
+    }
+
+    std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
+                                      const uint8_t* data, size_t dataLen) {
+        unsigned int len = 32;
+
+        std::vector<uint8_t> hmac(len);
+        HMAC(EVP_sha256(), key.data(), key.size(), data, dataLen, hmac.data(), &len);
+        return hmac;
     }
 
     void login(bool initial = true) {
@@ -87,11 +93,6 @@ protected:
         ASSERT_FALSE(serverSession->authenticated);
     }
 
-    void appendServerRecvBuffer(std::span<const uint8_t> buffer) {
-        serverSession->recvBuffer.insert(serverSession->recvBuffer.end(), buffer.begin(),
-                                         buffer.end());
-    }
-
     void resetServerCapture() { serverCapture.clear(); }
     void resetClientCapture() { clientCapture.clear(); }
 
@@ -119,43 +120,29 @@ protected:
         return msg;
     }
 
-    std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
-                                      const uint8_t* data, size_t dataLen) {
-        unsigned int len = 32;
+    int serverFD;
+    int clientFD;
 
-        std::vector<uint8_t> hmac(len);
-        HMAC(EVP_sha256(), key.data(), key.size(), data, dataLen, hmac.data(), &len);
-        return hmac;
-    }
-
-    MatchingEngine engine;
-    SessionManager sessionManager;
-    OrderService service;
-    std::unique_ptr<MiniExchangeAPI> api;
-    std::unique_ptr<NetworkHandler> handler;
-    Session* serverSession;
-    std::unique_ptr<Client> client;
-    std::vector<uint8_t> serverCapture; // data from the server send buffer
-    std::vector<uint8_t> clientCapture; // data from the clinet send buffer
     std::array<uint8_t, 32> HMACKEY;
     std::array<uint8_t, 16> APIKEY;
 
-    int serverFD;
-    int clientFD;
+    Session* serverSession;
+    std::unique_ptr<Client> client;
+    std::unique_ptr<ProtocolHandler> handler;
+    std::vector<uint8_t> clientCapture;
+    std::vector<uint8_t> serverCapture;
+
+    MiniExchangeAPI* api;
 };
 
-TEST_F(NetworkHandlerTest, BaseCase) {
+TEST_F(ProtocolHandlingTests, BaseCase) {
     login();
     ASSERT_TRUE(serverSession->authenticated);
+    ASSERT_TRUE(client->getAuthStatus());
     logout();
 }
 
-/*
-When a client tries to log in more than one time, and they are already
-authenticated, the server should ignore the second and subsequent HELLO
-messages.
-*/
-TEST_F(NetworkHandlerTest, DoubleLogin) {
+TEST_F(ProtocolHandlingTests, DoubleLogin) {
     login();
     login(/* is initial */ false);
     ASSERT_EQ(serverCapture.size(), 0);
@@ -163,12 +150,12 @@ TEST_F(NetworkHandlerTest, DoubleLogin) {
     logout();
 }
 
-TEST_F(NetworkHandlerTest, LogoutWhenNotAuthenticated) {
+TEST_F(ProtocolHandlingTests, LogoutWhenNotAuthenticated) {
     logout();
     ASSERT_EQ(serverCapture.size(), 0);
 }
 
-TEST_F(NetworkHandlerTest, SubmitOrder) {
+TEST_F(ProtocolHandlingTests, SubmitOrder) {
     login();
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -183,12 +170,12 @@ TEST_F(NetworkHandlerTest, SubmitOrder) {
     ASSERT_EQ(ack.value().header.messageType, std::to_underlying(MessageType::ORDER_ACK));
     ASSERT_EQ(ack.value().payload.acceptedPrice, 200);
 
-    ASSERT_TRUE(engine.getBestBid().has_value());
-    ASSERT_EQ(engine.getBestBid().value(), 200);
+    ASSERT_TRUE(api->getBestBid().has_value());
+    ASSERT_EQ(api->getBestBid().value(), 200);
     logout();
 }
 
-TEST_F(NetworkHandlerTest, InvalidHMACNewOrder) {
+TEST_F(ProtocolHandlingTests, InvalidHMACNewOrder) {
     login();
     std::fill(client->getSession().hmacKey.begin(), client->getSession().hmacKey.end(),
               0x00);
@@ -201,7 +188,7 @@ TEST_F(NetworkHandlerTest, InvalidHMACNewOrder) {
     ASSERT_FALSE(ack.has_value());
 }
 
-TEST_F(NetworkHandlerTest, SubmitOrderWithInvalidPrice) {
+TEST_F(ProtocolHandlingTests, SubmitOrderWithInvalidPrice) {
     login();
     client->sendMessage(testOrderMessage(100, 0, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -217,11 +204,11 @@ TEST_F(NetworkHandlerTest, SubmitOrderWithInvalidPrice) {
     ASSERT_EQ(ack.value().payload.status,
               std::to_underlying(statusCodes::OrderAckStatus::INVALID));
 
-    ASSERT_FALSE(engine.getBestBid().has_value());
+    ASSERT_FALSE(api->getBestBid().has_value());
     logout();
 }
 
-TEST_F(NetworkHandlerTest, SubmitOrderWithInvalidQty) {
+TEST_F(ProtocolHandlingTests, SubmitOrderWithInvalidQty) {
     login();
     client->sendMessage(testOrderMessage(0, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -237,11 +224,11 @@ TEST_F(NetworkHandlerTest, SubmitOrderWithInvalidQty) {
     ASSERT_EQ(ack.value().payload.status,
               std::to_underlying(statusCodes::OrderAckStatus::INVALID));
 
-    ASSERT_FALSE(engine.getBestBid().has_value());
+    ASSERT_FALSE(api->getBestBid().has_value());
     logout();
 }
 
-TEST_F(NetworkHandlerTest, SubmitOrderWhenNotAuthenticated) {
+TEST_F(ProtocolHandlingTests, SubmitOrderWhenNotAuthenticated) {
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
     ASSERT_EQ(serverCapture.size(), 0);
@@ -251,7 +238,7 @@ TEST_F(NetworkHandlerTest, SubmitOrderWhenNotAuthenticated) {
     ASSERT_FALSE(ack.has_value());
 }
 
-TEST_F(NetworkHandlerTest, CancelOrder) {
+TEST_F(ProtocolHandlingTests, CancelOrder) {
     login();
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -279,11 +266,11 @@ TEST_F(NetworkHandlerTest, CancelOrder) {
     ASSERT_EQ(cancelAck.value().payload.status,
               std::to_underlying(statusCodes::CancelAckStatus::ACCEPTED));
 
-    ASSERT_FALSE(engine.getBestBid().has_value());
+    ASSERT_FALSE(api->getBestBid().has_value());
     logout();
 }
 
-TEST_F(NetworkHandlerTest, CancelOrderWhenNotAuthenticated) {
+TEST_F(ProtocolHandlingTests, CancelOrderWhenNotAuthenticated) {
     client->sendCancel(1);
     handler->onMessage(serverFD);
     ASSERT_EQ(serverCapture.size(), 0);
@@ -293,7 +280,7 @@ TEST_F(NetworkHandlerTest, CancelOrderWhenNotAuthenticated) {
     ASSERT_FALSE(cancelAck.has_value());
 }
 
-TEST_F(NetworkHandlerTest, CancelOrderNotFound) {
+TEST_F(ProtocolHandlingTests, CancelOrderNotFound) {
     login();
     client->sendCancel(1);
     handler->onMessage(serverFD);
@@ -313,7 +300,7 @@ TEST_F(NetworkHandlerTest, CancelOrderNotFound) {
     logout();
 }
 
-TEST_F(NetworkHandlerTest, CancelOrderWithInvalidHMAC) {
+TEST_F(ProtocolHandlingTests, CancelOrderWithInvalidHMAC) {
     login();
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -329,7 +316,7 @@ TEST_F(NetworkHandlerTest, CancelOrderWithInvalidHMAC) {
     ASSERT_FALSE(cancelAck.has_value());
 }
 
-TEST_F(NetworkHandlerTest, ModifyInPlace) {
+TEST_F(ProtocolHandlingTests, ModifyInPlace) {
     login();
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -357,14 +344,14 @@ TEST_F(NetworkHandlerTest, ModifyInPlace) {
     ASSERT_EQ(modifyAck.value().payload.status,
               std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
 
-    ASSERT_TRUE(engine.getBestBid().has_value());
-    ASSERT_EQ(engine.getBestBid().value(), 200);
+    ASSERT_TRUE(api->getBestBid().has_value());
+    ASSERT_EQ(api->getBestBid().value(), 200);
     ASSERT_EQ(ack.value().payload.serverOrderID,
               modifyAck.value().payload.oldServerOrderID);
     logout();
 }
 
-TEST_F(NetworkHandlerTest, ModifyOrderWhenNotAuthenticated) {
+TEST_F(ProtocolHandlingTests, ModifyOrderWhenNotAuthenticated) {
     client->sendModify(1, 99, 200);
     handler->onMessage(serverFD);
     ASSERT_EQ(serverCapture.size(), 0);
@@ -374,7 +361,7 @@ TEST_F(NetworkHandlerTest, ModifyOrderWhenNotAuthenticated) {
     ASSERT_FALSE(modifyAck.has_value());
 }
 
-TEST_F(NetworkHandlerTest, ModifyOrderNotFound) {
+TEST_F(ProtocolHandlingTests, ModifyOrderNotFound) {
     login();
     client->sendModify(1, 99, 200);
     handler->onMessage(serverFD);
@@ -394,7 +381,7 @@ TEST_F(NetworkHandlerTest, ModifyOrderNotFound) {
     logout();
 }
 
-TEST_F(NetworkHandlerTest, ModifyOrderWithInvalidHMAC) {
+TEST_F(ProtocolHandlingTests, ModifyOrderWithInvalidHMAC) {
     login();
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -410,7 +397,7 @@ TEST_F(NetworkHandlerTest, ModifyOrderWithInvalidHMAC) {
     ASSERT_FALSE(modifyAck.has_value());
 }
 
-TEST_F(NetworkHandlerTest, ModifyPrice) {
+TEST_F(ProtocolHandlingTests, ModifyPrice) {
     login();
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -438,8 +425,8 @@ TEST_F(NetworkHandlerTest, ModifyPrice) {
     ASSERT_EQ(modifyAck.value().payload.status,
               std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
 
-    ASSERT_TRUE(engine.getBestBid().has_value());
-    ASSERT_EQ(engine.getBestBid().value(), 250);
+    ASSERT_TRUE(api->getBestBid().has_value());
+    ASSERT_EQ(api->getBestBid().value(), 250);
     ASSERT_EQ(ack.value().payload.serverOrderID,
               modifyAck.value().payload.oldServerOrderID);
 
@@ -448,7 +435,7 @@ TEST_F(NetworkHandlerTest, ModifyPrice) {
     logout();
 }
 
-TEST_F(NetworkHandlerTest, MofifyPriceAndQty) {
+TEST_F(ProtocolHandlingTests, MofifyPriceAndQty) {
     login();
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -476,8 +463,8 @@ TEST_F(NetworkHandlerTest, MofifyPriceAndQty) {
     ASSERT_EQ(modifyAck.value().payload.status,
               std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
 
-    ASSERT_TRUE(engine.getBestBid().has_value());
-    ASSERT_EQ(engine.getBestBid().value(), 250);
+    ASSERT_TRUE(api->getBestBid().has_value());
+    ASSERT_EQ(api->getBestBid().value(), 250);
     ASSERT_EQ(ack.value().payload.serverOrderID,
               modifyAck.value().payload.oldServerOrderID);
 
@@ -486,7 +473,7 @@ TEST_F(NetworkHandlerTest, MofifyPriceAndQty) {
     logout();
 }
 
-TEST_F(NetworkHandlerTest, FillFromModify) {
+TEST_F(ProtocolHandlingTests, FillFromModify) {
     login();
     client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
     handler->onMessage(serverFD);
@@ -542,7 +529,7 @@ TEST_F(NetworkHandlerTest, FillFromModify) {
     ASSERT_EQ(trade2.value().payload.filledPrice, 201);
 }
 
-TEST_F(NetworkHandlerTest, MultipleOrders) {
+TEST_F(ProtocolHandlingTests, MultipleOrders) {
     login();
     for (int i = 0; i < 10; ++i) {
         client->sendMessage(
@@ -551,13 +538,13 @@ TEST_F(NetworkHandlerTest, MultipleOrders) {
         resetServerCapture();
     }
 
-    ASSERT_TRUE(engine.getBestBid().has_value());
-    ASSERT_EQ(engine.getBestBid().value(), 209);
-    ASSERT_EQ(engine.getBidsSize(), 10);
+    ASSERT_TRUE(api->getBestBid().has_value());
+    ASSERT_EQ(api->getBestBid().value(), 209);
+    ASSERT_EQ(api->getBidsSize(), 10);
     logout();
 }
 
-TEST_F(NetworkHandlerTest, PartialMessage) {
+TEST_F(ProtocolHandlingTests, PartialMessage) {
     login();
     Message<client::NewOrderPayload> msg =
         testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT);

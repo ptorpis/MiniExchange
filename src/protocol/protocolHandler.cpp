@@ -1,6 +1,6 @@
-#include "network/networkHandler.hpp"
 #include "protocol/client/clientMessages.hpp"
 #include "protocol/messages.hpp"
+#include "protocol/protocolHandler.hpp"
 #include "protocol/serialize.hpp"
 #include "protocol/statusCodes.hpp"
 #include "protocol/traits.hpp"
@@ -11,8 +11,8 @@
 #include <openssl/hmac.h>
 #include <stdexcept>
 
-void NetworkHandler::onMessage(int fd) {
-    Session* session = sessionManager_.getSession(fd);
+void ProtocolHandler::onMessage(int fd) {
+    Session* session = api_.getSession(fd);
     if (!session) {
         return;
     }
@@ -180,7 +180,7 @@ void NetworkHandler::onMessage(int fd) {
     }
 }
 
-std::optional<MessageHeader> NetworkHandler::peekHeader_(Session& session) const {
+std::optional<MessageHeader> ProtocolHandler::peekHeader_(Session& session) const {
     if (session.recvBuffer.size() < sizeof(MessageHeader)) {
         return std::nullopt;
     }
@@ -195,9 +195,9 @@ std::optional<MessageHeader> NetworkHandler::peekHeader_(Session& session) const
     return header;
 }
 
-bool NetworkHandler::verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
-                                 size_t dataLen, const uint8_t* expectedHMAC,
-                                 size_t HMACLen) {
+bool ProtocolHandler::verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
+                                  size_t dataLen, const uint8_t* expectedHMAC,
+                                  size_t HMACLen) {
     auto computed = computeHMAC_(key, data, dataLen);
     if (computed.size() != HMACLen) return false;
 
@@ -208,8 +208,8 @@ bool NetworkHandler::verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8
     return diff == 0;
 }
 
-std::vector<uint8_t> NetworkHandler::computeHMAC_(const std::array<uint8_t, 32>& key,
-                                                  const uint8_t* data, size_t dataLen) {
+std::vector<uint8_t> ProtocolHandler::computeHMAC_(const std::array<uint8_t, 32>& key,
+                                                   const uint8_t* data, size_t dataLen) {
     unsigned int len = 32;
 
     std::vector<uint8_t> hmac(len);
@@ -217,6 +217,6 @@ std::vector<uint8_t> NetworkHandler::computeHMAC_(const std::array<uint8_t, 32>&
     return hmac;
 }
 
-void NetworkHandler::onDisconnect(int fd) {
-    sessionManager_.removeSession(fd);
+void ProtocolHandler::onDisconnect(int fd) {
+    api_.disconnectClient(fd);
 }

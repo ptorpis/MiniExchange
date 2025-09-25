@@ -61,7 +61,7 @@ std::vector<OutboundMessage>
 MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayload>& msg) {
     std::vector<OutboundMessage> responses;
 
-    OrderRequest req = service_.createRequestFromMessage(msg);
+    OrderRequest req = engine_.createRequestFromMessage(msg);
 
     if (!req.valid) {
         responses.push_back(
