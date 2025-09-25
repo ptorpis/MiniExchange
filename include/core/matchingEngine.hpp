@@ -173,8 +173,19 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
         }
         auto& queue = it->second;
 
-        while (remainingQty && !queue.empty()) {
-            Order* restingOrder = queue.front().get();
+        bool matched = false;
+
+        for (auto qIt = queue.begin(); qIt != queue.end() && remainingQty > 0;) {
+            Order* restingOrder = qIt->get();
+
+            // skip self trading
+            if (restingOrder->clientID == order->clientID) {
+                ++qIt;
+                continue;
+            }
+
+            matched = true;
+
             Qty matchQty = std::min(remainingQty, restingOrder->qty);
 
             trades.emplace_back(
@@ -187,10 +198,15 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
             if (!restingOrder->qty) {
                 restingOrder->status = OrderStatus::FILLED;
                 orderMap_.erase(restingOrder->orderID);
-                queue.pop_front();
+                qIt = queue.erase(qIt);
             } else {
                 restingOrder->status = OrderStatus::PARTIALLY_FILLED;
+                ++qIt;
             }
+        }
+
+        if (!matched) {
+            break;
         }
 
         if (queue.empty()) {

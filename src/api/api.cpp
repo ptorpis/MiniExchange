@@ -3,6 +3,7 @@
 #include "protocol/server/serverMessageFactory.hpp"
 #include "protocol/server/serverMessages.hpp"
 #include "protocol/traits.hpp"
+#include <iostream>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 
@@ -91,6 +92,11 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
 
     MatchResult result = engine_.processOrder(req);
 
+    std::cout << "Order Placed: "
+              << ((req.side == OrderSide::BUY) ? "BUY - client: " : "SELL - client: ")
+              << req.clientID << " : " << req.qty << " @ " << req.price << " ("
+              << result.orderID << ")" << std::endl;
+
     responses.push_back(
         {session.FD, makeOrderAck_(session, req, result.orderID, result.ts,
                                    statusCodes::OrderAckStatus::ACCEPTED)});
@@ -98,6 +104,7 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
     for (auto& trade : result.tradeVec) {
         Session* buyerSession = getSession(trade.buyerID);
         Session* sellerSession = getSession(trade.sellerID);
+        std::cout << "Trade Executed: " << trade.qty << " @ " << trade.price << std::endl;
 
         responses.push_back(
             {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});

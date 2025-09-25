@@ -1,4 +1,5 @@
 #include "client/client.hpp"
+#include "protocol/client/clientMessages.hpp"
 #include "protocol/messages.hpp"
 
 #include <arpa/inet.h>
@@ -6,8 +7,10 @@
 #include <fcntl.h>
 #include <iostream>
 #include <netinet/in.h>
+#include <random>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
 
 int makeNonBlocking(int fd) {
@@ -137,6 +140,27 @@ int main() {
             }
         }
     }
+
+    std::thread orderThread([&]() {
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_int_distribution<Qty> qtyDist(1, 1000);     // random quantity
+        std::uniform_int_distribution<Price> priceDist(90, 110); // random price
+        std::uniform_int_distribution<int> delayDist(500, 2000); // delay in ms
+
+        while (running && client.getAuthStatus()) {
+            int qty = qtyDist(rng);
+            int price = priceDist(rng);
+
+            std::cout << std::dec << "[CLIENT] Placing random limit order: " << qty
+                      << " @ " << price << std::endl;
+
+            client.sendTestOrder(qty, price);
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(delayDist(rng)));
+        }
+    });
+    orderThread.join();
+
     close(epoll_fd);
 
     close(sock);

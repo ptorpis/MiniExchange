@@ -3,8 +3,7 @@
 #include "protocol/client/clientMessages.hpp"
 #include "protocol/protocolHandler.hpp"
 #include "protocol/traits.hpp"
-#include <arpa/inet.h>
-#include <array>
+
 #include <gtest/gtest.h>
 #include <memory>
 #include <openssl/evp.h>
@@ -15,31 +14,46 @@
 class ProtocolHandlingTests : public ::testing::Test {
 protected:
     void SetUp() override {
-        serverFD = 1;
-        clientFD = 2;
+        buyerFD = 1;
+        sellerFD = 2;
+        buyerClientFD = 3;
+        sellerClientFD = 3;
 
         std::fill(HMACKEY.begin(), HMACKEY.end(), 0x11);
         std::fill(APIKEY.begin(), APIKEY.end(), 0x22);
 
         handler = std::make_unique<ProtocolHandler>(
-            [this]([[maybe_unused]] Session& session,
-                   const std::span<const uint8_t> buffer) {
+            [this](Session& session, const std::span<const uint8_t> buffer) {
                 serverCapture.insert(serverCapture.end(), buffer.begin(), buffer.end());
 
-                if (client) {
-                    client->appendRecvBuffer(buffer);
+                if (&session == buyerSession) {
+                    buyer->appendRecvBuffer(buffer);
+                } else if (&session == sellerSession) {
+                    seller->appendRecvBuffer(buffer);
                 } else {
-                    throw std::runtime_error("client is null");
+                    throw std::runtime_error("unkown session");
                 }
             });
-        serverSession = &handler->createSession(serverFD);
-        serverSession->hmacKey = HMACKEY;
 
-        client = std::make_unique<Client>(
-            HMACKEY, APIKEY, clientFD, [this](const std::span<const uint8_t> buffer) {
+        buyerSession = &handler->createSession(buyerFD);
+        sellerSession = &handler->createSession(sellerFD);
+
+        buyerSession->hmacKey = HMACKEY;
+        sellerSession->hmacKey = HMACKEY;
+
+        buyer = std::make_unique<Client>(
+            HMACKEY, APIKEY, buyerFD, [this](const std::span<const uint8_t> buffer) {
                 clientCapture.insert(clientCapture.end(), buffer.begin(), buffer.end());
 
-                serverSession->recvBuffer.insert(serverSession->recvBuffer.end(),
+                buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(),
+                                                buffer.begin(), buffer.end());
+            });
+
+        seller = std::make_unique<Client>(
+            HMACKEY, APIKEY, sellerFD, [this](const std::span<const uint8_t> buffer) {
+                clientCapture.insert(clientCapture.end(), buffer.begin(), buffer.end());
+
+                sellerSession->recvBuffer.insert(sellerSession->recvBuffer.end(),
                                                  buffer.begin(), buffer.end());
             });
 
@@ -59,54 +73,69 @@ protected:
     void login(bool initial = true) {
         resetClientCapture();
         resetServerCapture();
+
         if (initial) {
-            EXPECT_FALSE(client->getAuthStatus());
-            EXPECT_FALSE(serverSession->authenticated);
+            EXPECT_FALSE(buyer->getAuthStatus());
+            EXPECT_FALSE(seller->getAuthStatus());
+            EXPECT_FALSE(buyerSession->authenticated);
+            EXPECT_FALSE(sellerSession->authenticated);
         }
-        client->sendHello();
 
-        handler->onMessage(serverFD);
-        client->clearSendBuffer();
+        buyer->sendHello();
+        seller->sendHello();
 
-        client->processIncoming();
-        serverSession->sendBuffer.clear();
+        handler->onMessage(buyerFD);
+        handler->onMessage(sellerFD);
 
-        EXPECT_TRUE(client->getAuthStatus());
-        EXPECT_TRUE(serverSession->authenticated);
+        buyer->clearSendBuffer();
+        seller->clearSendBuffer();
+
+        buyer->processIncoming();
+        seller->processIncoming();
+
+        EXPECT_TRUE(buyer->getAuthStatus());
+        EXPECT_TRUE(seller->getAuthStatus());
+        EXPECT_TRUE(buyerSession->authenticated);
+        EXPECT_TRUE(sellerSession->authenticated);
+
         clearSendBuffers();
         resetClientCapture();
-        if (initial) {
-            resetServerCapture();
-        }
+        resetServerCapture();
     }
 
     void logout() {
         resetClientCapture();
         resetServerCapture();
 
-        client->sendLogout();
-        handler->onMessage(serverFD);
-        client->clearSendBuffer();
-        client->processIncoming();
+        buyer->sendLogout();
+        seller->sendLogout();
+        handler->onMessage(buyerFD);
+        handler->onMessage(sellerFD);
+        buyer->clearSendBuffer();
+        buyer->processIncoming();
 
-        ASSERT_FALSE(client->getAuthStatus());
-        ASSERT_FALSE(serverSession->authenticated);
+        ASSERT_FALSE(buyer->getAuthStatus());
+        ASSERT_FALSE(buyerSession->authenticated);
+        ASSERT_FALSE(sellerSession->authenticated);
     }
 
     void resetServerCapture() { serverCapture.clear(); }
     void resetClientCapture() { clientCapture.clear(); }
 
     void clearSendBuffers() {
-        client->clearSendBuffer();
-        serverSession->sendBuffer.clear();
+        buyer->clearSendBuffer();
+        buyerSession->sendBuffer.clear();
+        seller->clearSendBuffer();
+        sellerSession->sendBuffer.clear();
     }
 
     Message<client::NewOrderPayload> testOrderMessage(Qty qty, Price price,
-                                                      OrderSide side, OrderType type) {
+                                                      OrderSide side, OrderType type,
+                                                      ClientID clientID = 1) {
         Message<client::NewOrderPayload> msg;
         msg.header =
-            client::makeClientHeader<client::NewOrderPayload>(client->getSession());
-        msg.payload.serverClientID = client->getSession().serverClientID;
+            client::makeClientHeader<client::NewOrderPayload>(buyer->getSession());
+        msg.payload.serverClientID = clientID;
         msg.payload.instrumentID = 1;
         msg.payload.orderSide = std::to_underlying(side);
         msg.payload.orderType = std::to_underlying(type);
@@ -120,14 +149,18 @@ protected:
         return msg;
     }
 
-    int serverFD;
-    int clientFD;
+    int buyerFD;
+    int sellerFD;
+    int buyerClientFD;
+    int sellerClientFD;
 
     std::array<uint8_t, 32> HMACKEY;
     std::array<uint8_t, 16> APIKEY;
 
-    Session* serverSession;
-    std::unique_ptr<Client> client;
+    Session* buyerSession;
+    Session* sellerSession;
+    std::unique_ptr<Client> buyer;
+    std::unique_ptr<Client> seller;
     std::unique_ptr<ProtocolHandler> handler;
     std::vector<uint8_t> clientCapture;
     std::vector<uint8_t> serverCapture;
@@ -137,8 +170,8 @@ protected:
 
 TEST_F(ProtocolHandlingTests, BaseCase) {
     login();
-    ASSERT_TRUE(serverSession->authenticated);
-    ASSERT_TRUE(client->getAuthStatus());
+    ASSERT_TRUE(buyerSession->authenticated);
+    ASSERT_TRUE(buyer->getAuthStatus());
     logout();
 }
 
@@ -157,8 +190,8 @@ TEST_F(ProtocolHandlingTests, LogoutWhenNotAuthenticated) {
 
 TEST_F(ProtocolHandlingTests, SubmitOrder) {
     login();
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::OrderAckPayload>::msgSize);
@@ -177,10 +210,10 @@ TEST_F(ProtocolHandlingTests, SubmitOrder) {
 
 TEST_F(ProtocolHandlingTests, InvalidHMACNewOrder) {
     login();
-    std::fill(client->getSession().hmacKey.begin(), client->getSession().hmacKey.end(),
+    std::fill(buyer->getSession().hmacKey.begin(), buyer->getSession().hmacKey.end(),
               0x00);
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     ASSERT_EQ(serverCapture.size(), 0);
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
@@ -190,8 +223,8 @@ TEST_F(ProtocolHandlingTests, InvalidHMACNewOrder) {
 
 TEST_F(ProtocolHandlingTests, SubmitOrderWithInvalidPrice) {
     login();
-    client->sendMessage(testOrderMessage(100, 0, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 0, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::OrderAckPayload>::msgSize);
@@ -210,8 +243,8 @@ TEST_F(ProtocolHandlingTests, SubmitOrderWithInvalidPrice) {
 
 TEST_F(ProtocolHandlingTests, SubmitOrderWithInvalidQty) {
     login();
-    client->sendMessage(testOrderMessage(0, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(0, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::OrderAckPayload>::msgSize);
@@ -229,8 +262,8 @@ TEST_F(ProtocolHandlingTests, SubmitOrderWithInvalidQty) {
 }
 
 TEST_F(ProtocolHandlingTests, SubmitOrderWhenNotAuthenticated) {
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     ASSERT_EQ(serverCapture.size(), 0);
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
@@ -240,8 +273,8 @@ TEST_F(ProtocolHandlingTests, SubmitOrderWhenNotAuthenticated) {
 
 TEST_F(ProtocolHandlingTests, CancelOrder) {
     login();
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
@@ -251,8 +284,8 @@ TEST_F(ProtocolHandlingTests, CancelOrder) {
     resetServerCapture();
     resetClientCapture();
 
-    client->sendCancel(ack.value().payload.serverOrderID);
-    handler->onMessage(serverFD);
+    buyer->sendCancel(ack.value().payload.serverOrderID);
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::CancelAckPayload>::msgSize);
@@ -271,8 +304,8 @@ TEST_F(ProtocolHandlingTests, CancelOrder) {
 }
 
 TEST_F(ProtocolHandlingTests, CancelOrderWhenNotAuthenticated) {
-    client->sendCancel(1);
-    handler->onMessage(serverFD);
+    buyer->sendCancel(1);
+    handler->onMessage(buyerFD);
     ASSERT_EQ(serverCapture.size(), 0);
     std::optional<Message<server::CancelAckPayload>> cancelAck =
         deserializeMessage<server::CancelAckPayload>(serverCapture);
@@ -282,8 +315,8 @@ TEST_F(ProtocolHandlingTests, CancelOrderWhenNotAuthenticated) {
 
 TEST_F(ProtocolHandlingTests, CancelOrderNotFound) {
     login();
-    client->sendCancel(1);
-    handler->onMessage(serverFD);
+    buyer->sendCancel(1);
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::CancelAckPayload>::msgSize);
@@ -302,13 +335,13 @@ TEST_F(ProtocolHandlingTests, CancelOrderNotFound) {
 
 TEST_F(ProtocolHandlingTests, CancelOrderWithInvalidHMAC) {
     login();
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     resetServerCapture();
-    std::fill(client->getSession().hmacKey.begin(), client->getSession().hmacKey.end(),
+    std::fill(buyer->getSession().hmacKey.begin(), buyer->getSession().hmacKey.end(),
               0x00);
-    client->sendCancel(1);
-    handler->onMessage(serverFD);
+    buyer->sendCancel(1);
+    handler->onMessage(buyerFD);
     ASSERT_EQ(serverCapture.size(), 0);
     std::optional<Message<server::CancelAckPayload>> cancelAck =
         deserializeMessage<server::CancelAckPayload>(serverCapture);
@@ -318,8 +351,8 @@ TEST_F(ProtocolHandlingTests, CancelOrderWithInvalidHMAC) {
 
 TEST_F(ProtocolHandlingTests, ModifyInPlace) {
     login();
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
@@ -329,8 +362,8 @@ TEST_F(ProtocolHandlingTests, ModifyInPlace) {
     resetServerCapture();
     resetClientCapture();
 
-    client->sendModify(ack.value().payload.serverOrderID, 99, 200);
-    handler->onMessage(serverFD);
+    buyer->sendModify(ack.value().payload.serverOrderID, 99, 200);
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::ModifyAckPayload>::msgSize);
@@ -352,8 +385,8 @@ TEST_F(ProtocolHandlingTests, ModifyInPlace) {
 }
 
 TEST_F(ProtocolHandlingTests, ModifyOrderWhenNotAuthenticated) {
-    client->sendModify(1, 99, 200);
-    handler->onMessage(serverFD);
+    buyer->sendModify(1, 99, 200);
+    handler->onMessage(buyerFD);
     ASSERT_EQ(serverCapture.size(), 0);
     std::optional<Message<server::ModifyAckPayload>> modifyAck =
         deserializeMessage<server::ModifyAckPayload>(serverCapture);
@@ -363,8 +396,8 @@ TEST_F(ProtocolHandlingTests, ModifyOrderWhenNotAuthenticated) {
 
 TEST_F(ProtocolHandlingTests, ModifyOrderNotFound) {
     login();
-    client->sendModify(1, 99, 200);
-    handler->onMessage(serverFD);
+    buyer->sendModify(1, 99, 200);
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::ModifyAckPayload>::msgSize);
@@ -383,13 +416,13 @@ TEST_F(ProtocolHandlingTests, ModifyOrderNotFound) {
 
 TEST_F(ProtocolHandlingTests, ModifyOrderWithInvalidHMAC) {
     login();
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     resetServerCapture();
-    std::fill(client->getSession().hmacKey.begin(), client->getSession().hmacKey.end(),
+    std::fill(buyer->getSession().hmacKey.begin(), buyer->getSession().hmacKey.end(),
               0x00);
-    client->sendModify(1, 99, 200);
-    handler->onMessage(serverFD);
+    buyer->sendModify(1, 99, 200);
+    handler->onMessage(buyerFD);
     ASSERT_EQ(serverCapture.size(), 0);
     std::optional<Message<server::ModifyAckPayload>> modifyAck =
         deserializeMessage<server::ModifyAckPayload>(serverCapture);
@@ -399,8 +432,8 @@ TEST_F(ProtocolHandlingTests, ModifyOrderWithInvalidHMAC) {
 
 TEST_F(ProtocolHandlingTests, ModifyPrice) {
     login();
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
@@ -410,8 +443,8 @@ TEST_F(ProtocolHandlingTests, ModifyPrice) {
     resetServerCapture();
     resetClientCapture();
 
-    client->sendModify(ack.value().payload.serverOrderID, 100, 250);
-    handler->onMessage(serverFD);
+    buyer->sendModify(ack.value().payload.serverOrderID, 100, 250);
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::ModifyAckPayload>::msgSize);
@@ -437,8 +470,8 @@ TEST_F(ProtocolHandlingTests, ModifyPrice) {
 
 TEST_F(ProtocolHandlingTests, MofifyPriceAndQty) {
     login();
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
@@ -448,8 +481,8 @@ TEST_F(ProtocolHandlingTests, MofifyPriceAndQty) {
     resetServerCapture();
     resetClientCapture();
 
-    client->sendModify(ack.value().payload.serverOrderID, 50, 250);
-    handler->onMessage(serverFD);
+    buyer->sendModify(ack.value().payload.serverOrderID, 50, 250);
+    handler->onMessage(buyerFD);
 
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::ModifyAckPayload>::msgSize);
@@ -475,8 +508,8 @@ TEST_F(ProtocolHandlingTests, MofifyPriceAndQty) {
 
 TEST_F(ProtocolHandlingTests, FillFromModify) {
     login();
-    client->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    buyer->sendMessage(testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT));
+    handler->onMessage(buyerFD);
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
@@ -486,8 +519,9 @@ TEST_F(ProtocolHandlingTests, FillFromModify) {
     resetServerCapture();
     resetClientCapture();
 
-    client->sendMessage(testOrderMessage(100, 201, OrderSide::SELL, OrderType::LIMIT));
-    handler->onMessage(serverFD);
+    seller->sendMessage(testOrderMessage(100, 201, OrderSide::SELL, OrderType::LIMIT,
+                                         sellerSession->serverClientID));
+    handler->onMessage(sellerFD);
     std::optional<Message<server::OrderAckPayload>> sellAck =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(sellAck.has_value());
@@ -497,8 +531,8 @@ TEST_F(ProtocolHandlingTests, FillFromModify) {
     resetServerCapture();
     resetClientCapture();
 
-    client->sendModify(ack.value().payload.serverOrderID, 100, 201);
-    handler->onMessage(serverFD);
+    buyer->sendModify(ack.value().payload.serverOrderID, 100, 201);
+    handler->onMessage(buyerFD);
     ASSERT_EQ(serverCapture.size(),
               server::PayloadTraits<server::ModifyAckPayload>::msgSize +
                   server::PayloadTraits<server::TradePayload>::msgSize * 2);
@@ -532,9 +566,9 @@ TEST_F(ProtocolHandlingTests, FillFromModify) {
 TEST_F(ProtocolHandlingTests, MultipleOrders) {
     login();
     for (int i = 0; i < 10; ++i) {
-        client->sendMessage(
+        buyer->sendMessage(
             testOrderMessage(100 + i, 200 + i, OrderSide::BUY, OrderType::LIMIT));
-        handler->onMessage(serverFD);
+        handler->onMessage(buyerFD);
         resetServerCapture();
     }
 
@@ -551,7 +585,7 @@ TEST_F(ProtocolHandlingTests, PartialMessage) {
     std::vector<uint8_t> serialized =
         serializeMessage(MessageType::NEW_ORDER, msg.payload, msg.header);
 
-    auto hmac = computeHMAC_(client->getSession().hmacKey, serialized.data(),
+    auto hmac = computeHMAC_(buyer->getSession().hmacKey, serialized.data(),
                              client::PayloadTraits<client::NewOrderPayload>::dataSize);
 
     std::copy(hmac.begin(), hmac.end(),
@@ -560,14 +594,14 @@ TEST_F(ProtocolHandlingTests, PartialMessage) {
 
     size_t half = serialized.size() / 2;
 
-    serverSession->recvBuffer.insert(serverSession->recvBuffer.end(), serialized.begin(),
-                                     serialized.begin() + half);
-    handler->onMessage(serverFD);
+    buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(), serialized.begin(),
+                                    serialized.begin() + half);
+    handler->onMessage(buyerFD);
     ASSERT_TRUE(serverCapture.empty());
 
-    serverSession->recvBuffer.insert(serverSession->recvBuffer.end(),
-                                     serialized.begin() + half, serialized.end());
-    handler->onMessage(serverFD);
+    buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(),
+                                    serialized.begin() + half, serialized.end());
+    handler->onMessage(buyerFD);
     ASSERT_FALSE(serverCapture.empty());
 
     auto ack = deserializeMessage<server::OrderAckPayload>(serverCapture);

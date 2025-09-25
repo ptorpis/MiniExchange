@@ -8,9 +8,10 @@ protected:
     std::unique_ptr<MatchingEngine> engine;
 };
 
-OrderRequest createTestMarketRequest(bool isBuy, Qty qty, Price price) {
+OrderRequest createTestMarketRequest(bool isBuy, Qty qty, Price price,
+                                     ClientID clientID = 1) {
     return OrderRequest{
-        1,                                        // clientid
+        clientID,                                 // clientid
         isBuy ? OrderSide::BUY : OrderSide::SELL, // orderside
         OrderType::MARKET,                        // ordertype
         1,                                        // instrumentid
@@ -22,9 +23,10 @@ OrderRequest createTestMarketRequest(bool isBuy, Qty qty, Price price) {
     };
 }
 
-OrderRequest createTestLimitRequest(bool isBuy, Qty qty, Price price) {
+OrderRequest createTestLimitRequest(bool isBuy, Qty qty, Price price,
+                                    ClientID clientID = 1) {
     return OrderRequest{
-        1,                                        // clientid
+        clientID,                                 // clientid
         isBuy ? OrderSide::BUY : OrderSide::SELL, // orderside
         OrderType::LIMIT,                         // ordertype
         1,                                        // instrumentid
@@ -73,7 +75,7 @@ TEST_F(MatchingEngineTest, TestPerfectFill) {
     Price price = 200;
     Qty qty = 100;
     OrderRequest buyReq = createTestLimitRequest(true, qty, price);
-    OrderRequest sellReq = createTestLimitRequest(false, qty, price);
+    OrderRequest sellReq = createTestLimitRequest(false, qty, price, 2);
 
     engine->processOrder(buyReq);
     MatchResult result = engine->processOrder(sellReq);
@@ -108,7 +110,7 @@ TEST_F(MatchingEngineTest, FIFOAtPriceLevel) {
 
     EXPECT_EQ(result2.tradeVec.size(), 0);
 
-    OrderRequest firstFiller = createTestLimitRequest(false, 1, 200);
+    OrderRequest firstFiller = createTestLimitRequest(false, 1, 200, 2);
 
     MatchResult fillResult = engine->processOrder(firstFiller);
 
@@ -116,7 +118,7 @@ TEST_F(MatchingEngineTest, FIFOAtPriceLevel) {
     EXPECT_EQ(fillResult.tradeVec.at(0).buyerOrderID, firstOrderID);
     EXPECT_EQ(engine->getBidsPriceLevelSize(200), 1);
 
-    OrderRequest secondFiller = createTestLimitRequest(false, 1, 200);
+    OrderRequest secondFiller = createTestLimitRequest(false, 1, 200, 2);
 
     MatchResult secondFillResult = engine->processOrder(secondFiller);
 
@@ -129,7 +131,7 @@ TEST_F(MatchingEngineTest, PartialFill) {
     MatchResult result1 = engine->processOrder(req);
     OrderID orderID = result1.orderID;
 
-    OrderRequest req2 = createTestLimitRequest(false, 5, 200);
+    OrderRequest req2 = createTestLimitRequest(false, 5, 200, 2);
     MatchResult result2 = engine->processOrder(req2);
     EXPECT_EQ(result2.tradeVec.at(0).qty, 5);
 
@@ -148,7 +150,7 @@ TEST_F(MatchingEngineTest, WalkTheBook) {
     engine->processOrder(req2);
     engine->processOrder(req3);
 
-    OrderRequest fillerRequest = createTestLimitRequest(false, 4, 200);
+    OrderRequest fillerRequest = createTestLimitRequest(false, 4, 200, 2);
 
     MatchResult fillResult = engine->processOrder(fillerRequest);
 
@@ -251,7 +253,7 @@ TEST_F(MatchingEngineTest, ModifyToCross) {
     MatchResult buyRes = engine->processOrder(buyReq);
     ASSERT_EQ(buyRes.status, OrderStatus::NEW);
 
-    OrderRequest sellReq = createTestLimitRequest(false, 100, 300);
+    OrderRequest sellReq = createTestLimitRequest(false, 100, 300, 2);
     MatchResult sellRes = engine->processOrder(sellReq);
     ASSERT_EQ(sellRes.status, OrderStatus::NEW);
 
