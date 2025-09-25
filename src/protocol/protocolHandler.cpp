@@ -4,6 +4,7 @@
 #include "protocol/serialize.hpp"
 #include "protocol/statusCodes.hpp"
 #include "protocol/traits.hpp"
+#include "utils/orderBookRenderer.hpp"
 
 #include <arpa/inet.h>
 #include <iostream>
@@ -188,6 +189,9 @@ void ProtocolHandler::onMessage(int fd) {
 
         session->recvBuffer.erase(session->recvBuffer.begin(),
                                   session->recvBuffer.begin() + totalSize);
+        auto bids = api_.getBidsSnapshop();
+        auto asks = api_.getAsksSnapshot();
+        utils::OrderBookRenderer::render(bids, asks);
     }
 }
 

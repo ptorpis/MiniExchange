@@ -47,6 +47,30 @@ public:
         return service_.createRequestFromMessage(msg);
     }
 
+    std::map<Price, Qty, std::greater<Price>> getBidsSnapshot() const {
+        std::map<Price, Qty, std::greater<Price>> snapshot;
+        for (const auto& [price, queue] : bids_) {
+            Qty total = 0;
+            for (const auto& order : queue) {
+                total += order->qty;
+            }
+            snapshot[price] = total;
+        }
+        return snapshot;
+    }
+
+    std::map<Price, Qty, std::less<Price>> getAsksSnapshot() const {
+        std::map<Price, Qty, std::less<Price>> snapshot;
+        for (const auto& [price, queue] : asks_) {
+            Qty total = 0;
+            for (const auto& order : queue) {
+                total += order->qty;
+            }
+            snapshot[price] = total;
+        }
+        return snapshot;
+    }
+
 private:
     std::map<Price, OrderQueue, std::less<Price>> asks_;
     std::map<Price, OrderQueue, std::greater<Price>> bids_;

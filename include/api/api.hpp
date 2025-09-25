@@ -45,6 +45,10 @@ public:
         return engine_.getBidsPriceLevelSize(price);
     }
 
+    auto getBidsSnapshop() const { return engine_.getBidsSnapshot(); }
+
+    auto getAsksSnapshot() const { return engine_.getAsksSnapshot(); }
+
 private:
     MatchingEngine engine_;
     SessionManager sessionManager_;
