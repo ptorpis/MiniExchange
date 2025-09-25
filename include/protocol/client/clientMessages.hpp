@@ -11,6 +11,12 @@ struct HelloPayload {
         func(apiKey);
         func(hmac);
     }
+
+    std::array<uint8_t, 16> getApiKeyArray() const {
+        std::array<uint8_t, 16> arr;
+        std::copy(std::begin(apiKey), std::end(apiKey), arr.begin());
+        return arr;
+    }
 };
 #pragma pack(pop)
 

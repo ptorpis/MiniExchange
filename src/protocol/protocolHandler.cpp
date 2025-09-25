@@ -39,6 +39,19 @@ void ProtocolHandler::onMessage(int fd) {
                 break;
             }
 
+            auto msgOpt = deserializeMessage<client::HelloPayload>(session->recvBuffer);
+            if (!msgOpt.has_value()) {
+                return;
+            }
+
+            ApiKey apiKey = msgOpt->payload.getApiKeyArray();
+            auto hmacKeyOpt = clientManager_.getHMACKey(apiKey);
+
+            if (hmacKeyOpt.has_value()) {
+                std::cout << "found client hmac key" << std::endl;
+                session->hmacKey = hmacKeyOpt.value();
+            }
+
             const uint8_t* expectedHMAC =
                 session->recvBuffer.data() +
                 client::PayloadTraits<client::HelloPayload>::dataSize;
@@ -46,11 +59,9 @@ void ProtocolHandler::onMessage(int fd) {
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
                             client::PayloadTraits<client::HelloPayload>::dataSize,
                             expectedHMAC, constants::HMAC_SIZE)) {
-                if (auto msgOpt =
-                        deserializeMessage<client::HelloPayload>(session->recvBuffer)) {
-                    sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
-                }
+                sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
             }
+
             break;
         }
         case MessageType::LOGOUT: {

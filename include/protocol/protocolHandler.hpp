@@ -3,6 +3,7 @@
 #include "api/api.hpp"
 #include "auth/sessionManager.hpp"
 #include "protocol/messages.hpp"
+#include "server/clients.hpp"
 
 #include <cstring>
 #include <functional>
@@ -28,7 +29,10 @@ public:
                                                       std::begin(buffer),
                                                       std::end(buffer));
                         })
-        : api_(MiniExchangeAPI()), sendFn_(std::move(sendFn)) {}
+        : api_(MiniExchangeAPI()), sendFn_(std::move(sendFn)),
+          clientManager_(ClientManager()) {
+        clientManager_.addTestDefault();
+    }
 
     void onMessage(int fd);
     void onDisconnect(int fd);
@@ -42,6 +46,7 @@ public:
 private:
     MiniExchangeAPI api_;
     SendFn sendFn_; // custom send function, assigned at construction
+    ClientManager clientManager_;
 
     std::optional<MessageHeader> peekHeader_(Session& Session) const;
     bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
