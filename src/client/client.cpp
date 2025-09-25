@@ -171,6 +171,9 @@ void Client::processIncoming() {
 
                 session_.serverSqn = msgOpt.value().header.serverMsgSqn;
                 session_.exeID++;
+                std::cout << "[Trade]: " << msgOpt.value().payload.filledQty << " @ "
+                          << msgOpt.value().payload.filledPrice
+                          << " ExeID: " << session_.exeID << std::endl;
                 break;
             }
             break;
@@ -318,15 +321,15 @@ void Client::sendTestOrder(Qty qty = 100, Price price = 200) {
     sendMessage(msg);
 }
 
-void Client::testFill() {
+void Client::testFill(Qty qty = 100, Price price = 200) {
     Message<client::NewOrderPayload> msg;
     msg.header = client::makeClientHeader<client::NewOrderPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.instrumentID = 1;
     msg.payload.orderSide = std::to_underlying(OrderSide::SELL);
     msg.payload.orderType = std::to_underlying(OrderType::LIMIT);
-    msg.payload.quantity = 100;
-    msg.payload.price = 200;
+    msg.payload.quantity = qty;
+    msg.payload.price = price;
     msg.payload.timeInForce = std::to_underlying(TimeInForce::GTC);
     msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
     std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);

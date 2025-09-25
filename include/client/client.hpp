@@ -40,7 +40,7 @@ public:
     void sendHello();
     void sendLogout();
     void sendTestOrder(Qty qty, Price price);
-    void testFill();
+    void testFill(Qty, Price);
 
     void sendCancel(OrderID orderID);
     void sendModify(OrderID orderID, Qty newQty, Price newPrice);
