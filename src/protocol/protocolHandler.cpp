@@ -60,6 +60,10 @@ void ProtocolHandler::onMessage(int fd) {
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
                             client::PayloadTraits<client::HelloPayload>::dataSize,
                             expectedHMAC, constants::HMAC_SIZE)) {
+
+                if (!session) {
+                    return;
+                }
                 sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
             }
 
@@ -110,8 +114,15 @@ void ProtocolHandler::onMessage(int fd) {
                             expectedHMAC, constants::HMAC_SIZE)) {
                 if (auto msgOpt = deserializeMessage<client::NewOrderPayload>(
                         session->recvBuffer)) {
+                    if (!session) {
+                        return;
+                    }
                     auto responses = api_.handleNewOrder(*session, msgOpt.value());
                     for (auto& response : responses) {
+
+                        if (!session) {
+                            return;
+                        }
                         sendFn_(*(api_.getSession(response.fd)), response.data);
                     }
                 }
@@ -140,6 +151,10 @@ void ProtocolHandler::onMessage(int fd) {
                 auto msgOpt =
                     deserializeMessage<client::CancelOrderPayload>(session->recvBuffer);
                 if (msgOpt) {
+
+                    if (!session) {
+                        return;
+                    }
                     sendFn_(*session, api_.handleCancel(*session, msgOpt.value()));
                 }
             }
@@ -174,6 +189,11 @@ void ProtocolHandler::onMessage(int fd) {
 
                 auto responses = api_.handleModify(*session, msgOpt.value());
                 for (auto& response : responses) {
+
+                    if (!session) {
+                        return;
+                    }
+
                     sendFn_(*(api_.getSession(response.fd)), response.data);
                 }
             }
