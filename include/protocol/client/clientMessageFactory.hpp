@@ -1,14 +1,14 @@
 #pragma once
 
 #include "protocol/messages.hpp"
+#include "utils/utils.hpp"
 
 namespace client {
 template <typename Payload>
 inline MessageHeader makeClientHeader(ClientSession& session) {
     MessageHeader header{};
-    header.messageType = std::to_underlying(PayloadTraits<Payload>::type);
-    header.protocolVersionFlag =
-        std::to_underlying(constants::HeaderFlags::PROTOCOL_VERSION);
+    header.messageType = +PayloadTraits<Payload>::type;
+    header.protocolVersionFlag = +constants::HeaderFlags::PROTOCOL_VERSION;
     header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
     header.clientMsgSqn = ++session.clientSqn;
     header.serverMsgSqn = session.serverSqn;

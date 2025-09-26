@@ -7,9 +7,8 @@ namespace server {
 
 template <typename Payload> inline MessageHeader makeHeader(Session& session) {
     MessageHeader header{};
-    header.messageType = std::to_underlying(PayloadTraits<Payload>::type);
-    header.protocolVersionFlag =
-        std::to_underlying(constants::HeaderFlags::PROTOCOL_VERSION);
+    header.messageType = +(PayloadTraits<Payload>::type);
+    header.protocolVersionFlag = +(constants::HeaderFlags::PROTOCOL_VERSION);
     header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
     header.clientMsgSqn = session.clientSqn;
     header.serverMsgSqn = ++session.serverSqn;
@@ -27,7 +26,7 @@ struct MessageFactory {
         msg.header = makeHeader<server::HelloAckPayload>(session);
 
         msg.payload.serverClientID = session.serverClientID;
-        msg.payload.status = std::to_underlying(status);
+        msg.payload.status = +(status);
 
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
@@ -42,7 +41,7 @@ struct MessageFactory {
         msg.header = makeHeader<server::LogoutAckPayload>(session);
 
         msg.payload.serverClientID = session.serverClientID;
-        msg.payload.status = std::to_underlying(status);
+        msg.payload.status = +(status);
 
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
@@ -59,7 +58,7 @@ struct MessageFactory {
         ack.header = makeHeader<server::OrderAckPayload>(session);
         ack.payload.serverClientID = session.serverClientID;
         ack.payload.instrumentID = req.instrumentID;
-        ack.payload.status = std::to_underlying(status);
+        ack.payload.status = +(status);
         ack.payload.serverTime = currentTime;
         ack.payload.latency = static_cast<int32_t>(currentTime - ts);
         if (!orderID) {
@@ -105,7 +104,7 @@ struct MessageFactory {
         msg.header = makeHeader<server::CancelAckPayload>(session);
         msg.payload.serverClientID = session.serverClientID;
         msg.payload.serverOrderID = orderID;
-        msg.payload.status = std::to_underlying(status);
+        msg.payload.status = +(status);
 
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
@@ -120,7 +119,7 @@ struct MessageFactory {
         msg.header = makeHeader<server::ModifyAckPayload>(session);
         msg.payload.oldServerOrderID = oldOrderID;
         msg.payload.newServerOrderID = newOrderID;
-        msg.payload.status = std::to_underlying(status);
+        msg.payload.status = +(status);
 
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);

@@ -7,8 +7,11 @@
 namespace utils {
 class OrderBookRenderer {
 public:
+    inline static bool enabled = true;
+
     static void render(std::map<Price, Qty, std::greater<Price>> bids,
                        std::map<Price, Qty, std::less<Price>> asks, int depth = 15) {
+        if (!enabled) return;
 
         std::cout << "\033[2J\033[1;1H"; // clear screen
         std::cout << "=============== ORDER BOOK ===============\n";

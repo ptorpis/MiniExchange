@@ -5,6 +5,7 @@
 #include "protocol/statusCodes.hpp"
 #include "protocol/traits.hpp"
 #include "utils/orderBookRenderer.hpp"
+#include "utils/utils.hpp"
 
 #include <arpa/inet.h>
 #include <iostream>
@@ -25,6 +26,11 @@ void ProtocolHandler::onMessage(int fd) {
         }
         MessageHeader header = headerOpt.value();
         MessageType type = static_cast<MessageType>(header.messageType);
+        uint8_t versionFlag = header.protocolVersionFlag;
+        if (versionFlag != (+HeaderFlags::PROTOCOL_VERSION)) {
+            api_.disconnectClient(fd);
+            return;
+        }
 
         size_t totalSize = 0;
 
@@ -49,7 +55,6 @@ void ProtocolHandler::onMessage(int fd) {
             auto hmacKeyOpt = clientManager_.getHMACKey(apiKey);
 
             if (hmacKeyOpt.has_value()) {
-                std::cout << "found client hmac key" << std::endl;
                 session->hmacKey = hmacKeyOpt.value();
             }
 
@@ -203,6 +208,7 @@ void ProtocolHandler::onMessage(int fd) {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
             std::cout << "Unknown Message Type" << std::endl;
             session->recvBuffer.clear();
+            api_.disconnectClient(fd);
             return;
         }
         }

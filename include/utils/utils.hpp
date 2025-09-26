@@ -4,6 +4,11 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <utility>
+
+template <typename T> constexpr auto operator+(T a) noexcept {
+    return static_cast<std::underlying_type_t<T>>(a);
+}
 
 namespace utils {
 void inline printHex(std::span<const uint8_t> data) {

@@ -12,6 +12,9 @@ Session& MiniExchangeAPI::connectClient(int fd) {
 }
 
 void MiniExchangeAPI::disconnectClient(int fd) {
+    Session* session = sessionManager_.getSession(fd);
+    if (!session) return;
+    session->reset();
     sessionManager_.removeSession(fd);
 }
 

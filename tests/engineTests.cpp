@@ -1,9 +1,13 @@
 #include "core/matchingEngine.hpp"
+#include "utils/orderBookRenderer.hpp"
 #include <gtest/gtest.h>
 
 class MatchingEngineTest : public ::testing::Test {
 protected:
-    void SetUp() override { engine = std::make_unique<MatchingEngine>(); }
+    void SetUp() override {
+        utils::OrderBookRenderer::enabled = false;
+        engine = std::make_unique<MatchingEngine>();
+    }
 
     std::unique_ptr<MatchingEngine> engine;
 };
@@ -360,4 +364,17 @@ TEST_F(MatchingEngineTest, ResetEngine) {
 
     ASSERT_EQ(engine->getBidsSize(), 0);
     ASSERT_EQ(engine->getAskSize(), 0);
+}
+
+TEST_F(MatchingEngineTest, SelfTrading) {
+    OrderRequest req1 = createTestLimitRequest(true, 100, 200);
+    OrderRequest req2 = createTestLimitRequest(false, 100, 199);
+
+    engine->processOrder(req1);
+    MatchResult res = engine->processOrder(req2);
+
+    ASSERT_EQ(res.tradeVec.size(), 0);
+
+    ASSERT_EQ(engine->getAskSize(), 1);
+    ASSERT_EQ(engine->getBidsSize(), 1);
 }

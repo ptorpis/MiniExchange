@@ -3,6 +3,7 @@
 #include "protocol/client/clientMessages.hpp"
 #include "protocol/protocolHandler.hpp"
 #include "protocol/traits.hpp"
+#include "utils/orderBookRenderer.hpp"
 
 #include <gtest/gtest.h>
 #include <memory>
@@ -14,6 +15,7 @@
 class ProtocolHandlingTests : public ::testing::Test {
 protected:
     void SetUp() override {
+        utils::OrderBookRenderer::enabled = false;
         buyerFD = 1;
         sellerFD = 2;
         buyerClientFD = 3;
@@ -133,15 +135,18 @@ protected:
                                                       OrderSide side, OrderType type,
                                                       ClientID clientID = 1) {
         Message<client::NewOrderPayload> msg;
-        msg.header =
-            client::makeClientHeader<client::NewOrderPayload>(buyer->getSession());
+
+        ClientSession& session =
+            clientID == 1 ? buyer->getSession() : seller->getSession();
+
+        msg.header = client::makeClientHeader<client::NewOrderPayload>(session);
         msg.payload.serverClientID = clientID;
         msg.payload.instrumentID = 1;
-        msg.payload.orderSide = std::to_underlying(side);
-        msg.payload.orderType = std::to_underlying(type);
+        msg.payload.orderSide = +(side);
+        msg.payload.orderType = +(type);
         msg.payload.quantity = qty;
         msg.payload.price = price;
-        msg.payload.timeInForce = std::to_underlying(TimeInForce::GTC);
+        msg.payload.timeInForce = +(TimeInForce::GTC);
         msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
         std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
@@ -200,7 +205,7 @@ TEST_F(ProtocolHandlingTests, SubmitOrder) {
         deserializeMessage<server::OrderAckPayload>(serverCapture);
 
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().header.messageType, std::to_underlying(MessageType::ORDER_ACK));
+    ASSERT_EQ(ack.value().header.messageType, +(MessageType::ORDER_ACK));
     ASSERT_EQ(ack.value().payload.acceptedPrice, 200);
 
     ASSERT_TRUE(api->getBestBid().has_value());
@@ -233,9 +238,8 @@ TEST_F(ProtocolHandlingTests, SubmitOrderWithInvalidPrice) {
         deserializeMessage<server::OrderAckPayload>(serverCapture);
 
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().header.messageType, std::to_underlying(MessageType::ORDER_ACK));
-    ASSERT_EQ(ack.value().payload.status,
-              std::to_underlying(statusCodes::OrderAckStatus::INVALID));
+    ASSERT_EQ(ack.value().header.messageType, +(MessageType::ORDER_ACK));
+    ASSERT_EQ(ack.value().payload.status, +(statusCodes::OrderAckStatus::INVALID));
 
     ASSERT_FALSE(api->getBestBid().has_value());
     logout();
@@ -253,9 +257,8 @@ TEST_F(ProtocolHandlingTests, SubmitOrderWithInvalidQty) {
         deserializeMessage<server::OrderAckPayload>(serverCapture);
 
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().header.messageType, std::to_underlying(MessageType::ORDER_ACK));
-    ASSERT_EQ(ack.value().payload.status,
-              std::to_underlying(statusCodes::OrderAckStatus::INVALID));
+    ASSERT_EQ(ack.value().header.messageType, +(MessageType::ORDER_ACK));
+    ASSERT_EQ(ack.value().payload.status, +(statusCodes::OrderAckStatus::INVALID));
 
     ASSERT_FALSE(api->getBestBid().has_value());
     logout();
@@ -278,8 +281,7 @@ TEST_F(ProtocolHandlingTests, CancelOrder) {
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().payload.status,
-              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    ASSERT_EQ(ack.value().payload.status, +(statusCodes::OrderAckStatus::ACCEPTED));
     clearSendBuffers();
     resetServerCapture();
     resetClientCapture();
@@ -294,10 +296,9 @@ TEST_F(ProtocolHandlingTests, CancelOrder) {
         deserializeMessage<server::CancelAckPayload>(serverCapture);
 
     ASSERT_TRUE(cancelAck.has_value());
-    ASSERT_EQ(cancelAck.value().header.messageType,
-              std::to_underlying(MessageType::CANCEL_ACK));
+    ASSERT_EQ(cancelAck.value().header.messageType, +(MessageType::CANCEL_ACK));
     ASSERT_EQ(cancelAck.value().payload.status,
-              std::to_underlying(statusCodes::CancelAckStatus::ACCEPTED));
+              +(statusCodes::CancelAckStatus::ACCEPTED));
 
     ASSERT_FALSE(api->getBestBid().has_value());
     logout();
@@ -325,10 +326,9 @@ TEST_F(ProtocolHandlingTests, CancelOrderNotFound) {
         deserializeMessage<server::CancelAckPayload>(serverCapture);
 
     ASSERT_TRUE(cancelAck.has_value());
-    ASSERT_EQ(cancelAck.value().header.messageType,
-              std::to_underlying(MessageType::CANCEL_ACK));
+    ASSERT_EQ(cancelAck.value().header.messageType, +(MessageType::CANCEL_ACK));
     ASSERT_EQ(cancelAck.value().payload.status,
-              std::to_underlying(statusCodes::CancelAckStatus::NOT_FOUND));
+              +(statusCodes::CancelAckStatus::NOT_FOUND));
 
     logout();
 }
@@ -356,8 +356,7 @@ TEST_F(ProtocolHandlingTests, ModifyInPlace) {
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().payload.status,
-              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    ASSERT_EQ(ack.value().payload.status, +(statusCodes::OrderAckStatus::ACCEPTED));
     clearSendBuffers();
     resetServerCapture();
     resetClientCapture();
@@ -372,10 +371,8 @@ TEST_F(ProtocolHandlingTests, ModifyInPlace) {
         deserializeMessage<server::ModifyAckPayload>(serverCapture);
 
     ASSERT_TRUE(modifyAck.has_value());
-    ASSERT_EQ(modifyAck.value().header.messageType,
-              std::to_underlying(MessageType::MODIFY_ACK));
-    ASSERT_EQ(modifyAck.value().payload.status,
-              std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
+    ASSERT_EQ(modifyAck.value().header.messageType, +(MessageType::MODIFY_ACK));
+    ASSERT_EQ(modifyAck.value().payload.status, +(statusCodes::ModifyStatus::ACCEPTED));
 
     ASSERT_TRUE(api->getBestBid().has_value());
     ASSERT_EQ(api->getBestBid().value(), 200);
@@ -406,10 +403,8 @@ TEST_F(ProtocolHandlingTests, ModifyOrderNotFound) {
         deserializeMessage<server::ModifyAckPayload>(serverCapture);
 
     ASSERT_TRUE(modifyAck.has_value());
-    ASSERT_EQ(modifyAck.value().header.messageType,
-              std::to_underlying(MessageType::MODIFY_ACK));
-    ASSERT_EQ(modifyAck.value().payload.status,
-              std::to_underlying(statusCodes::ModifyStatus::NOT_FOUND));
+    ASSERT_EQ(modifyAck.value().header.messageType, +(MessageType::MODIFY_ACK));
+    ASSERT_EQ(modifyAck.value().payload.status, +(statusCodes::ModifyStatus::NOT_FOUND));
 
     logout();
 }
@@ -437,8 +432,7 @@ TEST_F(ProtocolHandlingTests, ModifyPrice) {
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().payload.status,
-              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    ASSERT_EQ(ack.value().payload.status, +(statusCodes::OrderAckStatus::ACCEPTED));
     clearSendBuffers();
     resetServerCapture();
     resetClientCapture();
@@ -453,10 +447,8 @@ TEST_F(ProtocolHandlingTests, ModifyPrice) {
         deserializeMessage<server::ModifyAckPayload>(serverCapture);
 
     ASSERT_TRUE(modifyAck.has_value());
-    ASSERT_EQ(modifyAck.value().header.messageType,
-              std::to_underlying(MessageType::MODIFY_ACK));
-    ASSERT_EQ(modifyAck.value().payload.status,
-              std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
+    ASSERT_EQ(modifyAck.value().header.messageType, +(MessageType::MODIFY_ACK));
+    ASSERT_EQ(modifyAck.value().payload.status, +(statusCodes::ModifyStatus::ACCEPTED));
 
     ASSERT_TRUE(api->getBestBid().has_value());
     ASSERT_EQ(api->getBestBid().value(), 250);
@@ -475,8 +467,7 @@ TEST_F(ProtocolHandlingTests, MofifyPriceAndQty) {
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().payload.status,
-              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    ASSERT_EQ(ack.value().payload.status, +(statusCodes::OrderAckStatus::ACCEPTED));
     clearSendBuffers();
     resetServerCapture();
     resetClientCapture();
@@ -491,10 +482,8 @@ TEST_F(ProtocolHandlingTests, MofifyPriceAndQty) {
         deserializeMessage<server::ModifyAckPayload>(serverCapture);
 
     ASSERT_TRUE(modifyAck.has_value());
-    ASSERT_EQ(modifyAck.value().header.messageType,
-              std::to_underlying(MessageType::MODIFY_ACK));
-    ASSERT_EQ(modifyAck.value().payload.status,
-              std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
+    ASSERT_EQ(modifyAck.value().header.messageType, +(MessageType::MODIFY_ACK));
+    ASSERT_EQ(modifyAck.value().payload.status, +(statusCodes::ModifyStatus::ACCEPTED));
 
     ASSERT_TRUE(api->getBestBid().has_value());
     ASSERT_EQ(api->getBestBid().value(), 250);
@@ -513,8 +502,7 @@ TEST_F(ProtocolHandlingTests, FillFromModify) {
     std::optional<Message<server::OrderAckPayload>> ack =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().payload.status,
-              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    ASSERT_EQ(ack.value().payload.status, +(statusCodes::OrderAckStatus::ACCEPTED));
     clearSendBuffers();
     resetServerCapture();
     resetClientCapture();
@@ -525,8 +513,7 @@ TEST_F(ProtocolHandlingTests, FillFromModify) {
     std::optional<Message<server::OrderAckPayload>> sellAck =
         deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(sellAck.has_value());
-    ASSERT_EQ(sellAck.value().payload.status,
-              std::to_underlying(statusCodes::OrderAckStatus::ACCEPTED));
+    ASSERT_EQ(sellAck.value().payload.status, +(statusCodes::OrderAckStatus::ACCEPTED));
     clearSendBuffers();
     resetServerCapture();
     resetClientCapture();
@@ -541,15 +528,13 @@ TEST_F(ProtocolHandlingTests, FillFromModify) {
         std::span(serverCapture)
             .subspan(0, server::PayloadTraits<server::ModifyAckPayload>::msgSize));
     ASSERT_TRUE(modifyAck.has_value());
-    ASSERT_EQ(modifyAck.value().header.messageType,
-              std::to_underlying(MessageType::MODIFY_ACK));
-    ASSERT_EQ(modifyAck.value().payload.status,
-              std::to_underlying(statusCodes::ModifyStatus::ACCEPTED));
+    ASSERT_EQ(modifyAck.value().header.messageType, +(MessageType::MODIFY_ACK));
+    ASSERT_EQ(modifyAck.value().payload.status, +(statusCodes::ModifyStatus::ACCEPTED));
     auto trade1 = deserializeMessage<server::TradePayload>(
         std::span(serverCapture)
             .subspan(server::PayloadTraits<server::ModifyAckPayload>::msgSize));
     ASSERT_TRUE(trade1.has_value());
-    ASSERT_EQ(trade1.value().header.messageType, std::to_underlying(MessageType::TRADE));
+    ASSERT_EQ(trade1.value().header.messageType, +(MessageType::TRADE));
     ASSERT_EQ(trade1.value().payload.filledQty, 100);
     ASSERT_EQ(trade1.value().payload.filledPrice, 201);
 
@@ -558,7 +543,7 @@ TEST_F(ProtocolHandlingTests, FillFromModify) {
             .subspan(server::PayloadTraits<server::ModifyAckPayload>::msgSize +
                      server::PayloadTraits<server::TradePayload>::msgSize));
     ASSERT_TRUE(trade2.has_value());
-    ASSERT_EQ(trade2.value().header.messageType, std::to_underlying(MessageType::TRADE));
+    ASSERT_EQ(trade2.value().header.messageType, +(MessageType::TRADE));
     ASSERT_EQ(trade2.value().payload.filledQty, 100);
     ASSERT_EQ(trade2.value().payload.filledPrice, 201);
 }
@@ -606,5 +591,104 @@ TEST_F(ProtocolHandlingTests, PartialMessage) {
 
     auto ack = deserializeMessage<server::OrderAckPayload>(serverCapture);
     ASSERT_TRUE(ack.has_value());
-    ASSERT_EQ(ack.value().header.messageType, std::to_underlying(MessageType::ORDER_ACK));
+    ASSERT_EQ(ack.value().header.messageType, +(MessageType::ORDER_ACK));
+}
+
+TEST_F(ProtocolHandlingTests, MultipleMessages) {
+    login();
+    Message<client::NewOrderPayload> msg1 =
+        testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT);
+    std::vector<uint8_t> serialized1 =
+        serializeMessage(MessageType::NEW_ORDER, msg1.payload, msg1.header);
+
+    auto hmac1 = computeHMAC_(buyer->getSession().hmacKey, serialized1.data(),
+                              client::PayloadTraits<client::NewOrderPayload>::dataSize);
+
+    std::copy(hmac1.begin(), hmac1.end(),
+              serialized1.data() +
+                  client::PayloadTraits<client::NewOrderPayload>::hmacOffset);
+
+    Message<client::NewOrderPayload> msg2 =
+        testOrderMessage(50, 250, OrderSide::BUY, OrderType::LIMIT);
+    std::vector<uint8_t> serialized2 =
+        serializeMessage(MessageType::NEW_ORDER, msg2.payload, msg2.header);
+
+    auto hmac2 = computeHMAC_(buyer->getSession().hmacKey, serialized2.data(),
+                              client::PayloadTraits<client::NewOrderPayload>::dataSize);
+
+    std::copy(hmac2.begin(), hmac2.end(),
+              serialized2.data() +
+                  client::PayloadTraits<client::NewOrderPayload>::hmacOffset);
+
+    buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(), serialized1.begin(),
+                                    serialized1.end());
+    buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(), serialized2.begin(),
+                                    serialized2.end());
+
+    handler->onMessage(buyerFD);
+    ASSERT_EQ(serverCapture.size(),
+              server::PayloadTraits<server::OrderAckPayload>::msgSize * 2);
+
+    auto ack1 = deserializeMessage<server::OrderAckPayload>(
+        std::span(serverCapture)
+            .subspan(0, server::PayloadTraits<server::OrderAckPayload>::msgSize));
+    ASSERT_TRUE(ack1.has_value());
+    ASSERT_EQ(ack1.value().header.messageType, +(MessageType::ORDER_ACK));
+    ASSERT_EQ(ack1.value().payload.acceptedPrice, 200);
+
+    auto ack2 = deserializeMessage<server::OrderAckPayload>(
+        std::span(serverCapture)
+            .subspan(server::PayloadTraits<server::OrderAckPayload>::msgSize));
+    ASSERT_TRUE(ack2.has_value());
+    ASSERT_EQ(ack2.value().header.messageType, +(MessageType::ORDER_ACK));
+    ASSERT_EQ(ack2.value().payload.acceptedPrice, 250);
+}
+
+TEST_F(ProtocolHandlingTests, UnknownMessageType) {
+    login();
+    std::vector<uint8_t> unknownMsg(64, 0xFF);
+    buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(), unknownMsg.begin(),
+                                    unknownMsg.end());
+    handler->onMessage(buyerFD);
+    ASSERT_FALSE(api->getSession(buyerFD));
+    ASSERT_TRUE(buyerSession->recvBuffer.empty());
+    ASSERT_TRUE(serverCapture.empty());
+}
+
+TEST_F(ProtocolHandlingTests, EmptyMessage) {
+    login();
+    std::vector<uint8_t> emptyMsg;
+    buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(), emptyMsg.begin(),
+                                    emptyMsg.end());
+    handler->onMessage(buyerFD);
+    ASSERT_TRUE(api->getSession(buyerFD));
+    ASSERT_TRUE(buyerSession->recvBuffer.empty());
+    ASSERT_TRUE(serverCapture.empty());
+}
+
+TEST_F(ProtocolHandlingTests, ValidMessageAfterBadMessage) {
+    login();
+    std::vector<uint8_t> unknownMsg(64, 0xFF);
+    buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(), unknownMsg.begin(),
+                                    unknownMsg.end());
+    handler->onMessage(buyerFD);
+    ASSERT_TRUE(buyerSession->recvBuffer.empty());
+    ASSERT_TRUE(serverCapture.empty());
+
+    ASSERT_FALSE(api->getSession(buyerFD));
+
+    // client should be dropped due to previous bad message
+    ASSERT_TRUE(serverCapture.empty());
+}
+
+TEST_F(ProtocolHandlingTests, UnsupportedProtocolVersion) {
+    login();
+    Message<client::NewOrderPayload> msg =
+        testOrderMessage(100, 200, OrderSide::BUY, OrderType::LIMIT);
+    msg.header.protocolVersionFlag = 0xFF; // unsupported version
+    buyer->sendMessage<client::NewOrderPayload>(msg);
+    handler->onMessage(buyerFD);
+    ASSERT_FALSE(api->getSession(buyerFD));
+    ASSERT_TRUE(buyerSession->recvBuffer.empty());
+    ASSERT_TRUE(serverCapture.empty());
 }
