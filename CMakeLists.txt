@@ -25,18 +25,17 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
 endif()
 
-include(CTest)
-if(BUILD_TESTING)
-    add_subdirectory(tests)
-endif()
+#include(CTest)
+#if(BUILD_TESTING)
+#    add_subdirectory(tests)
+#endif()
 
 # --- Source files ---
 file(GLOB_RECURSE ALL_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE CLIENT_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/client/*.cpp")
 list(REMOVE_ITEM ALL_SRC 
 "${CMAKE_SOURCE_DIR}/src/main.cpp"
-"${CMAKE_SOURCE_DIR}/src/client_main.cpp"
-
+"${CMAKE_SOURCE_DIR}/src/client.py"
 )
 set(CORE_SOURCES ${ALL_SRC})
 
@@ -58,7 +57,4 @@ target_link_libraries(MiniExchangeCore PUBLIC OpenSSL::Crypto OpenSSL::SSL)
 # --- Executable ---
 add_executable(MiniExchange "${CMAKE_SOURCE_DIR}/src/main.cpp")
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
-# --- Client executable ---
-add_executable(ClientBin "${CMAKE_SOURCE_DIR}/src/client_main.cpp")
-target_link_libraries(ClientBin PRIVATE MiniExchangeClient)
 

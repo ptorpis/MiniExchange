@@ -37,7 +37,22 @@ struct Session {
         exeID_ = 0;
     }
 
+    void reserveBuffer() {
+        recvBuffer.reserve(16 * 1024);
+        sendBuffer.reserve(16 * 1024);
+    }
+
+    void clearBuffers() {
+        recvBuffer.clear();
+        sendBuffer.clear();
+    }
+
     TradeID getNextExeID() { return ++exeID_; }
+
+    void queueHeartbeat() {
+        static const uint8_t heartbeatMessage[4]{0x02, 0x00, 0x00, 0x00};
+        sendBuffer.insert(sendBuffer.end(), heartbeatMessage, heartbeatMessage + 4);
+    }
 
 private:
     TradeID exeID_{0};
@@ -72,6 +87,11 @@ struct ClientSession {
         hmacKey.fill(0);
         serverClientID = 0;
         exeID = 0;
+    }
+
+    void reserve() {
+        recvBuffer.reserve(16 * 1024);
+        sendBuffer.reserve(16 * 1024);
     }
 
     TradeID exeID{0};
