@@ -205,7 +205,6 @@ void Server::run() {
 }
 
 void Server::handleDisconnect(int fd) {
-    std::cout << "[LOG]: handleDisconnect" << std::endl;
     epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
     Connection* conn = connManager_.getConnection(fd);
@@ -257,6 +256,7 @@ void Server::checkHeartbeats_() {
                 .count();
 
         if (duration > HEARTBEAT_TIMEOUT_SECONDS) {
+            std::cout << "Client TIMEOUT fd=" << sess.FD << std::endl;
             handleDisconnect(sess.FD);
         } else {
             ++i;
