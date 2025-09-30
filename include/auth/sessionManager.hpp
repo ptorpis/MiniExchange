@@ -13,6 +13,7 @@ public:
         sess.serverClientID = generateClientToken_();
         sess.reserveBuffer();
         sess.clearBuffers();
+        std::fill(sess.hmacKey.begin(), sess.hmacKey.end(), 0x11);
 
         fdToIndex_[fd] = sessions_.size() - 1;
         return sess;

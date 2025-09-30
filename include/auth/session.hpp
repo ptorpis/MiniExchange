@@ -47,12 +47,9 @@ struct Session {
         sendBuffer.clear();
     }
 
-    TradeID getNextExeID() { return ++exeID_; }
+    void updateHeartbeat() { lastHeartBeat = std::chrono::steady_clock::now(); }
 
-    void queueHeartbeat() {
-        static const uint8_t heartbeatMessage[4]{0x02, 0x00, 0x00, 0x00};
-        sendBuffer.insert(sendBuffer.end(), heartbeatMessage, heartbeatMessage + 4);
-    }
+    TradeID getNextExeID() { return ++exeID_; }
 
 private:
     TradeID exeID_{0};
@@ -60,7 +57,6 @@ private:
 
 struct ClientSession {
 
-    int FD;
     uint32_t serverSqn{0};
     uint32_t clientSqn{0};
 
@@ -74,8 +70,7 @@ struct ClientSession {
 
     uint64_t serverClientID{0};
 
-    explicit ClientSession(int fd)
-        : FD(fd), lastHeartBeat(std::chrono::steady_clock::now()) {
+    explicit ClientSession() : lastHeartBeat(std::chrono::steady_clock::now()) {
         hmacKey.fill(0x00);
     }
 
@@ -93,6 +88,8 @@ struct ClientSession {
         recvBuffer.reserve(16 * 1024);
         sendBuffer.reserve(16 * 1024);
     }
+
+    void updateHeartbeat() { lastHeartBeat = std::chrono::steady_clock::now(); }
 
     TradeID exeID{0};
 };

@@ -35,7 +35,7 @@ file(GLOB_RECURSE ALL_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE CLIENT_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/client/*.cpp")
 list(REMOVE_ITEM ALL_SRC 
 "${CMAKE_SOURCE_DIR}/src/main.cpp"
-"${CMAKE_SOURCE_DIR}/src/client.py"
+"${CMAKE_SOURCE_DIR}/src/client_main.cpp"
 )
 set(CORE_SOURCES ${ALL_SRC})
 
@@ -58,3 +58,5 @@ target_link_libraries(MiniExchangeCore PUBLIC OpenSSL::Crypto OpenSSL::SSL)
 add_executable(MiniExchange "${CMAKE_SOURCE_DIR}/src/main.cpp")
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
 
+add_executable(ClientBin "${CMAKE_SOURCE_DIR}/src/client_main.cpp")
+target_link_libraries(ClientBin PRIVATE MiniExchangeCore)

@@ -10,7 +10,8 @@
 
 class MiniExchangeAPI {
 public:
-    MiniExchangeAPI() : engine_(MatchingEngine()), sessionManager_(SessionManager()) {}
+    MiniExchangeAPI(SessionManager& sm)
+        : engine_(MatchingEngine()), sessionManager_(sm) {}
 
     Session& connectClient(int fd);
     Session* getSession(int fd);
@@ -51,7 +52,7 @@ public:
 
 private:
     MatchingEngine engine_;
-    SessionManager sessionManager_;
+    SessionManager& sessionManager_;
 
     bool isValidAPIKey_(Session& session, const uint8_t key[16]);
     std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,

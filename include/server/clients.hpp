@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils/types.hpp"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -8,9 +10,6 @@
 
 #include <algorithm>
 #include <optional>
-
-using ApiKey = std::array<uint8_t, 16>;
-using HMACKey = std::array<uint8_t, 32>;
 
 struct Array16Hash {
     std::size_t operator()(const std::array<uint8_t, 16>& arr) const noexcept {

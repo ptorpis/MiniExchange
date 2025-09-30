@@ -24,12 +24,10 @@ struct HelloPayload {
 struct HeartBeatPayload {
     uint64_t serverClientID;
     uint8_t padding[8];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)

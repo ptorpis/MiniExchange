@@ -61,6 +61,7 @@ void Client::processIncoming() {
         MessageType type = static_cast<MessageType>(header.messageType);
         switch (type) {
         case MessageType::HELLO_ACK: {
+            std::cout << "HELLO_ACK received" << std::endl;
             totalSize = constants::HEADER_SIZE +
                         server::PayloadTraits<server::HelloAckPayload>::size;
             if (session_.recvBuffer.size() < totalSize) {
@@ -86,6 +87,7 @@ void Client::processIncoming() {
                     session_.authenticated = true;
                     session_.clientSqn = msgOpt.value().header.serverMsgSqn;
                     session_.serverClientID = msgOpt.value().payload.serverClientID;
+                    std::cout << "Session authenticated!" << std::endl;
                 }
             }
             break;
@@ -336,4 +338,17 @@ void Client::testFill(Qty qty = 100, Price price = 200) {
     std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
     sendMessage(msg);
+}
+
+void Client::sendHeartbeat() {
+    Message<client::HeartBeatPayload> msg;
+    msg.header = client::makeClientHeader<client::HeartBeatPayload>(session_);
+    msg.payload.serverClientID = session_.serverClientID;
+    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+
+    auto serialized = serializeMessage<client::HeartBeatPayload>(MessageType::HEARTBEAT,
+                                                                 msg.payload, msg.header);
+
+    session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
+                               serialized.end());
 }

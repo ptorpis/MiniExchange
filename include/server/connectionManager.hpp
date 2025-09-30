@@ -22,8 +22,6 @@ public:
     void touch() { lastActive_ = std::chrono::steady_clock::now(); }
     std::chrono::steady_clock::time_point lastActive() const { return lastActive_; }
 
-    bool isWritable{false};
-
 private:
     int fd_;
     uint16_t clientPort_{0};

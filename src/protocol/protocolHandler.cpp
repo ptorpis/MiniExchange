@@ -18,8 +18,10 @@ void ProtocolHandler::onMessage(int fd) {
     if (!session) {
         return;
     }
+    int counter = 0;
 
     while (true) {
+        std::cout << "number of iterations" << ++counter << std::endl;
         std::optional<MessageHeader> headerOpt = peekHeader_(*session);
         if (!headerOpt) {
             return;
@@ -36,6 +38,7 @@ void ProtocolHandler::onMessage(int fd) {
 
         switch (type) {
         case MessageType::HELLO: {
+            std::cout << "HELLO MESSAGE RECEIVED" << std::endl;
             totalSize = constants::HEADER_SIZE +
                         client::PayloadTraits<client::HelloPayload>::size;
             if (session->recvBuffer.size() < totalSize) {
@@ -65,11 +68,14 @@ void ProtocolHandler::onMessage(int fd) {
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
                             client::PayloadTraits<client::HelloPayload>::dataSize,
                             expectedHMAC, constants::HMAC_SIZE)) {
-
+                std::cout << "HMAC valid" << std::endl;
                 if (!session) {
                     return;
                 }
                 sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
+                std::cout << "HELLOACK BUFFERED" << std::endl;
+            } else {
+                std::cout << "HMAC invalid" << std::endl;
             }
 
             break;
@@ -204,6 +210,16 @@ void ProtocolHandler::onMessage(int fd) {
             }
             break;
         }
+        case MessageType::HEARTBEAT: {
+            totalSize = client::PayloadTraits<client::HeartBeatPayload>::msgSize;
+            if (!session) return;
+            if (session->recvBuffer.size() < totalSize) return;
+            std::cout << "HEARTBEAT fd=" << session->FD << std::endl;
+            utils::printHex({session->recvBuffer.data(), session->recvBuffer.size()});
+            session->updateHeartbeat();
+            session->clientSqn++;
+            break;
+        }
         default: {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
             std::cout << "Unknown Message Type" << std::endl;
@@ -215,9 +231,9 @@ void ProtocolHandler::onMessage(int fd) {
 
         session->recvBuffer.erase(session->recvBuffer.begin(),
                                   session->recvBuffer.begin() + totalSize);
-        auto bids = api_.getBidsSnapshop();
-        auto asks = api_.getAsksSnapshot();
-        utils::OrderBookRenderer::render(bids, asks);
+        // auto bids = api_.getBidsSnapshop();
+        // auto asks = api_.getAsksSnapshot();
+        // utils::OrderBookRenderer::render(bids, asks);
     }
 }
 
@@ -256,8 +272,4 @@ std::vector<uint8_t> ProtocolHandler::computeHMAC_(const std::array<uint8_t, 32>
     std::vector<uint8_t> hmac(len);
     HMAC(EVP_sha256(), key.data(), key.size(), data, dataLen, hmac.data(), &len);
     return hmac;
-}
-
-void ProtocolHandler::onDisconnect(int fd) {
-    api_.disconnectClient(fd);
 }

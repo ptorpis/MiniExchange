@@ -23,19 +23,19 @@ public:
     of the given session
     */
 
-    ProtocolHandler(SendFn sendFn =
-                        [](Session& session, const std::span<const uint8_t> buffer) {
-                            session.sendBuffer.insert(std::end(session.sendBuffer),
-                                                      std::begin(buffer),
-                                                      std::end(buffer));
-                        })
-        : api_(MiniExchangeAPI()), sendFn_(std::move(sendFn)),
+    ProtocolHandler(
+        SessionManager& sm,
+        SendFn sendFn =
+            [](Session& session, const std::span<const uint8_t> buffer) {
+                session.sendBuffer.insert(std::end(session.sendBuffer),
+                                          std::begin(buffer), std::end(buffer));
+            })
+        : api_(MiniExchangeAPI(sm)), sendFn_(std::move(sendFn)),
           clientManager_(ClientManager()) {
         clientManager_.addTestDefault();
     }
 
     void onMessage(int fd);
-    void onDisconnect(int fd);
 
     Session& createSession(int fd) { return api_.connectClient(fd); }
     Session* getSession(int fd) { return api_.getSession(fd); }

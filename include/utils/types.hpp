@@ -27,3 +27,6 @@ struct OutboundMessage {
     int fd;
     std::vector<uint8_t> data;
 };
+
+using ApiKey = std::array<uint8_t, 16>;
+using HMACKey = std::array<uint8_t, 32>;

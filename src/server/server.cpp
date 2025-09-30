@@ -93,30 +93,15 @@ void Server::handleRead(int fd) {
         ssize_t n = ::read(fd, sess->recvBuffer.data() + oldSize, freesSpace);
         if (n > 0) {
             sess->recvBuffer.resize(oldSize + n);
+            bool sendWasEmpty = sess->sendBuffer.empty();
+            handler_.onMessage(fd);
 
-            size_t offset = 0;
-            while (sess->recvBuffer.size() - offset >= 4) {
-                const uint8_t* msg = sess->recvBuffer.data() + offset;
-
-                if (msg[0] == 0x01) {
-                    sess->lastHeartBeat = std::chrono::steady_clock::now();
-
-                    const uint8_t response[4] = {0x02, 0x00, 0x00, 0x00};
-                    bool wasEmpty = sess->sendBuffer.empty();
-                    sess->sendBuffer.insert(sess->sendBuffer.end(), response,
-                                            response + 4);
-
-                    if (wasEmpty) {
-                        handleWrite(fd);
-                    }
-                }
-
-                offset += 4;
-            }
-
-            if (offset > 0) {
-                sess->recvBuffer.erase(sess->recvBuffer.begin(),
-                                       sess->recvBuffer.begin() + offset);
+            if (sendWasEmpty && !sess->sendBuffer.empty()) {
+                handleWrite(fd);
+                epoll_event ev{};
+                ev.data.fd = fd;
+                ev.events = EPOLLIN | EPOLLET;
+                epoll_ctl(epollFd_, EPOLL_CTL_MOD, fd, &ev);
             }
 
         } else if (n == 0) {
@@ -124,7 +109,7 @@ void Server::handleRead(int fd) {
             break;
         } else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                sess->recvBuffer.resize(oldSize + (n > 0 ? n : 0));
+                sess->recvBuffer.resize(oldSize);
                 break;
             } else {
                 handleDisconnect(fd);
@@ -132,8 +117,6 @@ void Server::handleRead(int fd) {
             }
         }
     }
-
-    // parse messages from the recvbuffer
 }
 
 void Server::handleWrite(int fd) {

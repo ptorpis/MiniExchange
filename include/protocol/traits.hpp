@@ -20,8 +20,6 @@ template <> struct PayloadTraits<HeartBeatPayload> {
     static constexpr size_t size = sizeof(HeartBeatPayload);
     static constexpr size_t dataSize =
         size + constants::HEADER_SIZE - constants::HMAC_SIZE;
-    static constexpr size_t hmacOffset =
-        constants::HEADER_SIZE + offsetof(HeartBeatPayload, hmac);
     static constexpr size_t msgSize = sizeof(Message<HeartBeatPayload>);
 };
 
