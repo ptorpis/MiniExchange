@@ -32,7 +32,7 @@ int main() {
     ClientNetwork net("127.0.0.1", 12345, c);
 
     if (!net.connectServer()) return -1;
-    std::jthread hbThread(heartbeatLoop, std::ref(net), std::ref(c), 2);
+    // std::jthread hbThread(heartbeatLoop, std::ref(net), std::ref(c), 2);
     std::jthread recThread(receiveLoop, std::ref(net), std::ref(c));
 
     std::string line;
@@ -86,13 +86,13 @@ int main() {
                       << " type=" << (isLimit ? "LIMIT" : "MARKET") << std::endl;
 
         } else if (line == "stop") {
-            hbThread.request_stop();
+            // hbThread.request_stop();
             recThread.request_stop();
 
             std::cout << "Heartbeat stopped" << std::endl;
             std::cout << "Exiting..." << std::endl;
 
-            hbThread.join();
+            // hbThread.join();
             recThread.join();
             break;
         } else {

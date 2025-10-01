@@ -22,6 +22,10 @@ Session* MiniExchangeAPI::getSession(int fd) {
     return sessionManager_.getSession(fd);
 }
 
+Session* MiniExchangeAPI::getSessionFromID(ClientID clientID) {
+    return sessionManager_.getSessionFromID(clientID);
+}
+
 std::vector<uint8_t> MiniExchangeAPI::handleHello(Session& session,
                                                   Message<client::HelloPayload> msg) {
 
@@ -105,8 +109,8 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
                                    statusCodes::OrderAckStatus::ACCEPTED)});
 
     for (auto& trade : result.tradeVec) {
-        Session* buyerSession = getSession(trade.buyerID);
-        Session* sellerSession = getSession(trade.sellerID);
+        Session* buyerSession = getSessionFromID(trade.buyerID);
+        Session* sellerSession = getSessionFromID(trade.sellerID);
         // std::cout << "Trade Executed: " << trade.qty << " @ " << trade.price <<
         // std::endl;
 

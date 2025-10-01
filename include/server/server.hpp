@@ -3,6 +3,7 @@
 #include "protocol/protocolHandler.hpp"
 #include "server/connectionManager.hpp"
 
+#include <chrono>
 #include <cstring>
 #include <iostream>
 #include <netinet/in.h>
@@ -40,5 +41,5 @@ private:
     ProtocolHandler& handler_;
 
     static const int MAX_EVENTS{128};
-    static const int HEARTBEAT_TIMEOUT_SECONDS{4};
+    const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{5};
 };

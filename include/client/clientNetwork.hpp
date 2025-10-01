@@ -72,6 +72,7 @@ public:
                     break;
                 } else {
                     perror("recv");
+                    disconnectServer();
                     return;
                 }
             } else if (n == 0) {

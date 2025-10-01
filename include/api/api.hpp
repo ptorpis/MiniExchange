@@ -15,6 +15,7 @@ public:
 
     Session& connectClient(int fd);
     Session* getSession(int fd);
+    Session* getSessionFromID(ClientID clienID);
     void disconnectClient(int fd);
 
     std::vector<uint8_t> handleHello(Session& session, Message<client::HelloPayload> msg);
