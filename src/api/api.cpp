@@ -41,7 +41,6 @@ std::vector<uint8_t> MiniExchangeAPI::handleHello(Session& session,
     }
 
     session.authenticated = true;
-    std::cout << "Client authenticated (fd=" << session.FD << ")" << std::endl;
     ack = makeHelloAck_(session, statusCodes::HelloStatus::ACCEPTED);
     return ack;
 }

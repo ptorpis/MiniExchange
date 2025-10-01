@@ -31,8 +31,6 @@ public:
             [](Session& session, const std::span<const uint8_t> buffer) {
                 session.sendBuffer.insert(std::end(session.sendBuffer),
                                           std::begin(buffer), std::end(buffer));
-                std::cout << "sending:" << std::endl;
-                utils::printHex(buffer);
             })
         : api_(MiniExchangeAPI(sm)), sendFn_(std::move(sendFn)),
           clientManager_(ClientManager()) {

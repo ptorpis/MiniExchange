@@ -307,30 +307,14 @@ void Client::appendRecvBuffer(std::span<const uint8_t> data) {
                                std::end(data));
 }
 
-void Client::sendTestOrder(Qty qty = 100, Price price = 200) {
+void Client::sendOrder(Qty qty = 100, Price price = 200, bool isBuy = true,
+                       bool isLimit = true) {
     Message<client::NewOrderPayload> msg;
     msg.header = client::makeClientHeader<client::NewOrderPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.instrumentID = 1;
-    msg.payload.orderSide = +(OrderSide::BUY);
-    msg.payload.orderType = +(OrderType::LIMIT);
-    msg.payload.quantity = qty;
-    msg.payload.price = price;
-    msg.payload.timeInForce = +(TimeInForce::GTC);
-    msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
-    std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
-
-    sendMessage(msg);
-}
-
-void Client::testFill(Qty qty = 100, Price price = 200) {
-    Message<client::NewOrderPayload> msg;
-    msg.header = client::makeClientHeader<client::NewOrderPayload>(session_);
-    msg.payload.serverClientID = session_.serverClientID;
-    msg.payload.instrumentID = 1;
-    msg.payload.orderSide = +(OrderSide::SELL);
-    msg.payload.orderType = +(OrderType::LIMIT);
+    msg.payload.orderSide = isBuy ? +OrderSide::BUY : +OrderSide::SELL;
+    msg.payload.orderType = isLimit ? +OrderType::LIMIT : +OrderType::MARKET;
     msg.payload.quantity = qty;
     msg.payload.price = price;
     msg.payload.timeInForce = +(TimeInForce::GTC);

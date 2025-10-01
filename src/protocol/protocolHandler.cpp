@@ -69,7 +69,6 @@ void ProtocolHandler::onMessage(int fd) {
                 }
                 sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
             } else {
-                std::cout << "HMAC invalid" << std::endl;
             }
 
             break;
@@ -208,25 +207,21 @@ void ProtocolHandler::onMessage(int fd) {
             totalSize = client::PayloadTraits<client::HeartBeatPayload>::msgSize;
             if (!session) return;
             if (session->recvBuffer.size() < totalSize) return;
-            std::cout << "HEARTBEAT fd=" << session->FD << std::endl;
-            utils::printHex({session->recvBuffer.data(), session->recvBuffer.size()});
             session->updateHeartbeat();
             break;
         }
         default: {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
-            std::cout << "Unknown Message Type" << std::endl;
             session->recvBuffer.clear();
-            api_.disconnectClient(fd);
             return;
         }
         }
 
         session->recvBuffer.erase(session->recvBuffer.begin(),
                                   session->recvBuffer.begin() + totalSize);
-        // auto bids = api_.getBidsSnapshop();
-        // auto asks = api_.getAsksSnapshot();
-        // utils::OrderBookRenderer::render(bids, asks);
+        auto bids = api_.getBidsSnapshop();
+        auto asks = api_.getAsksSnapshot();
+        utils::OrderBookRenderer::render(bids, asks);
     }
 }
 

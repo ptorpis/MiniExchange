@@ -40,8 +40,7 @@ public:
 
     void sendHello();
     void sendLogout();
-    void sendTestOrder(Qty qty, Price price);
-    void testFill(Qty, Price);
+    void sendOrder(Qty qty, Price price, bool isBuy, bool isLimit);
 
     void sendCancel(OrderID orderID);
     void sendModify(OrderID orderID, Qty newQty, Price newPrice);

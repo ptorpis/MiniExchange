@@ -40,9 +40,51 @@ int main() {
         std::cout << "> ";
         if (!std::getline(std::cin, line)) break;
 
-        if (line == "hello") {
+        std::istringstream iss(line);
+        std::string cmd;
+        iss >> cmd;
+
+        if (cmd == "hello") {
             c.sendHello();
             net.sendMessage();
+        } else if (cmd == "order") {
+            Price price;
+            Qty qty;
+            std::string sideStr, typeStr;
+
+            bool isBuy, isLimit;
+
+            if (!(iss >> sideStr >> qty >> typeStr >> price)) {
+                std::cout << "Usage: order [buy | sell] <qty> [limit | market] <price>"
+                          << std::endl;
+                continue;
+            }
+
+            if (sideStr == "buy") {
+                isBuy = true;
+            } else if (sideStr == "sell") {
+                isBuy = false;
+            } else {
+                std::cout << "Invalid side. (must be 'buy' or 'sell')" << std::endl;
+                continue;
+            }
+
+            if (typeStr == "limit") {
+                isLimit = true;
+            } else if (sideStr == "market") {
+                isLimit = false;
+            } else {
+                std::cout << "Invalid type. (must be 'limit' or 'market')" << std::endl;
+                continue;
+            }
+
+            c.sendOrder(qty, price, isBuy, isLimit);
+            net.sendMessage();
+
+            std::cout << "Order Submitted: qty=" << qty << " price=" << price
+                      << " side=" << (isBuy ? "BUY" : "SELL")
+                      << " type=" << (isLimit ? "LIMIT" : "MARKET") << std::endl;
+
         } else if (line == "stop") {
             hbThread.request_stop();
             recThread.request_stop();
