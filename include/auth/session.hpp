@@ -85,8 +85,8 @@ struct ClientSession {
     }
 
     void reserve() {
-        recvBuffer.reserve(16 * 1024);
-        sendBuffer.reserve(16 * 1024);
+        recvBuffer.reserve(8 * 1024);
+        sendBuffer.reserve(8 * 1024);
     }
 
     void updateHeartbeat() { lastHeartBeat = std::chrono::steady_clock::now(); }

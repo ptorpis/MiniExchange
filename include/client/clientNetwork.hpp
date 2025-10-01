@@ -56,18 +56,33 @@ public:
     }
 
     void receiveMessage() {
-        auto sess = client_.getSession();
+        auto& sess = client_.getSession();
 
         constexpr size_t BUFFER_CHUNK = 4096;
-        std::vector<uint8_t> tempBuffer(BUFFER_CHUNK);
 
-        ssize_t n = ::recv(sockFD_, tempBuffer.data(), tempBuffer.size(), 0);
-        if (n <= 0) return;
-        std::cout << "received" << std::endl;
-        utils::printHex({tempBuffer.data(), n});
+        while (true) {
+            size_t oldSize = sess.recvBuffer.size();
+            sess.recvBuffer.resize(oldSize + BUFFER_CHUNK);
 
-        sess.recvBuffer.insert(sess.recvBuffer.end(), tempBuffer.begin(),
-                               tempBuffer.begin() + n);
+            ssize_t n =
+                ::recv(sockFD_, sess.recvBuffer.data() + oldSize, BUFFER_CHUNK, 0);
+            if (n < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    sess.recvBuffer.resize(oldSize);
+                    break;
+                } else {
+                    perror("recv");
+                    return;
+                }
+            } else if (n == 0) {
+                std::cout << "Server closed connection\n";
+                sess.recvBuffer.resize(oldSize);
+                disconnectServer();
+                return;
+            }
+
+            sess.recvBuffer.resize(oldSize + n);
+        }
     }
 
     int getSockFD() const { return sockFD_; }

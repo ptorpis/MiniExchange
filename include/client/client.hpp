@@ -19,6 +19,7 @@ public:
            std::array<uint8_t, 16> APIKey, SendFn sendFn = {})
         : APIKey_(APIKey), session_(), sendFn_(std::move(sendFn)) {
         session_.hmacKey = hmacKey;
+        session_.reserve();
         if (!sendFn_) {
             sendFn_ = [this](const std::span<const uint8_t> buffer) {
                 session_.sendBuffer.insert(session_.sendBuffer.end(), buffer.begin(),

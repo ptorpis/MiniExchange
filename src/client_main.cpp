@@ -33,7 +33,7 @@ int main() {
 
     if (!net.connectServer()) return -1;
     std::jthread hbThread(heartbeatLoop, std::ref(net), std::ref(c), 2);
-    std::jthread receiveLoop(heartbeatLoop, std::ref(net), std::ref(c), 2);
+    std::jthread recThread(receiveLoop, std::ref(net), std::ref(c));
 
     std::string line;
     while (true) {
@@ -45,8 +45,14 @@ int main() {
             net.sendMessage();
         } else if (line == "stop") {
             hbThread.request_stop();
-            receiveLoop.request_stop();
+            recThread.request_stop();
+
             std::cout << "Heartbeat stopped" << std::endl;
+            std::cout << "Exiting..." << std::endl;
+
+            hbThread.join();
+            recThread.join();
+            break;
         } else {
             std::cout << "Unknown Message" << std::endl;
             continue;

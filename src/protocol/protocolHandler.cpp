@@ -18,10 +18,7 @@ void ProtocolHandler::onMessage(int fd) {
     if (!session) {
         return;
     }
-    int counter = 0;
-
     while (true) {
-        std::cout << "number of iterations" << ++counter << std::endl;
         std::optional<MessageHeader> headerOpt = peekHeader_(*session);
         if (!headerOpt) {
             return;
@@ -38,7 +35,6 @@ void ProtocolHandler::onMessage(int fd) {
 
         switch (type) {
         case MessageType::HELLO: {
-            std::cout << "HELLO MESSAGE RECEIVED" << std::endl;
             totalSize = constants::HEADER_SIZE +
                         client::PayloadTraits<client::HelloPayload>::size;
             if (session->recvBuffer.size() < totalSize) {
@@ -68,12 +64,10 @@ void ProtocolHandler::onMessage(int fd) {
             if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
                             client::PayloadTraits<client::HelloPayload>::dataSize,
                             expectedHMAC, constants::HMAC_SIZE)) {
-                std::cout << "HMAC valid" << std::endl;
                 if (!session) {
                     return;
                 }
                 sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
-                std::cout << "HELLOACK BUFFERED" << std::endl;
             } else {
                 std::cout << "HMAC invalid" << std::endl;
             }
@@ -217,7 +211,6 @@ void ProtocolHandler::onMessage(int fd) {
             std::cout << "HEARTBEAT fd=" << session->FD << std::endl;
             utils::printHex({session->recvBuffer.data(), session->recvBuffer.size()});
             session->updateHeartbeat();
-            session->clientSqn++;
             break;
         }
         default: {

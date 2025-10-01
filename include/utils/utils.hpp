@@ -11,15 +11,26 @@ template <typename T> constexpr auto operator+(T a) noexcept {
 }
 
 namespace utils {
-void inline printHex(std::span<const uint8_t> data) {
+inline void printHex(std::span<const uint8_t> data) {
     for (size_t i = 0; i < data.size(); i++) {
         if ((i % 16) == 0) {
-            std::cout << std::endl;
+            std::cout << "\n";
         }
         std::cout << std::hex << std::setw(2) << std::setfill('0')
                   << static_cast<int>(data[i]) << " ";
     }
     std::cout << "\n\n";
+}
+
+inline void printHex(const void* data, size_t size) {
+    auto ptr = static_cast<const uint8_t*>(data);
+    printHex(std::span<const uint8_t>(ptr, size));
+}
+
+// Convenience overload: takes any container with contiguous storage
+template <typename Container> inline void printHex(const Container& c) {
+    printHex(
+        std::span<const uint8_t>(reinterpret_cast<const uint8_t*>(c.data()), c.size()));
 }
 
 inline uint64_t getCurrentTimestampMicros() {

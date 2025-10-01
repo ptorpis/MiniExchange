@@ -9,6 +9,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
+#include <string_view>
 #include <utility>
 
 namespace constants {
@@ -45,6 +47,67 @@ enum class MessageType : uint8_t {
     RESEND_RESPONSE = 0x29,
     ERROR = 0x64
 };
+
+inline std::ostream& operator<<(std::ostream& os, MessageType type) {
+    std::string_view name;
+    switch (type) {
+    case MessageType::HELLO:
+        name = "HELLO";
+        break;
+    case MessageType::HELLO_ACK:
+        name = "HELLO_ACK";
+        break;
+    case MessageType::HEARTBEAT:
+        name = "HEARTBEAT";
+        break;
+    case MessageType::LOGOUT:
+        name = "LOGOUT";
+        break;
+    case MessageType::LOGOUT_ACK:
+        name = "LOGOUT_ACK";
+        break;
+    case MessageType::SESSION_TIMEOUT:
+        name = "SESSION_TIMEOUT";
+        break;
+    case MessageType::NEW_ORDER:
+        name = "NEW_ORDER";
+        break;
+    case MessageType::ORDER_ACK:
+        name = "ORDER_ACK";
+        break;
+    case MessageType::CANCEL_ORDER:
+        name = "CANCEL_ORDER";
+        break;
+    case MessageType::CANCEL_ACK:
+        name = "CANCEL_ACK";
+        break;
+    case MessageType::MODIFY_ORDER:
+        name = "MODIFY_ORDER";
+        break;
+    case MessageType::MODIFY_ACK:
+        name = "MODIFY_ACK";
+        break;
+    case MessageType::TRADE:
+        name = "TRADE";
+        break;
+    case MessageType::RESEND_REQUEST:
+        name = "RESEND_REQUEST";
+        break;
+    case MessageType::RESEND_RESPONSE:
+        name = "RESEND_RESPONSE";
+        break;
+    case MessageType::ERROR:
+        name = "ERROR";
+        break;
+    default:
+        name = "UNKNOWN";
+        break;
+    }
+
+    os << name << " (0x" << std::hex << std::uppercase << static_cast<int>(+type)
+       << std::dec << ")";
+    return os;
+}
 
 enum class HeaderFlags : uint8_t { PROTOCOL_VERSION = 0x01 };
 

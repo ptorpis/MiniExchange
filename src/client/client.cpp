@@ -59,9 +59,9 @@ void Client::processIncoming() {
 
         MessageHeader header = headerOpt.value();
         MessageType type = static_cast<MessageType>(header.messageType);
+
         switch (type) {
         case MessageType::HELLO_ACK: {
-            std::cout << "HELLO_ACK received" << std::endl;
             totalSize = constants::HEADER_SIZE +
                         server::PayloadTraits<server::HelloAckPayload>::size;
             if (session_.recvBuffer.size() < totalSize) {
@@ -85,9 +85,10 @@ void Client::processIncoming() {
                     static_cast<statusCodes::HelloStatus>(
                         msgOpt.value().payload.status)) {
                     session_.authenticated = true;
-                    session_.clientSqn = msgOpt.value().header.serverMsgSqn;
+                    session_.serverSqn = msgOpt.value().header.serverMsgSqn;
                     session_.serverClientID = msgOpt.value().payload.serverClientID;
-                    std::cout << "Session authenticated!" << std::endl;
+                    std::cout << "Session authenticated! \n> ";
+                    std::cout << std::flush;
                 }
             }
             break;

@@ -204,9 +204,11 @@ int Server::createListenSocket(uint16_t port) {
         perror("socket");
         return -1;
     }
-
     int flag = 1;
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+
+    int opt = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
@@ -231,6 +233,7 @@ int Server::createListenSocket(uint16_t port) {
 void Server::checkHeartbeats_() {
     auto now = std::chrono::steady_clock::now();
     auto& sessions = sessionManager_.sessions();
+    // /*
 
     for (size_t i{}; i < sessions.size();) {
         Session& sess = sessions[i];
@@ -245,4 +248,6 @@ void Server::checkHeartbeats_() {
             ++i;
         }
     }
+
+    // */
 }

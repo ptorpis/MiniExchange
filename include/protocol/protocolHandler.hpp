@@ -4,9 +4,11 @@
 #include "auth/sessionManager.hpp"
 #include "protocol/messages.hpp"
 #include "server/clients.hpp"
+#include "utils/utils.hpp"
 
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <optional>
 #include <span>
 
@@ -29,6 +31,8 @@ public:
             [](Session& session, const std::span<const uint8_t> buffer) {
                 session.sendBuffer.insert(std::end(session.sendBuffer),
                                           std::begin(buffer), std::end(buffer));
+                std::cout << "sending:" << std::endl;
+                utils::printHex(buffer);
             })
         : api_(MiniExchangeAPI(sm)), sendFn_(std::move(sendFn)),
           clientManager_(ClientManager()) {
