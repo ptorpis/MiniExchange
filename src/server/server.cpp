@@ -31,8 +31,9 @@ void Server::stop() {
     if (listenFd_ >= 0) close(listenFd_);
     if (epollFd_ >= 0) close(epollFd_);
 
-    for (auto& sess : sessionManager_.sessions()) {
-        handleDisconnect(sess.FD);
+    // Iterate over all sessions
+    for (auto& [fd, session] : sessionManager_.sessions()) {
+        handleDisconnect(fd);
     }
 }
 
@@ -233,7 +234,7 @@ int Server::createListenSocket(uint16_t port) {
 void Server::checkHeartbeats_() {
     auto now = std::chrono::steady_clock::now();
     auto& sessions = sessionManager_.sessions();
-    // /*
+    /*
 
     for (size_t i{}; i < sessions.size();) {
         Session& sess = sessions[i];
@@ -249,5 +250,5 @@ void Server::checkHeartbeats_() {
         }
     }
 
-    // */
+    */
 }

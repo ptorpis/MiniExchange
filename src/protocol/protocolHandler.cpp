@@ -123,11 +123,8 @@ void ProtocolHandler::onMessage(int fd) {
                     }
                     auto responses = api_.handleNewOrder(*session, msgOpt.value());
                     for (auto& response : responses) {
-
-                        if (!session) {
-                            return;
-                        }
-                        sendFn_(*(api_.getSession(response.fd)), response.data);
+                        Session* sess = api_.getSession(response.fd);
+                        sendFn_(*sess, response.data);
                     }
                 }
             }
