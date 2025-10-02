@@ -109,10 +109,8 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
                                    statusCodes::OrderAckStatus::ACCEPTED)});
 
     for (auto& trade : result.tradeVec) {
-        Session* buyerSession = getSessionFromID(trade.buyerID);
-        Session* sellerSession = getSessionFromID(trade.sellerID);
-        // std::cout << "Trade Executed: " << trade.qty << " @ " << trade.price <<
-        // std::endl;
+        Session* buyerSession = sessionManager_.getSessionFromClientID(trade.buyerID);
+        Session* sellerSession = sessionManager_.getSessionFromClientID(trade.sellerID);
 
         responses.push_back(
             {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
@@ -190,8 +188,9 @@ MiniExchangeAPI::handleModify(Session& session,
         }
 
         for (auto& trade : modResult.result.value().tradeVec) {
-            Session* buyerSession = getSession(trade.buyerID);
-            Session* sellerSession = getSession(trade.sellerID);
+            Session* buyerSession = sessionManager_.getSessionFromClientID(trade.buyerID);
+            Session* sellerSession =
+                sessionManager_.getSessionFromClientID(trade.sellerID);
 
             responses.push_back(
                 {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});

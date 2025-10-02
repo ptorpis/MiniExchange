@@ -19,7 +19,7 @@ inline void printHex(std::span<const uint8_t> data) {
         std::cout << std::hex << std::setw(2) << std::setfill('0')
                   << static_cast<int>(data[i]) << " ";
     }
-    std::cout << "\n\n";
+    std::cout << std::dec << "\n\n";
 }
 
 inline void printHex(const void* data, size_t size) {

@@ -83,6 +83,8 @@ public:
             }
 
             sess.recvBuffer.resize(oldSize + n);
+            std::cout << "received" << std::endl;
+            utils::printHex(sess.recvBuffer.data(), n);
         }
     }
 
