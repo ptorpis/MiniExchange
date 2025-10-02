@@ -4,14 +4,15 @@
 #include "core/matchingEngine.hpp"
 #include "core/order.hpp"
 #include "core/service.hpp"
+#include "logger/logger.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/statusCodes.hpp"
 #include <optional>
 
 class MiniExchangeAPI {
 public:
-    MiniExchangeAPI(SessionManager& sm)
-        : engine_(MatchingEngine()), sessionManager_(sm) {}
+    MiniExchangeAPI(SessionManager& sm, std::shared_ptr<Logger> logger = nullptr)
+        : engine_(MatchingEngine(logger)), sessionManager_(sm) {}
 
     Session& connectClient(int fd);
     Session* getSession(int fd);

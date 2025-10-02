@@ -4,6 +4,7 @@
 #include <deque>
 #include <map>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -11,13 +12,16 @@
 #include "core/order.hpp"
 #include "core/service.hpp"
 #include "core/trade.hpp"
+#include "logger/logger.hpp"
 #include "utils/types.hpp"
 
 using OrderQueue = std::deque<std::unique_ptr<Order>>;
 
+static const std::string COMPONENT = "ENGINE";
+
 class MatchingEngine {
 public:
-    MatchingEngine() {
+    MatchingEngine(std::shared_ptr<Logger> logger = nullptr) : logger_(logger) {
         dispatchTable_[0][0] = &MatchingEngine::matchOrder_<BuySide, LimitOrderPolicy>;
         dispatchTable_[0][1] = &MatchingEngine::matchOrder_<BuySide, MarketOrderPolicy>;
         dispatchTable_[1][0] = &MatchingEngine::matchOrder_<SellSide, LimitOrderPolicy>;
@@ -122,16 +126,17 @@ private:
 
     struct LimitOrderPolicy {
         static constexpr bool needsPriceCheck = true;
-        static OrderStatus finalize(std::unique_ptr<Order> order, Qty remaining,
-                                    Qty original, MatchingEngine& eng) {
-            OrderStatus status;
+        static statusCodes::OrderStatus finalize(std::unique_ptr<Order> order,
+                                                 Qty remaining, Qty original,
+                                                 MatchingEngine& eng) {
+            statusCodes::OrderStatus status;
             if (!remaining) {
-                order->status = OrderStatus::FILLED;
-                status = OrderStatus::FILLED;
+                order->status = statusCodes::OrderStatus::FILLED;
+                status = statusCodes::OrderStatus::FILLED;
             } else {
                 if (remaining < original) {
-                    order->status = OrderStatus::PARTIALLY_FILLED;
-                    status = OrderStatus::PARTIALLY_FILLED;
+                    order->status = statusCodes::OrderStatus::PARTIALLY_FILLED;
+                    status = statusCodes::OrderStatus::PARTIALLY_FILLED;
                 }
                 order->qty = remaining;
                 eng.addToBook_(std::move(order));
@@ -143,19 +148,20 @@ private:
 
     struct MarketOrderPolicy {
         static constexpr bool needsPriceCheck = false;
-        static OrderStatus finalize(std::unique_ptr<Order> order, Qty remaining,
-                                    Qty original, MatchingEngine&) {
-            OrderStatus status;
+        static statusCodes::OrderStatus finalize(std::unique_ptr<Order> order,
+                                                 Qty remaining, Qty original,
+                                                 MatchingEngine&) {
+            statusCodes::OrderStatus status;
             if (!remaining) {
-                order->status = OrderStatus::FILLED;
-                status = OrderStatus::FILLED;
+                order->status = statusCodes::OrderStatus::FILLED;
+                status = statusCodes::OrderStatus::FILLED;
             } else if (remaining != original) {
-                order->status = OrderStatus::PARTIALLY_FILLED;
+                order->status = statusCodes::OrderStatus::PARTIALLY_FILLED;
                 order->qty = remaining;
-                status = OrderStatus::PARTIALLY_FILLED;
+                status = statusCodes::OrderStatus::PARTIALLY_FILLED;
             } else {
-                order->status = OrderStatus::CANCELLED;
-                status = OrderStatus::CANCELLED;
+                order->status = statusCodes::OrderStatus::CANCELLED;
+                status = statusCodes::OrderStatus::CANCELLED;
             }
 
             return status;
@@ -177,6 +183,9 @@ private:
     TradeID getNextTradeID_() { return ++tradeID; }
 
     OrderService service_;
+
+    std::shared_ptr<Logger> logger_;
+    bool loggingEnabled_;
 };
 
 template <typename SidePolicy, typename OrderTypePolicy>
@@ -220,11 +229,11 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
             restingOrder->qty -= matchQty;
 
             if (!restingOrder->qty) {
-                restingOrder->status = OrderStatus::FILLED;
+                restingOrder->status = statusCodes::OrderStatus::FILLED;
                 orderMap_.erase(restingOrder->orderID);
                 qIt = queue.erase(qIt);
             } else {
-                restingOrder->status = OrderStatus::PARTIALLY_FILLED;
+                restingOrder->status = statusCodes::OrderStatus::PARTIALLY_FILLED;
                 ++qIt;
             }
         }
@@ -242,10 +251,14 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     // on the policy
     OrderID orderID = order->orderID;
     Timestamp timestamp = order->timestamp;
-    OrderStatus status =
+    statusCodes::OrderStatus status =
         OrderTypePolicy::finalize(std::move(order), remainingQty, originalQty, *this);
 
-    return {orderID, timestamp, status, trades};
+    MatchResult result(orderID, timestamp, status, trades);
+
+    logger_->log(result, COMPONENT);
+
+    return result;
 }
 
 template <typename Book> bool

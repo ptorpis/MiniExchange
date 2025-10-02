@@ -1,4 +1,5 @@
 #pragma once
+#include "protocol/statusCodes.hpp"
 #include "utils/types.hpp"
 
 struct Order {
@@ -11,7 +12,7 @@ struct Order {
     const Price price;
     TimeInForce tif;
     Timestamp goodTill;
-    OrderStatus status;
+    statusCodes::OrderStatus status;
     const Timestamp timestamp;
 };
 

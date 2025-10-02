@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <optional>
 #include <span>
 #include <vector>
@@ -56,6 +57,11 @@ public:
 
     std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
                                       const uint8_t* data, size_t dataLen);
+    void stop() {
+        std::cout << "Client stopped\n";
+        running_ = false;
+    }
+    bool isRunning() const { return running_; }
 
 private:
     std::array<uint8_t, 16> APIKey_;
@@ -69,6 +75,7 @@ private:
 
     ClientSession session_;
     SendFn sendFn_;
+    bool running_{true};
 };
 
 template <typename Payload> void Client::sendMessage(Message<Payload> msg) {

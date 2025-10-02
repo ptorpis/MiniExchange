@@ -2,6 +2,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <stdexcept>
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <vector>
@@ -72,14 +73,11 @@ public:
                     break;
                 } else {
                     perror("recv");
-                    disconnectServer();
-                    return;
+                    throw std::runtime_error("recv failed");
                 }
             } else if (n == 0) {
                 std::cout << "Server closed connection\n";
-                sess.recvBuffer.resize(oldSize);
-                disconnectServer();
-                return;
+                throw std::runtime_error("Server closed connection");
             }
 
             sess.recvBuffer.resize(oldSize + n);

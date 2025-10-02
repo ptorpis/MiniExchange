@@ -16,7 +16,13 @@ void heartbeatLoop(std::stop_token stoken, ClientNetwork& net, Client& client,
 
 void receiveLoop(std::stop_token stoken, ClientNetwork& net, Client& client) {
     while (!stoken.stop_requested()) {
-        net.receiveMessage();
+        try {
+            net.receiveMessage();
+        } catch (const std::exception& e) {
+            std::cerr << "Receive error: " << e.what() << '\n';
+            client.stop();
+            return;
+        }
         client.processIncoming();
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
@@ -36,9 +42,9 @@ int main() {
     std::jthread recThread(receiveLoop, std::ref(net), std::ref(c));
 
     std::string line;
-    while (true) {
+    while (c.isRunning()) {
         std::cout << "> ";
-        if (!std::getline(std::cin, line)) break;
+        if (!std::getline(std::cin, line) || !c.isRunning()) break;
 
         std::istringstream iss(line);
         std::string cmd;

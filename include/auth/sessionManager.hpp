@@ -1,12 +1,16 @@
 #pragma once
 
+#include <memory>
 #include <unordered_map>
 
 #include "auth/session.hpp"
+#include "logger/logger.hpp"
 #include "utils/types.hpp"
 
 class SessionManager {
 public:
+    SessionManager(std::shared_ptr<Logger> logger = nullptr) : logger_(logger) {}
+
     Session& createSession(int fd) {
 
         Session sess(fd);
@@ -110,6 +114,8 @@ private:
     std::unordered_map<int, size_t> fdToHbId_; // fd -> heartbeats_ index;
 
     std::vector<Heartbeat> heartbeats_;
+
+    std::shared_ptr<Logger> logger_;
 
     ClientID generateClientToken_() { return ++clientToken_; }
 };

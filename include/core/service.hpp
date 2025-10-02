@@ -44,19 +44,19 @@ public:
     }
 
     std::unique_ptr<Order> orderFromRequest(const OrderRequest& req) {
-        return std::make_unique<Order>(Order{++idSqn_, req.clientID, req.side, req.type,
-                                             req.instrumentID, req.qty, req.price,
-                                             req.tif, req.goodTill, OrderStatus::NEW,
-                                             utils::getCurrentTimestampMicros()});
+        return std::make_unique<Order>(
+            Order{++idSqn_, req.clientID, req.side, req.type, req.instrumentID, req.qty,
+                  req.price, req.tif, req.goodTill, statusCodes::OrderStatus::NEW,
+                  utils::getCurrentTimestampMicros()});
     }
 
     std::unique_ptr<Order> createModified(ClientID clientID, OrderSide side,
                                           OrderType orderType, InstrumentID instrumentID,
                                           Qty qty, Price price, TimeInForce tif,
                                           Timestamp goodTill) {
-        return std::make_unique<Order>(
-            Order{++idSqn_, clientID, side, orderType, instrumentID, qty, price, tif,
-                  goodTill, OrderStatus::MODIFIED, utils::getCurrentTimestampMicros()});
+        return std::make_unique<Order>(Order{
+            ++idSqn_, clientID, side, orderType, instrumentID, qty, price, tif, goodTill,
+            statusCodes::OrderStatus::MODIFIED, utils::getCurrentTimestampMicros()});
     }
 
 private:

@@ -26,14 +26,14 @@ public:
     */
 
     ProtocolHandler(
-        SessionManager& sm,
+        SessionManager& sm, std::shared_ptr<Logger> logger = nullptr,
         SendFn sendFn =
             [](Session& session, const std::span<const uint8_t> buffer) {
                 session.sendBuffer.insert(std::end(session.sendBuffer),
                                           std::begin(buffer), std::end(buffer));
             })
-        : api_(MiniExchangeAPI(sm)), sendFn_(std::move(sendFn)),
-          clientManager_(ClientManager()) {
+        : api_(MiniExchangeAPI(sm, logger)), sendFn_(std::move(sendFn)),
+          clientManager_(ClientManager()), logger_(logger) {
         clientManager_.addTestDefault();
     }
 
@@ -49,6 +49,7 @@ private:
     MiniExchangeAPI api_;
     SendFn sendFn_; // custom send function, assigned at construction
     ClientManager clientManager_;
+    std::shared_ptr<Logger> logger_;
 
     std::optional<MessageHeader> peekHeader_(Session& Session) const;
     bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,

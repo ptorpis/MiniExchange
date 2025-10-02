@@ -14,8 +14,10 @@
 
 class Server {
 public:
-    Server(uint16_t port, SessionManager& sm, ProtocolHandler& handler)
-        : port_(port), sessionManager_(sm), connManager_(sm), handler_(handler) {}
+    Server(uint16_t port, SessionManager& sm, ProtocolHandler& handler,
+           std::shared_ptr<Logger> logger = nullptr)
+        : port_(port), sessionManager_(sm), connManager_(sm), handler_(handler),
+          logger_(logger) {}
 
     bool start(uint16_t port);
     void run();
@@ -39,6 +41,7 @@ private:
     SessionManager& sessionManager_;
     ConnectionManager connManager_;
     ProtocolHandler& handler_;
+    std::shared_ptr<Logger> logger_;
 
     static const int MAX_EVENTS{128};
     const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{5};

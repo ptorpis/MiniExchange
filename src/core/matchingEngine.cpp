@@ -28,7 +28,7 @@ void MatchingEngine::reset() {
 }
 
 bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID) {
-    auto it = orderMap_.find(orderID);
+    std::unordered_map<OrderID, Order*>::iterator it = orderMap_.find(orderID);
     if (it == orderMap_.end()) return false;
 
     if (it->second->clientID != clientID) return false;
@@ -40,6 +40,8 @@ bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID)
     if (removed) {
         orderMap_.erase(it);
     }
+
+    logger_->log(clientID, orderID, removed, COMPONENT);
 
     return removed;
 }
@@ -71,7 +73,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
     if (newPrice == order->price && newQty < order->qty) {
         order->qty = newQty;
-        order->status = OrderStatus::MODIFIED;
+        order->status = statusCodes::OrderStatus::MODIFIED;
 
         return {
             ModifyEvent{clientID, orderID, orderID, statusCodes::ModifyStatus::ACCEPTED},
@@ -104,9 +106,12 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
     // now the newOrder has been moved into the book, and ownership has been handed over
 
-    return {ModifyEvent{clientID, orderID, tmpNewOrderID,
-                        statusCodes::ModifyStatus::ACCEPTED},
-            matchResult};
+    ModifyEvent modEvent{clientID, orderID, tmpNewOrderID,
+                         statusCodes::ModifyStatus::ACCEPTED};
+
+    logger_->log(modEvent, matchResult, COMPONENT);
+
+    return {modEvent, matchResult};
 }
 
 std::optional<const Order*> MatchingEngine::getOrder(OrderID orderID) const {

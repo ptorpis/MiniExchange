@@ -54,14 +54,14 @@ TEST_F(MatchingEngineTest, MarketIntoEmptyBook) {
     MatchResult result = engine->processOrder(mktreq);
 
     EXPECT_EQ(result.tradeVec.size(), 0);
-    EXPECT_EQ(result.status, OrderStatus::CANCELLED);
+    EXPECT_EQ(result.status, statusCodes::OrderStatus::CANCELLED);
 }
 
 TEST_F(MatchingEngineTest, LimitBuy) {
     OrderRequest limitReq = createTestLimitRequest(true, 100, 200);
     MatchResult result = engine->processOrder(limitReq);
     EXPECT_EQ(result.tradeVec.size(), 0);
-    EXPECT_EQ(result.status, OrderStatus::NEW);
+    EXPECT_EQ(result.status, statusCodes::OrderStatus::NEW);
     EXPECT_EQ(engine->getBidsSize(), 1);
     EXPECT_EQ(engine->getAskSize(), 0);
 }
@@ -70,7 +70,7 @@ TEST_F(MatchingEngineTest, LimitSell) {
     OrderRequest limitReq = createTestLimitRequest(false, 100, 200);
     MatchResult result = engine->processOrder(limitReq);
     EXPECT_EQ(result.tradeVec.size(), 0);
-    EXPECT_EQ(result.status, OrderStatus::NEW);
+    EXPECT_EQ(result.status, statusCodes::OrderStatus::NEW);
     EXPECT_EQ(engine->getBidsSize(), 0);
     EXPECT_EQ(engine->getAskSize(), 1);
 }
@@ -142,7 +142,7 @@ TEST_F(MatchingEngineTest, PartialFill) {
     std::optional<const Order*> restingOrder = engine->getOrder(orderID);
     EXPECT_TRUE(restingOrder.has_value());
     EXPECT_EQ(restingOrder.value()->qty, 5);
-    EXPECT_EQ(restingOrder.value()->status, OrderStatus::PARTIALLY_FILLED);
+    EXPECT_EQ(restingOrder.value()->status, statusCodes::OrderStatus::PARTIALLY_FILLED);
 }
 
 TEST_F(MatchingEngineTest, WalkTheBook) {
@@ -176,11 +176,11 @@ TEST_F(MatchingEngineTest, ModifyOrderNotFound) {
 TEST_F(MatchingEngineTest, LimitDoesNotCross) {
     OrderRequest buyReq = createTestLimitRequest(true, 100, 199);
     MatchResult buyRes = engine->processOrder(buyReq);
-    EXPECT_EQ(buyRes.status, OrderStatus::NEW);
+    EXPECT_EQ(buyRes.status, statusCodes::OrderStatus::NEW);
 
     OrderRequest sellReq = createTestLimitRequest(false, 100, 201);
     MatchResult sellRes = engine->processOrder(sellReq);
-    EXPECT_EQ(sellRes.status, OrderStatus::NEW);
+    EXPECT_EQ(sellRes.status, statusCodes::OrderStatus::NEW);
 
     EXPECT_EQ(engine->getBidsSize(), 1);
     EXPECT_EQ(engine->getAskSize(), 1);
@@ -199,7 +199,7 @@ TEST_F(MatchingEngineTest, ModifyReduceQty) {
     ASSERT_EQ(modRes.event.newOrderID, modRes.event.oldOrderID);
     ASSERT_EQ(order.value()->qty, 99);
     ASSERT_EQ(order.value()->price, 200);
-    ASSERT_EQ(order.value()->status, OrderStatus::MODIFIED);
+    ASSERT_EQ(order.value()->status, statusCodes::OrderStatus::MODIFIED);
 }
 
 TEST_F(MatchingEngineTest, ModifyIncreaseQty) {
@@ -217,7 +217,7 @@ TEST_F(MatchingEngineTest, ModifyIncreaseQty) {
     ASSERT_FALSE(oldOrder.has_value());
     ASSERT_EQ(order.value()->qty, 101);
     ASSERT_EQ(order.value()->price, 200);
-    ASSERT_EQ(order.value()->status, OrderStatus::MODIFIED);
+    ASSERT_EQ(order.value()->status, statusCodes::OrderStatus::MODIFIED);
 }
 
 TEST_F(MatchingEngineTest, ModifyChangePrice) {
@@ -235,7 +235,7 @@ TEST_F(MatchingEngineTest, ModifyChangePrice) {
     ASSERT_FALSE(oldOrder.has_value());
     ASSERT_EQ(order.value()->qty, 100);
     ASSERT_EQ(order.value()->price, 250);
-    ASSERT_EQ(order.value()->status, OrderStatus::MODIFIED);
+    ASSERT_EQ(order.value()->status, statusCodes::OrderStatus::MODIFIED);
 }
 
 TEST_F(MatchingEngineTest, ModifyInvalidClient) {
@@ -249,17 +249,17 @@ TEST_F(MatchingEngineTest, ModifyInvalidClient) {
     ASSERT_TRUE(order.has_value());
     ASSERT_EQ(order.value()->qty, 100);
     ASSERT_EQ(order.value()->price, 200);
-    ASSERT_EQ(order.value()->status, OrderStatus::NEW);
+    ASSERT_EQ(order.value()->status, statusCodes::OrderStatus::NEW);
 }
 
 TEST_F(MatchingEngineTest, ModifyToCross) {
     OrderRequest buyReq = createTestLimitRequest(true, 100, 200);
     MatchResult buyRes = engine->processOrder(buyReq);
-    ASSERT_EQ(buyRes.status, OrderStatus::NEW);
+    ASSERT_EQ(buyRes.status, statusCodes::OrderStatus::NEW);
 
     OrderRequest sellReq = createTestLimitRequest(false, 100, 300, 2);
     MatchResult sellRes = engine->processOrder(sellReq);
-    ASSERT_EQ(sellRes.status, OrderStatus::NEW);
+    ASSERT_EQ(sellRes.status, statusCodes::OrderStatus::NEW);
 
     ModifyResult modRes = engine->modifyOrder(1, buyRes.orderID, 100, 350);
     ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);

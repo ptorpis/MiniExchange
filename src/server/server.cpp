@@ -64,6 +64,9 @@ void Server::acceptConnections() {
 
         std::cout << "New Connection" << ip << ":" << port << " (fd=" << clientFD << ")"
                   << std::endl;
+
+        logger_->log("SERVER", "New Connection " + ip + ":" + std::to_string(port) +
+                                   " (fd=" + std::to_string(clientFD) + ")");
         handleRead(clientFD);
     }
 }
@@ -92,6 +95,11 @@ void Server::handleRead(int fd) {
         if (n > 0) {
             sess->recvBuffer.resize(oldSize + n);
             bool sendWasEmpty = sess->sendBuffer.empty();
+            logger_->logBytes(
+                std::vector<uint8_t>(sess->recvBuffer.begin() + oldSize,
+                                     sess->recvBuffer.begin() + oldSize + n),
+                "Received " + std::to_string(n) + " bytes from fd=" + std::to_string(fd),
+                "SERVER");
             handler_.onMessage(fd);
 
             if (sendWasEmpty && !sess->sendBuffer.empty()) {
@@ -124,6 +132,11 @@ void Server::handleWrite(int fd) {
     while (!sess->sendBuffer.empty()) {
         ssize_t n = ::write(fd, sess->sendBuffer.data(), sess->sendBuffer.size());
         if (n > 0) {
+            logger_->logBytes(std::vector<uint8_t>(sess->sendBuffer.begin(),
+                                                   sess->sendBuffer.begin() + n),
+                              "Sent " + std::to_string(n) +
+                                  " bytes to fd=" + std::to_string(fd),
+                              "SERVER");
             sess->sendBuffer.erase(sess->sendBuffer.begin(),
                                    sess->sendBuffer.begin() + n);
         } else {
@@ -193,8 +206,7 @@ void Server::handleDisconnect(int fd) {
     if (!conn) return;
 
     connManager_.removeConnection(fd);
-
-    std::cout << "Disconnected fd=" << fd << std::endl;
+    logger_->log("SERVER", "Connection closed (fd=" + std::to_string(fd) + ")");
 }
 
 int Server::createListenSocket(uint16_t port) {

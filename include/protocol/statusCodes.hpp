@@ -45,4 +45,121 @@ enum class ModifyStatus : uint8_t {
     OUT_OF_ORDER = 0x05
 };
 
+enum class OrderStatus : uint8_t {
+    NEW,
+    REJECTED,
+    PARTIALLY_FILLED,
+    FILLED,
+    CANCELLED,
+    MODIFIED
+};
+
+constexpr const char* toStr(OrderStatus s) {
+    switch (s) {
+    case OrderStatus::NEW:
+        return "NEW";
+    case OrderStatus::REJECTED:
+        return "REJECTED";
+    case OrderStatus::PARTIALLY_FILLED:
+        return "PARTIALLY_FILLED";
+    case OrderStatus::FILLED:
+        return "FILLED";
+    case OrderStatus::CANCELLED:
+        return "CANCELLED";
+    case OrderStatus::MODIFIED:
+        return "MODIFIED";
+    default:
+        return "UNKNOWN_ORDER_STATUS";
+    }
+}
+
+constexpr const char* toStr(HelloStatus s) {
+    switch (s) {
+    case HelloStatus::NULLSTATUS:
+        return "NULLSTATUS";
+    case HelloStatus::ACCEPTED:
+        return "ACCEPTED";
+    case HelloStatus::INVALID_HMAC:
+        return "INVALID_HMAC";
+    case HelloStatus::INVALID_API_KEY:
+        return "INVALID_API_KEY";
+    case HelloStatus::OUT_OF_ORDER:
+        return "OUT_OF_ORDER";
+    case HelloStatus::ILL_FORMED:
+        return "ILL_FORMED";
+    default:
+        return "UNKNOWN_HELLO_STATUS";
+    }
+}
+
+constexpr const char* toStr(LogoutStatus s) {
+    switch (s) {
+    case LogoutStatus::NULLSTATUS:
+        return "NULLSTATUS";
+    case LogoutStatus::ACCEPTED:
+        return "ACCEPTED";
+    case LogoutStatus::INVALID_HMAC:
+        return "INVALID_HMAC";
+    case LogoutStatus::OUT_OF_ORDER:
+        return "OUT_OF_ORDER";
+    default:
+        return "UNKNOWN_LOGOUT_STATUS";
+    }
+}
+
+constexpr const char* toStr(OrderAckStatus s) {
+    switch (s) {
+    case OrderAckStatus::NULLSTATUS:
+        return "NULLSTATUS";
+    case OrderAckStatus::ACCEPTED:
+        return "ACCEPTED";
+    case OrderAckStatus::INVALID:
+        return "INVALID";
+    case OrderAckStatus::OUT_OF_ORDER:
+        return "OUT_OF_ORDER";
+    case OrderAckStatus::NOT_AUTHENTICATED:
+        return "NOT_AUTHENTICATED";
+    default:
+        return "UNKNOWN_ORDER_ACK_STATUS";
+    }
+}
+
+constexpr const char* toStr(CancelAckStatus s) {
+    switch (s) {
+    case CancelAckStatus::NULLSTATUS:
+        return "NULLSTATUS";
+    case CancelAckStatus::ACCEPTED:
+        return "ACCEPTED";
+    case CancelAckStatus::INVALID:
+        return "INVALID";
+    case CancelAckStatus::NOT_FOUND:
+        return "NOT_FOUND";
+    case CancelAckStatus::NOT_AUTHENTICATED:
+        return "NOT_AUTHENTICATED";
+    case CancelAckStatus::OUT_OF_ORDER:
+        return "OUT_OF_ORDER";
+    default:
+        return "UNKNOWN_CANCEL_ACK_STATUS";
+    }
+}
+
+constexpr const char* toStr(ModifyStatus s) {
+    switch (s) {
+    case ModifyStatus::NULLSTATUS:
+        return "NULLSTATUS";
+    case ModifyStatus::ACCEPTED:
+        return "ACCEPTED";
+    case ModifyStatus::INVALID:
+        return "INVALID";
+    case ModifyStatus::NOT_FOUND:
+        return "NOT_FOUND";
+    case ModifyStatus::NOT_AUTHENTICATED:
+        return "NOT_AUTHENTICATED";
+    case ModifyStatus::OUT_OF_ORDER:
+        return "OUT_OF_ORDER";
+    default:
+        return "UNKNOWN_MODIFY_STATUS";
+    }
+}
+
 } // namespace statusCodes
