@@ -130,7 +130,7 @@ void ProtocolHandler::onMessage(int fd) {
                         Session* sess = api_.getSession(response.fd);
                         std::cout << "response being sent to: " << sess->FD << std::endl;
                         sendFn_(*sess, response.data);
-                        outBoundFDs_.push_back(session->FD);
+                        outBoundFDs_.push_back(response.fd);
                     }
                 }
             }
@@ -198,12 +198,8 @@ void ProtocolHandler::onMessage(int fd) {
                 auto responses = api_.handleModify(*session, msgOpt.value());
                 for (auto& response : responses) {
 
-                    if (!session) {
-                        return;
-                    }
-
                     sendFn_(*(api_.getSession(response.fd)), response.data);
-                    outBoundFDs_.push_back(session->FD);
+                    outBoundFDs_.push_back(response.fd);
                 }
             }
             break;
