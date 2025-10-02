@@ -22,10 +22,6 @@ Session* MiniExchangeAPI::getSession(int fd) {
     return sessionManager_.getSession(fd);
 }
 
-Session* MiniExchangeAPI::getSessionFromID(ClientID clientID) {
-    return sessionManager_.getSessionFromID(clientID);
-}
-
 std::vector<uint8_t> MiniExchangeAPI::handleHello(Session& session,
                                                   Message<client::HelloPayload> msg) {
 
