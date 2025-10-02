@@ -14,6 +14,7 @@
 #include <stdexcept>
 
 void ProtocolHandler::onMessage(int fd) {
+    outBoundFDs_.clear();
     Session* session = api_.getSession(fd);
     if (!session) {
         return;
@@ -68,6 +69,7 @@ void ProtocolHandler::onMessage(int fd) {
                     return;
                 }
                 sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
+                outBoundFDs_.push_back(session->FD);
             } else {
             }
 
@@ -94,6 +96,7 @@ void ProtocolHandler::onMessage(int fd) {
                 if (auto msgOpt =
                         deserializeMessage<client::LogoutPayload>(session->recvBuffer)) {
                     sendFn_(*session, api_.handleLogout(*session, msgOpt.value()));
+                    outBoundFDs_.push_back(session->FD);
                 }
             }
             break;
@@ -122,9 +125,12 @@ void ProtocolHandler::onMessage(int fd) {
                         return;
                     }
                     auto responses = api_.handleNewOrder(*session, msgOpt.value());
+                    std::cout << "responses length: " << responses.size() << std::endl;
                     for (auto& response : responses) {
                         Session* sess = api_.getSession(response.fd);
+                        std::cout << "response being sent to: " << sess->FD << std::endl;
                         sendFn_(*sess, response.data);
+                        outBoundFDs_.push_back(session->FD);
                     }
                 }
             }
@@ -157,6 +163,7 @@ void ProtocolHandler::onMessage(int fd) {
                         return;
                     }
                     sendFn_(*session, api_.handleCancel(*session, msgOpt.value()));
+                    outBoundFDs_.push_back(session->FD);
                 }
             }
 
@@ -196,6 +203,7 @@ void ProtocolHandler::onMessage(int fd) {
                     }
 
                     sendFn_(*(api_.getSession(response.fd)), response.data);
+                    outBoundFDs_.push_back(session->FD);
                 }
             }
             break;
@@ -216,9 +224,9 @@ void ProtocolHandler::onMessage(int fd) {
 
         session->recvBuffer.erase(session->recvBuffer.begin(),
                                   session->recvBuffer.begin() + totalSize);
-        auto bids = api_.getBidsSnapshop();
-        auto asks = api_.getAsksSnapshot();
-        utils::OrderBookRenderer::render(bids, asks);
+        // auto bids = api_.getBidsSnapshop();
+        // auto asks = api_.getAsksSnapshot();
+        // utils::OrderBookRenderer::render(bids, asks);
     }
 }
 

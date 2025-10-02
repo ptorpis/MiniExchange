@@ -12,6 +12,8 @@
 #include <optional>
 #include <span>
 
+using OutBoundFDs = std::vector<int>;
+
 class ProtocolHandler {
 public:
     using SendFn = std::function<void(Session&, const std::span<const uint8_t>)>;
@@ -35,6 +37,7 @@ public:
         : api_(MiniExchangeAPI(sm)), sendFn_(std::move(sendFn)),
           clientManager_(ClientManager()) {
         clientManager_.addTestDefault();
+        outBoundFDs_.reserve(16);
     }
 
     void onMessage(int fd);
@@ -45,10 +48,14 @@ public:
 
     MiniExchangeAPI* getAPI() { return &api_; }
 
+    OutBoundFDs& getOutboundFDs() { return outBoundFDs_; }
+
 private:
     MiniExchangeAPI api_;
     SendFn sendFn_; // custom send function, assigned at construction
     ClientManager clientManager_;
+
+    OutBoundFDs outBoundFDs_;
 
     std::optional<MessageHeader> peekHeader_(Session& Session) const;
     bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,

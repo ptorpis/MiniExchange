@@ -25,6 +25,7 @@ private:
     void handleRead(int fd);
     void handleWrite(int fd);
     void handleDisconnect(int fd);
+    void scheduleWrite(int fd);
 
     int createListenSocket(uint16_t port);
 
