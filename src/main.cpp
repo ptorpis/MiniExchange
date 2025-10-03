@@ -12,7 +12,7 @@
 int main() {
     auto logger = std::make_shared<Logger<>>("exchange.log");
 
-    logger->log("SERVER", "STARTUP");
+    logger->log("STARTUP", "SERVER");
 
     SessionManager sessionManager(logger);
     ProtocolHandler handler(sessionManager, logger);

@@ -27,14 +27,13 @@ bool Server::start(uint16_t port) {
 
 void Server::stop() {
     running_ = false;
-
-    if (listenFd_ >= 0) close(listenFd_);
-    if (epollFd_ >= 0) close(epollFd_);
-
-    // Iterate over all sessions
+    std::cout << "\nShutting down..." << std::endl;
     for (auto& [fd, session] : sessionManager_.getSessions()) {
         handleDisconnect(fd);
     }
+
+    if (listenFd_ >= 0) close(listenFd_);
+    if (epollFd_ >= 0) close(epollFd_);
 }
 
 void Server::acceptConnections() {
@@ -58,7 +57,7 @@ void Server::acceptConnections() {
         std::string ip = inet_ntoa(clientAddr.sin_addr);
         uint16_t port = ntohs(clientAddr.sin_port);
 
-        connManager_.addConnection(port, ip, clientFD);
+        addConnection(port, ip, clientFD);
 
         epoll_event ev{};
         ev.data.fd = clientFD;
@@ -75,9 +74,8 @@ void Server::acceptConnections() {
 }
 
 void Server::handleRead(int fd) {
-    Connection* conn = connManager_.getConnection(fd);
+    Connection* conn = getConnection(fd);
     if (!conn) return;
-    conn->touch();
 
     Session* sess = sessionManager_.getSession(fd);
     if (!sess) {
@@ -216,10 +214,10 @@ void Server::run() {
 void Server::handleDisconnect(int fd) {
     epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
-    Connection* conn = connManager_.getConnection(fd);
+    Connection* conn = getConnection(fd);
     if (!conn) return;
 
-    connManager_.removeConnection(fd);
+    removeConnection(fd);
     logger_->log("SERVER", "Connection closed (fd=" + std::to_string(fd) + ")");
 }
 
@@ -262,4 +260,20 @@ void Server::checkHeartbeats_() {
     for (const int& fd : inactive) {
         handleDisconnect(fd);
     }
+}
+
+Connection& Server::addConnection(uint16_t port, const std::string& ip, int fd) {
+    sessionManager_.createSession(fd);
+    auto [it, _] = connections_.emplace(fd, Connection(fd, port, ip));
+    return it->second;
+}
+
+void Server::removeConnection(int fd) {
+    sessionManager_.removeSession(fd);
+    connections_.erase(fd);
+}
+
+Connection* Server::getConnection(int fd) {
+    auto it = connections_.find(fd);
+    return (it != connections_.end()) ? &it->second : nullptr;
 }

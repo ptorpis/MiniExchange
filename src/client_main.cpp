@@ -95,7 +95,6 @@ int main() {
             hbThread.request_stop();
             recThread.request_stop();
 
-            std::cout << "Heartbeat stopped" << std::endl;
             std::cout << "Exiting..." << std::endl;
 
             break;

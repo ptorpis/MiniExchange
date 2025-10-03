@@ -1,7 +1,7 @@
 #pragma once
 
 #include "protocol/protocolHandler.hpp"
-#include "server/connectionManager.hpp"
+#include "server/connection.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -16,8 +16,7 @@ class Server {
 public:
     Server(uint16_t port, SessionManager& sm, ProtocolHandler& handler,
            std::shared_ptr<Logger<>> logger = nullptr)
-        : port_(port), sessionManager_(sm), connManager_(sm), handler_(handler),
-          logger_(logger) {}
+        : port_(port), sessionManager_(sm), handler_(handler), logger_(logger) {}
 
     bool start(uint16_t port);
     void run();
@@ -30,6 +29,10 @@ private:
     void handleDisconnect(int fd);
     void scheduleWrite(int fd);
 
+    Connection& addConnection(uint16_t port, const std::string& ip, int fd);
+    void removeConnection(int fd);
+    Connection* getConnection(int fd);
+
     int createListenSocket(uint16_t port);
 
     void checkHeartbeats_();
@@ -40,9 +43,9 @@ private:
     bool running_{false};
 
     SessionManager& sessionManager_;
-    ConnectionManager connManager_;
     ProtocolHandler& handler_;
     std::shared_ptr<Logger<>> logger_;
+    std::unordered_map<int, Connection> connections_;
 
     static const int MAX_EVENTS{128};
     const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{10};

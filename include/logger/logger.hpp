@@ -91,7 +91,7 @@ public:
                 << " Trades=" << matchRes.tradeVec.size();
 
             for (const auto& t : matchRes.tradeVec) {
-                oss << "\n  Trade[" << "TradeID=" << t.tradeID
+                oss << " | Trade[" << "TradeID=" << t.tradeID
                     << " BuyerOrderID=" << t.buyerOrderID
                     << " SellerOrderID=" << t.sellerOrderID << " BuyerID=" << t.buyerID
                     << " SellerID=" << t.sellerID << " Qty=" << t.qty

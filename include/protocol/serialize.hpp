@@ -65,16 +65,13 @@ std::vector<uint8_t> serializeMessage(MessageType msgType, const Payload& payloa
     std::vector<uint8_t> buffer(totalSize);
     uint8_t* ptr = buffer.data();
 
-    {
-        using namespace constants::HeaderOffset;
-        writeUint8Advance(ptr, static_cast<uint8_t>(msgType));
-        writeUint8Advance(ptr, header.protocolVersionFlag);
-        writeBytesAdvance(ptr, header.reservedFlags, sizeof(header.reservedFlags));
-        writeIntegerAdvance(ptr, header.payLoadLength);
-        writeIntegerAdvance(ptr, header.clientMsgSqn);
-        writeIntegerAdvance(ptr, header.serverMsgSqn);
-        writeBytesAdvance(ptr, header.padding, sizeof(header.padding));
-    }
+    writeUint8Advance(ptr, static_cast<uint8_t>(msgType));
+    writeUint8Advance(ptr, header.protocolVersionFlag);
+    writeBytesAdvance(ptr, header.reservedFlags, sizeof(header.reservedFlags));
+    writeIntegerAdvance(ptr, header.payLoadLength);
+    writeIntegerAdvance(ptr, header.clientMsgSqn);
+    writeIntegerAdvance(ptr, header.serverMsgSqn);
+    writeBytesAdvance(ptr, header.padding, sizeof(header.padding));
 
     Payload payloadBE = payload;
     payloadBE.iterateElements([](auto& field) {
@@ -101,16 +98,13 @@ std::optional<Message<Payload>> deserializeMessage(std::span<const uint8_t> buff
     Message<Payload> msg{};
     const uint8_t* ptr = buffer.data();
 
-    {
-        using namespace constants::HeaderOffset;
-        msg.header.messageType = readUint8Advance(ptr);
-        msg.header.protocolVersionFlag = readUint8Advance(ptr);
-        readBytesAdvance(ptr, msg.header.reservedFlags, sizeof(msg.header.reservedFlags));
-        msg.header.payLoadLength = readIntegerAdvance<uint16_t>(ptr);
-        msg.header.clientMsgSqn = readIntegerAdvance<uint32_t>(ptr);
-        msg.header.serverMsgSqn = readIntegerAdvance<uint32_t>(ptr);
-        readBytesAdvance(ptr, msg.header.padding, sizeof(msg.header.padding));
-    }
+    msg.header.messageType = readUint8Advance(ptr);
+    msg.header.protocolVersionFlag = readUint8Advance(ptr);
+    readBytesAdvance(ptr, msg.header.reservedFlags, sizeof(msg.header.reservedFlags));
+    msg.header.payLoadLength = readIntegerAdvance<uint16_t>(ptr);
+    msg.header.clientMsgSqn = readIntegerAdvance<uint32_t>(ptr);
+    msg.header.serverMsgSqn = readIntegerAdvance<uint32_t>(ptr);
+    readBytesAdvance(ptr, msg.header.padding, sizeof(msg.header.padding));
 
     std::memcpy(&msg.payload, ptr, payloadSize);
 

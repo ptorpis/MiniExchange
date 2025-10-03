@@ -129,7 +129,7 @@ private:
         static statusCodes::OrderStatus finalize(std::unique_ptr<Order> order,
                                                  Qty remaining, Qty original,
                                                  MatchingEngine& eng) {
-            statusCodes::OrderStatus status;
+            statusCodes::OrderStatus status = statusCodes::OrderStatus::NEW;
             if (!remaining) {
                 order->status = statusCodes::OrderStatus::FILLED;
                 status = statusCodes::OrderStatus::FILLED;
@@ -151,7 +151,7 @@ private:
         static statusCodes::OrderStatus finalize(std::unique_ptr<Order> order,
                                                  Qty remaining, Qty original,
                                                  MatchingEngine&) {
-            statusCodes::OrderStatus status;
+            statusCodes::OrderStatus status = statusCodes::OrderStatus::NEW;
             if (!remaining) {
                 order->status = statusCodes::OrderStatus::FILLED;
                 status = statusCodes::OrderStatus::FILLED;
