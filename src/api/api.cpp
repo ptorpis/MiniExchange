@@ -106,12 +106,16 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
 
     for (auto& trade : result.tradeVec) {
         Session* buyerSession = sessionManager_.getSessionFromClientID(trade.buyerID);
-        Session* sellerSession = sessionManager_.getSessionFromClientID(trade.sellerID);
+        if (buyerSession) {
+            responses.push_back(
+                {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
+        }
 
-        responses.push_back(
-            {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
-        responses.push_back(
-            {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+        Session* sellerSession = sessionManager_.getSessionFromClientID(trade.sellerID);
+        if (sellerSession) {
+            responses.push_back(
+                {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+        }
     }
 
     return responses;
