@@ -38,6 +38,7 @@ public:
           clientManager_(ClientManager()), logger_(logger) {
         clientManager_.addTestDefault();
         outBoundFDs_.reserve(16);
+        lastScreenUpdate_ = std::chrono::steady_clock::now();
     }
 
     void onMessage(int fd);
@@ -63,4 +64,6 @@ private:
                      size_t dataLen, const uint8_t* expectedHMAC, size_t HMACLen);
     std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
                                       const uint8_t* data, size_t dataLen);
+
+    std::chrono::steady_clock::time_point lastScreenUpdate_;
 };
