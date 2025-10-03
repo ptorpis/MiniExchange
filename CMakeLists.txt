@@ -25,10 +25,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
 endif()
 
-#include(CTest)
-#if(BUILD_TESTING)
-#    add_subdirectory(tests)
-#endif()
+include(CTest)
+if(BUILD_TESTING)
+   add_subdirectory(tests)
+endif()
 
 # --- Source files ---
 file(GLOB_RECURSE ALL_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")

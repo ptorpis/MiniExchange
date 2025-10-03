@@ -44,7 +44,7 @@ protected:
         sellerSession->hmacKey = HMACKEY;
 
         buyer = std::make_unique<Client>(
-            HMACKEY, APIKEY, buyerFD, [this](const std::span<const uint8_t> buffer) {
+            HMACKEY, APIKEY, [this](const std::span<const uint8_t> buffer) {
                 clientCapture.insert(clientCapture.end(), buffer.begin(), buffer.end());
 
                 buyerSession->recvBuffer.insert(buyerSession->recvBuffer.end(),
@@ -52,7 +52,7 @@ protected:
             });
 
         seller = std::make_unique<Client>(
-            HMACKEY, APIKEY, sellerFD, [this](const std::span<const uint8_t> buffer) {
+            HMACKEY, APIKEY, [this](const std::span<const uint8_t> buffer) {
                 clientCapture.insert(clientCapture.end(), buffer.begin(), buffer.end());
 
                 sellerSession->recvBuffer.insert(sellerSession->recvBuffer.end(),
