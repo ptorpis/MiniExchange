@@ -52,6 +52,8 @@ public:
 
     auto getAsksSnapshot() const { return engine_.getAsksSnapshot(); }
 
+    void updateHb(int fd) { sessionManager_.updateHb(fd); }
+
 private:
     MatchingEngine engine_;
     SessionManager& sessionManager_;

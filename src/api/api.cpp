@@ -22,10 +22,6 @@ Session* MiniExchangeAPI::getSession(int fd) {
     return sessionManager_.getSession(fd);
 }
 
-Session* MiniExchangeAPI::getSessionFromID(ClientID clientID) {
-    return sessionManager_.getSessionFromID(clientID);
-}
-
 std::vector<uint8_t> MiniExchangeAPI::handleHello(Session& session,
                                                   Message<client::HelloPayload> msg) {
 
@@ -109,15 +105,17 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
                                    statusCodes::OrderAckStatus::ACCEPTED)});
 
     for (auto& trade : result.tradeVec) {
-        Session* buyerSession = getSessionFromID(trade.buyerID);
-        Session* sellerSession = getSessionFromID(trade.sellerID);
-        // std::cout << "Trade Executed: " << trade.qty << " @ " << trade.price <<
-        // std::endl;
+        Session* buyerSession = sessionManager_.getSessionFromClientID(trade.buyerID);
+        if (buyerSession) {
+            responses.push_back(
+                {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
+        }
 
-        responses.push_back(
-            {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
-        responses.push_back(
-            {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+        Session* sellerSession = sessionManager_.getSessionFromClientID(trade.sellerID);
+        if (sellerSession) {
+            responses.push_back(
+                {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+        }
     }
 
     return responses;
@@ -190,13 +188,18 @@ MiniExchangeAPI::handleModify(Session& session,
         }
 
         for (auto& trade : modResult.result.value().tradeVec) {
-            Session* buyerSession = getSession(trade.buyerID);
-            Session* sellerSession = getSession(trade.sellerID);
+            Session* buyerSession = sessionManager_.getSessionFromClientID(trade.buyerID);
+            if (buyerSession) {
 
-            responses.push_back(
-                {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
-            responses.push_back(
-                {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+                responses.push_back(
+                    {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
+            }
+            Session* sellerSession =
+                sessionManager_.getSessionFromClientID(trade.sellerID);
+            if (sellerSession) {
+                responses.push_back(
+                    {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+            }
         }
 
     } else {

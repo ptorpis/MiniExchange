@@ -31,7 +31,10 @@ void Server::stop() {
     if (listenFd_ >= 0) close(listenFd_);
     if (epollFd_ >= 0) close(epollFd_);
 
-    sessionManager_.disconnectAll();
+    // Iterate over all sessions
+    for (auto& [fd, session] : sessionManager_.getSessions()) {
+        handleDisconnect(fd);
+    }
 }
 
 void Server::acceptConnections() {
@@ -94,20 +97,16 @@ void Server::handleRead(int fd) {
         ssize_t n = ::read(fd, sess->recvBuffer.data() + oldSize, freesSpace);
         if (n > 0) {
             sess->recvBuffer.resize(oldSize + n);
-            bool sendWasEmpty = sess->sendBuffer.empty();
-            logger_->logBytes(
-                std::vector<uint8_t>(sess->recvBuffer.begin() + oldSize,
-                                     sess->recvBuffer.begin() + oldSize + n),
-                "Received " + std::to_string(n) + " bytes from fd=" + std::to_string(fd),
-                "SERVER");
+
             handler_.onMessage(fd);
 
-            if (sendWasEmpty && !sess->sendBuffer.empty()) {
-                handleWrite(fd);
-                epoll_event ev{};
-                ev.data.fd = fd;
-                ev.events = EPOLLIN | EPOLLET;
-                epoll_ctl(epollFd_, EPOLL_CTL_MOD, fd, &ev);
+            for (int outFd : handler_.getOutboundFDs()) {
+                Session* outSess = sessionManager_.getSession(outFd);
+                if (!outSess) continue;
+
+                if (!outSess->sendBuffer.empty()) {
+                    scheduleWrite(outFd);
+                }
             }
 
         } else if (n == 0) {
@@ -125,9 +124,20 @@ void Server::handleRead(int fd) {
     }
 }
 
+void Server::scheduleWrite(int fd) {
+    epoll_event ev{};
+    ev.data.fd = fd;
+    ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
+    if (epoll_ctl(epollFd_, EPOLL_CTL_MOD, fd, &ev) < 0) {
+        perror("epoll_ctl MOD scheduleWrite");
+    }
+}
+
 void Server::handleWrite(int fd) {
     Session* sess = sessionManager_.getSession(fd);
-    if (!sess) return;
+    if (!sess) {
+        return;
+    }
 
     while (!sess->sendBuffer.empty()) {
         ssize_t n = ::write(fd, sess->sendBuffer.data(), sess->sendBuffer.size());
@@ -189,13 +199,12 @@ void Server::run() {
                 }
             }
         }
-        /*
+
         auto now = std::chrono::steady_clock::now();
-        if (now - lastHeartbeatCheck >= std::chrono::seconds(1)) {
+        if (now - lastHeartbeatCheck >= std::chrono::seconds(2)) {
             checkHeartbeats_();
             lastHeartbeatCheck = now;
         }
-        */
     }
 }
 
@@ -242,5 +251,10 @@ int Server::createListenSocket(uint16_t port) {
 }
 
 void Server::checkHeartbeats_() {
-    sessionManager_.checkHeartbeats(HEARTBEAT_TIMEOUT_SECONDS);
+    const std::vector<int>& inactive =
+        sessionManager_.getInactiveFDs(HEARTBEAT_TIMEOUT_SECONDS);
+
+    for (const int& fd : inactive) {
+        handleDisconnect(fd);
+    }
 }
