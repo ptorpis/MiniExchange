@@ -208,7 +208,8 @@ void ProtocolHandler::onMessage(int fd) {
             totalSize = client::PayloadTraits<client::HeartBeatPayload>::msgSize;
             if (!session) return;
             if (session->recvBuffer.size() < totalSize) return;
-            session->updateHeartbeat();
+            std::cout << "heartbeat from " << session->FD << std::endl;
+            api_.updateHb(session->FD);
             break;
         }
         default: {

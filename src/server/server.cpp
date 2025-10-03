@@ -32,7 +32,7 @@ void Server::stop() {
     if (epollFd_ >= 0) close(epollFd_);
 
     // Iterate over all sessions
-    for (auto& [fd, session] : sessionManager_.sessions()) {
+    for (auto& [fd, session] : sessionManager_.getSessions()) {
         handleDisconnect(fd);
     }
 }
@@ -191,13 +191,12 @@ void Server::run() {
                 }
             }
         }
-        /*
+
         auto now = std::chrono::steady_clock::now();
-        if (now - lastHeartbeatCheck >= std::chrono::seconds(1)) {
+        if (now - lastHeartbeatCheck >= std::chrono::seconds(2)) {
             checkHeartbeats_();
             lastHeartbeatCheck = now;
         }
-        */
     }
 }
 
@@ -245,23 +244,10 @@ int Server::createListenSocket(uint16_t port) {
 }
 
 void Server::checkHeartbeats_() {
-    auto now = std::chrono::steady_clock::now();
-    auto& sessions = sessionManager_.sessions();
-    /*
+    const std::vector<int>& inactive =
+        sessionManager_.getInactiveFDs(HEARTBEAT_TIMEOUT_SECONDS);
 
-    for (size_t i{}; i < sessions.size();) {
-        Session& sess = sessions[i];
-        auto duration =
-            std::chrono::duration_cast<std::chrono::seconds>(now - sess.lastHeartBeat)
-                .count();
-
-        if (duration > HEARTBEAT_TIMEOUT_SECONDS) {
-            std::cout << "Client TIMEOUT fd=" << sess.FD << std::endl;
-            handleDisconnect(sess.FD);
-        } else {
-            ++i;
-        }
+    for (const int& fd : inactive) {
+        handleDisconnect(fd);
     }
-
-    */
 }

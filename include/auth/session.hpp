@@ -5,6 +5,7 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <iostream>
 #include <vector>
 
 struct Session {
@@ -13,7 +14,7 @@ struct Session {
     uint32_t serverSqn{0};
     uint32_t clientSqn{0};
 
-    std::chrono::steady_clock::time_point lastHeartBeat{std::chrono::steady_clock::now()};
+    const std::chrono::steady_clock::time_point created{std::chrono::steady_clock::now()};
     bool authenticated{false};
 
     std::vector<uint8_t> recvBuffer;
@@ -23,7 +24,7 @@ struct Session {
 
     uint64_t serverClientID{0};
 
-    explicit Session(int fd) : FD(fd), lastHeartBeat(std::chrono::steady_clock::now()) {
+    explicit Session(int fd) : FD(fd), created(std::chrono::steady_clock::now()) {
         hmacKey.fill(0x00);
     }
 
@@ -46,8 +47,6 @@ struct Session {
         recvBuffer.clear();
         sendBuffer.clear();
     }
-
-    void updateHeartbeat() { lastHeartBeat = std::chrono::steady_clock::now(); }
 
     TradeID getNextExeID() { return ++exeID_; }
 

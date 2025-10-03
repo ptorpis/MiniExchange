@@ -6,11 +6,11 @@
 #include <thread>
 
 void heartbeatLoop(std::stop_token stoken, ClientNetwork& net, Client& client,
-                   int intervalSeconds = 2) {
+                   int intervalSeconds = 5) {
     while (!stoken.stop_requested()) {
-        std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
         client.sendHeartbeat();
         net.sendMessage();
+        std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
     }
 }
 
@@ -32,7 +32,7 @@ int main() {
     ClientNetwork net("127.0.0.1", 12345, c);
 
     if (!net.connectServer()) return -1;
-    // std::jthread hbThread(heartbeatLoop, std::ref(net), std::ref(c), 2);
+    std::jthread hbThread(heartbeatLoop, std::ref(net), std::ref(c), 2);
     std::jthread recThread(receiveLoop, std::ref(net), std::ref(c));
 
     std::string line;
@@ -86,14 +86,12 @@ int main() {
                       << " type=" << (isLimit ? "LIMIT" : "MARKET") << std::endl;
 
         } else if (line == "stop") {
-            // hbThread.request_stop();
+            hbThread.request_stop();
             recThread.request_stop();
 
             std::cout << "Heartbeat stopped" << std::endl;
             std::cout << "Exiting..." << std::endl;
 
-            // hbThread.join();
-            recThread.join();
             break;
         } else {
             std::cout << "Unknown Message" << std::endl;

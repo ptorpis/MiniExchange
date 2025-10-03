@@ -42,5 +42,5 @@ private:
     ProtocolHandler& handler_;
 
     static const int MAX_EVENTS{128};
-    const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{5};
+    const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{10};
 };

@@ -4,6 +4,7 @@
 #include "utils/types.hpp"
 #include <algorithm>
 #include <chrono>
+#include <iostream>
 #include <unordered_map>
 #include <vector>
 
@@ -70,8 +71,31 @@ public:
         }
     }
 
-    std::unordered_map<int, Session>& sessions() { return sessions_; }
-    std::vector<Heartbeat>& heartbeats() { return heartbeats_; }
+    void updateHb(int fd) {
+        Session* sess = getSession(fd);
+        if (!sess) return;
+
+        auto idIt = fdToHbIndex_.find(fd);
+        heartbeats_.at(idIt->second).lastHeartbeat = std::chrono::steady_clock::now();
+    }
+
+    [[nodiscard]] const std::vector<int>& getInactiveFDs(std::chrono::seconds timeout) {
+        inactiveFDs_.clear();
+
+        auto now = std::chrono::steady_clock::now();
+        for (const auto& hb : heartbeats_) {
+            auto diff =
+                std::chrono::duration_cast<std::chrono::seconds>(now - hb.lastHeartbeat);
+
+            if (diff > timeout) {
+                inactiveFDs_.push_back(hb.fd);
+            }
+        }
+
+        return inactiveFDs_;
+    }
+
+    std::unordered_map<int, Session>& getSessions() { return sessions_; }
 
 private:
     ClientID generateClientToken_() { return ++clientToken_; }
@@ -82,4 +106,5 @@ private:
 
     std::vector<Heartbeat> heartbeats_;           // all heartbeats
     std::unordered_map<int, size_t> fdToHbIndex_; // FD -> heartbeat index
+    std::vector<int> inactiveFDs_;
 };
