@@ -189,13 +189,17 @@ MiniExchangeAPI::handleModify(Session& session,
 
         for (auto& trade : modResult.result.value().tradeVec) {
             Session* buyerSession = sessionManager_.getSessionFromClientID(trade.buyerID);
+            if (buyerSession) {
+
+                responses.push_back(
+                    {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
+            }
             Session* sellerSession =
                 sessionManager_.getSessionFromClientID(trade.sellerID);
-
-            responses.push_back(
-                {buyerSession->FD, makeTradeMsg_(*buyerSession, trade, true)});
-            responses.push_back(
-                {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+            if (sellerSession) {
+                responses.push_back(
+                    {sellerSession->FD, makeTradeMsg_(*sellerSession, trade, false)});
+            }
         }
 
     } else {
