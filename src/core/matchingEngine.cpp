@@ -41,8 +41,6 @@ bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID)
         orderMap_.erase(it);
     }
 
-    logger_->log(clientID, orderID, removed, COMPONENT);
-
     return removed;
 }
 

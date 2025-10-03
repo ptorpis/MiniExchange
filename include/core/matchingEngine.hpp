@@ -21,7 +21,7 @@ static const std::string COMPONENT = "ENGINE";
 
 class MatchingEngine {
 public:
-    MatchingEngine(std::shared_ptr<Logger> logger = nullptr) : logger_(logger) {
+    MatchingEngine(std::shared_ptr<Logger<>> logger = nullptr) : logger_(logger) {
         dispatchTable_[0][0] = &MatchingEngine::matchOrder_<BuySide, LimitOrderPolicy>;
         dispatchTable_[0][1] = &MatchingEngine::matchOrder_<BuySide, MarketOrderPolicy>;
         dispatchTable_[1][0] = &MatchingEngine::matchOrder_<SellSide, LimitOrderPolicy>;
@@ -184,8 +184,7 @@ private:
 
     OrderService service_;
 
-    std::shared_ptr<Logger> logger_;
-    bool loggingEnabled_;
+    std::shared_ptr<Logger<>> logger_;
 };
 
 template <typename SidePolicy, typename OrderTypePolicy>

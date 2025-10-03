@@ -97,6 +97,11 @@ void Server::handleRead(int fd) {
         ssize_t n = ::read(fd, sess->recvBuffer.data() + oldSize, freesSpace);
         if (n > 0) {
             sess->recvBuffer.resize(oldSize + n);
+            logger_->logBytes(std::vector<uint8_t>(sess->recvBuffer.begin(),
+                                                   sess->recvBuffer.begin() + n),
+                              "Received " + std::to_string(n) +
+                                  " bytes from fd=" + std::to_string(fd),
+                              "SERVER");
 
             handler_.onMessage(fd);
 

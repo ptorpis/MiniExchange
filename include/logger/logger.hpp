@@ -12,6 +12,8 @@
 #include <thread>
 #include <vector>
 
+const bool LOGGING_ENABLED{true};
+
 struct LogEntry {
     std::string component;
     std::string message;
@@ -19,13 +21,15 @@ struct LogEntry {
     std::chrono::steady_clock::time_point timestamp;
 };
 
-class Logger {
+template <bool EnabledFlag = LOGGING_ENABLED> class Logger {
 public:
     Logger(const std::string& filename, size_t batchSize = 64)
         : outFile_(filename, std::ios::out | std::ios::app), running_(true),
           batchSize_(batchSize) {
-        worker_ = std::thread([this]() { this->run(); });
-        std::cout << "Logger initialized, logging to " << filename << std::endl;
+        if constexpr (EnabledFlag) {
+            worker_ = std::thread([this]() { this->run(); });
+            std::cout << "Logger initialized, logging to " << filename << std::endl;
+        }
     }
 
     ~Logger() {
@@ -34,61 +38,74 @@ public:
     }
 
     void log(const std::string& msg, const std::string& component) {
-        buffer_.push({component, msg, {}, std::chrono::steady_clock::now()});
+        if constexpr (EnabledFlag) {
+            buffer_.push({component, msg, {}, std::chrono::steady_clock::now()});
+        }
     }
 
     void log(const MatchResult& result,
              const std::string& component = "MATCHING_ENGINE") {
-        std::ostringstream oss;
-        oss << "MatchResult: " << "OrderID=" << result.orderID
-            << " Timestamp=" << result.ts << " Status=" << static_cast<int>(result.status)
-            << " Trades=" << result.tradeVec.size();
+        if constexpr (EnabledFlag) {
+            std::ostringstream oss;
+            oss << "MatchResult: " << "OrderID=" << result.orderID
+                << " Timestamp=" << result.ts
+                << " Status=" << static_cast<int>(result.status)
+                << " Trades=" << result.tradeVec.size();
 
-        for (const auto& t : result.tradeVec) {
-            oss << "\n  Trade[" << "TradeID=" << t.tradeID
-                << " BuyerOrderID=" << t.buyerOrderID
-                << " SellerOrderID=" << t.sellerOrderID << " BuyerID=" << t.buyerID
-                << " SellerID=" << t.sellerID << " Qty=" << t.qty << " Price=" << t.price
-                << " Ts=" << t.timestamp << "]";
+            for (const auto& t : result.tradeVec) {
+                oss << "\n  Trade[" << "TradeID=" << t.tradeID
+                    << " BuyerOrderID=" << t.buyerOrderID
+                    << " SellerOrderID=" << t.sellerOrderID << " BuyerID=" << t.buyerID
+                    << " SellerID=" << t.sellerID << " Qty=" << t.qty
+                    << " Price=" << t.price << " Ts=" << t.timestamp << "]";
+            }
+
+            buffer_.push({component, oss.str(), {}, std::chrono::steady_clock::now()});
         }
-
-        buffer_.push({component, oss.str(), {}, std::chrono::steady_clock::now()});
     }
 
     // order removals
     void log(ClientID clientID, OrderID orderID, bool success,
              const std::string& component) {
-        std::ostringstream oss;
-        oss << "Order Cancel: ClientID=" << clientID << " OrderID=" << orderID
-            << std::boolalpha << " Success=" << success;
+        if constexpr (EnabledFlag) {
+            std::ostringstream oss;
+            oss << "Order Cancel: ClientID=" << clientID << " OrderID=" << orderID
+                << std::boolalpha << " Success=" << success;
 
-        buffer_.push({component, oss.str(), {}, std::chrono::steady_clock::now()});
+            buffer_.push({component, oss.str(), {}, std::chrono::steady_clock::now()});
+        }
     }
 
     void log(ModifyEvent& modEv, MatchResult& matchRes, const std::string& component) {
         std::ostringstream oss;
-        oss << "ModifyEvent: " << "ClientID=" << modEv.serverClientID
-            << " OldOrderID=" << modEv.oldOrderID << " NewOrderID= " << modEv.newOrderID
-            << " status=" << statusCodes::toStr(modEv.status);
 
-        oss << "MatchResult: " << "OrderID=" << matchRes.orderID
-            << " Timestamp=" << matchRes.ts
-            << " Status=" << statusCodes::toStr(matchRes.status)
-            << " Trades=" << matchRes.tradeVec.size();
+        if constexpr (EnabledFlag) {
+            oss << "ModifyEvent: " << "ClientID=" << modEv.serverClientID
+                << " OldOrderID=" << modEv.oldOrderID
+                << " NewOrderID= " << modEv.newOrderID
+                << " status=" << statusCodes::toStr(modEv.status);
 
-        for (const auto& t : matchRes.tradeVec) {
-            oss << "\n  Trade[" << "TradeID=" << t.tradeID
-                << " BuyerOrderID=" << t.buyerOrderID
-                << " SellerOrderID=" << t.sellerOrderID << " BuyerID=" << t.buyerID
-                << " SellerID=" << t.sellerID << " Qty=" << t.qty << " Price=" << t.price
-                << " Ts=" << t.timestamp << "]";
+            oss << "MatchResult: " << "OrderID=" << matchRes.orderID
+                << " Timestamp=" << matchRes.ts
+                << " Status=" << statusCodes::toStr(matchRes.status)
+                << " Trades=" << matchRes.tradeVec.size();
+
+            for (const auto& t : matchRes.tradeVec) {
+                oss << "\n  Trade[" << "TradeID=" << t.tradeID
+                    << " BuyerOrderID=" << t.buyerOrderID
+                    << " SellerOrderID=" << t.sellerOrderID << " BuyerID=" << t.buyerID
+                    << " SellerID=" << t.sellerID << " Qty=" << t.qty
+                    << " Price=" << t.price << " Ts=" << t.timestamp << "]";
+            }
+            buffer_.push({component, oss.str(), {}, std::chrono::steady_clock::now()});
         }
-        buffer_.push({component, oss.str(), {}, std::chrono::steady_clock::now()});
     }
 
     void logBytes(const std::vector<uint8_t>& bytes, const std::string& msg = "",
                   const std::string& component = "PROTOCOL") {
-        buffer_.push({component, msg, bytes, std::chrono::steady_clock::now()});
+        if constexpr (EnabledFlag) {
+            buffer_.push({component, msg, bytes, std::chrono::steady_clock::now()});
+        }
     }
 
     void stop() { running_ = false; }
@@ -108,7 +125,7 @@ private:
                 auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                               entry.timestamp.time_since_epoch())
                               .count();
-                outFile_ << "[" << ms << "] [" << entry.component << "] "
+                outFile_ << "[" << std::dec << ms << "] [" << entry.component << "] "
                          << entry.message;
                 if (!entry.bytes.empty()) {
                     outFile_ << " | ";

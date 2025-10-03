@@ -26,10 +26,11 @@ protected:
 
     void SetUp() override {
         utils::OrderBookRenderer::enabled = false;
-        sessionManager = std::make_unique<SessionManager>();
+        sessionManager = std::make_unique<SessionManager>(nullptr);
         handler = std::make_unique<ProtocolHandler>(
-            *sessionManager.get(), [this]([[maybe_unused]] Session& session,
-                                          const std::span<const uint8_t> buffer) {
+            *sessionManager.get(), nullptr,
+            [this]([[maybe_unused]] Session& session,
+                   const std::span<const uint8_t> buffer) {
                 serverCapture.insert(serverCapture.end(), buffer.begin(), buffer.end());
             });
         std::fill(apiKey.begin(), apiKey.end(), 0x22);

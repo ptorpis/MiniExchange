@@ -11,7 +11,7 @@
 
 class MiniExchangeAPI {
 public:
-    MiniExchangeAPI(SessionManager& sm, std::shared_ptr<Logger> logger = nullptr)
+    MiniExchangeAPI(SessionManager& sm, std::shared_ptr<Logger<>> logger = nullptr)
         : engine_(MatchingEngine(logger)), sessionManager_(sm) {}
 
     Session& connectClient(int fd);

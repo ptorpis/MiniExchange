@@ -28,7 +28,7 @@ public:
     */
 
     ProtocolHandler(
-        SessionManager& sm, std::shared_ptr<Logger> logger = nullptr,
+        SessionManager& sm, std::shared_ptr<Logger<>> logger = nullptr,
         SendFn sendFn =
             [](Session& session, const std::span<const uint8_t> buffer) {
                 session.sendBuffer.insert(std::end(session.sendBuffer),
@@ -54,7 +54,7 @@ private:
     MiniExchangeAPI api_;
     SendFn sendFn_; // custom send function, assigned at construction
     ClientManager clientManager_;
-    std::shared_ptr<Logger> logger_;
+    std::shared_ptr<Logger<>> logger_;
 
     OutBoundFDs outBoundFDs_;
 
