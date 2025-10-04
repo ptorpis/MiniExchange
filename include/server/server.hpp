@@ -15,7 +15,7 @@
 class Server {
 public:
     Server(uint16_t port, SessionManager& sm, ProtocolHandler& handler,
-           std::shared_ptr<Logger<>> logger = nullptr)
+           std::shared_ptr<Logger> logger = nullptr)
         : port_(port), sessionManager_(sm), handler_(handler), logger_(logger) {}
 
     bool start(uint16_t port);
@@ -44,7 +44,7 @@ private:
 
     SessionManager& sessionManager_;
     ProtocolHandler& handler_;
-    std::shared_ptr<Logger<>> logger_;
+    std::shared_ptr<Logger> logger_;
     std::unordered_map<int, Connection> connections_;
 
     static const int MAX_EVENTS{128};

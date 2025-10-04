@@ -5,3 +5,5 @@ build-debug/
 build-asan/
 notes.txt
 *.log
+__pycache__/
+*.pyc

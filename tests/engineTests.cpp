@@ -1,4 +1,5 @@
 #include "core/matchingEngine.hpp"
+#include "logger/logger.hpp"
 #include "utils/orderBookRenderer.hpp"
 #include <gtest/gtest.h>
 
@@ -6,10 +7,13 @@ class MatchingEngineTest : public ::testing::Test {
 protected:
     void SetUp() override {
         utils::OrderBookRenderer::enabled = false;
-        engine = std::make_unique<MatchingEngine>();
+        logger = std::make_unique<Logger>("exchange.log", false);
+
+        engine = std::make_unique<MatchingEngine>(logger);
     }
 
     std::unique_ptr<MatchingEngine> engine;
+    std::shared_ptr<Logger> logger{nullptr};
 };
 
 OrderRequest createTestMarketRequest(bool isBuy, Qty qty, Price price,

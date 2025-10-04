@@ -10,7 +10,7 @@
 #include <memory>
 
 int main() {
-    auto logger = std::make_shared<Logger<>>("exchange.log");
+    auto logger = std::make_shared<Logger>("exchange.log", true);
 
     logger->log("STARTUP", "SERVER");
 

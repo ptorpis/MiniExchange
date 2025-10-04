@@ -111,5 +111,5 @@ private:
     std::unordered_map<int, size_t> fdToHbIndex_; // FD -> heartbeat index
     std::vector<int> inactiveFDs_;
 
-    std::shared_ptr<Logger<>> logger_;
+    std::shared_ptr<Logger> logger_;
 };

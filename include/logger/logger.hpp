@@ -12,8 +12,6 @@
 #include <thread>
 #include <vector>
 
-const bool LOGGING_ENABLED{true};
-
 struct LogEntry {
     std::string component;
     std::string message;
@@ -21,12 +19,12 @@ struct LogEntry {
     std::chrono::steady_clock::time_point timestamp;
 };
 
-template <bool EnabledFlag = LOGGING_ENABLED> class Logger {
+class Logger {
 public:
-    Logger(const std::string& filename, size_t batchSize = 64)
+    Logger(const std::string& filename, const bool enabled, size_t batchSize = 64)
         : outFile_(filename, std::ios::out | std::ios::app), running_(true),
-          batchSize_(batchSize) {
-        if constexpr (EnabledFlag) {
+          batchSize_(batchSize), enabled_(enabled) {
+        if (enabled_) {
             worker_ = std::thread([this]() { this->run(); });
             std::cout << "Logger initialized, logging to " << filename << std::endl;
         }
@@ -38,14 +36,14 @@ public:
     }
 
     void log(const std::string& msg, const std::string& component) {
-        if constexpr (EnabledFlag) {
+        if (enabled_) {
             buffer_.push({component, msg, {}, std::chrono::steady_clock::now()});
         }
     }
 
     void log(const MatchResult& result,
              const std::string& component = "MATCHING_ENGINE") {
-        if constexpr (EnabledFlag) {
+        if (enabled_) {
             std::ostringstream oss;
             oss << "MatchResult: " << "OrderID=" << result.orderID
                 << " Timestamp=" << result.ts
@@ -67,7 +65,7 @@ public:
     // order removals
     void log(ClientID clientID, OrderID orderID, bool success,
              const std::string& component) {
-        if constexpr (EnabledFlag) {
+        if (enabled_) {
             std::ostringstream oss;
             oss << "Order Cancel: ClientID=" << clientID << " OrderID=" << orderID
                 << std::boolalpha << " Success=" << success;
@@ -79,7 +77,7 @@ public:
     void log(ModifyEvent& modEv, MatchResult& matchRes, const std::string& component) {
         std::ostringstream oss;
 
-        if constexpr (EnabledFlag) {
+        if (enabled_) {
             oss << "ModifyEvent: " << "ClientID=" << modEv.serverClientID
                 << " OldOrderID=" << modEv.oldOrderID
                 << " NewOrderID= " << modEv.newOrderID
@@ -103,7 +101,7 @@ public:
 
     void logBytes(const std::vector<uint8_t>& bytes, const std::string& msg = "",
                   const std::string& component = "PROTOCOL") {
-        if constexpr (EnabledFlag) {
+        if (enabled_) {
             buffer_.push({component, msg, bytes, std::chrono::steady_clock::now()});
         }
     }
@@ -151,4 +149,5 @@ private:
     size_t batchSize_;
     std::queue<LogEntry> buffer_;
     std::thread worker_;
+    const bool enabled_;
 };

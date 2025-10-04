@@ -4,12 +4,12 @@ project(MiniExchangeV2 VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# --- Build type (default Debug) ---
+# --- Build type ---
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
-# --- Option to enable AddressSanitizer ---
+# --- Option for AddressSanitizer ---
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 
 # --- Compiler flags ---
@@ -25,38 +25,53 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
 endif()
 
+# --- Testing ---
 include(CTest)
 if(BUILD_TESTING)
-   add_subdirectory(tests)
+    add_subdirectory(tests)
 endif()
 
 # --- Source files ---
 file(GLOB_RECURSE ALL_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 file(GLOB_RECURSE CLIENT_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/client/*.cpp")
+
+# Remove executables and pybind11 bindings from core
 list(REMOVE_ITEM ALL_SRC 
-"${CMAKE_SOURCE_DIR}/src/main.cpp"
-"${CMAKE_SOURCE_DIR}/src/client_main.cpp"
+    "${CMAKE_SOURCE_DIR}/src/main.cpp"
+    "${CMAKE_SOURCE_DIR}/src/client_main.cpp"
+    "${CMAKE_SOURCE_DIR}/src/py/pyClient.cpp"
 )
 set(CORE_SOURCES ${ALL_SRC})
 
 # --- Core library ---
 add_library(MiniExchangeCore STATIC ${CORE_SOURCES})
-add_library(MiniExchangeClient STATIC ${CLIENT_SRC})
-target_include_directories(MiniExchangeClient
-    PUBLIC ${PROJECT_SOURCE_DIR}/include
-)
-target_link_libraries(MiniExchangeClient PUBLIC MiniExchangeCore)
-
-target_include_directories(MiniExchangeCore
-    PUBLIC ${PROJECT_SOURCE_DIR}/include
-)
+target_include_directories(MiniExchangeCore PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 find_package(OpenSSL REQUIRED)
 target_link_libraries(MiniExchangeCore PUBLIC OpenSSL::Crypto OpenSSL::SSL)
 
-# --- Executable ---
+# --- Client ---
+add_library(MiniExchangeClient STATIC ${CLIENT_SRC})
+target_include_directories(MiniExchangeClient PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(MiniExchangeClient PUBLIC MiniExchangeCore)
+
+# --- Executables ---
 add_executable(MiniExchange "${CMAKE_SOURCE_DIR}/src/main.cpp")
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
 
 add_executable(ClientBin "${CMAKE_SOURCE_DIR}/src/client_main.cpp")
 target_link_libraries(ClientBin PRIVATE MiniExchangeCore)
+
+# --- Python module ---
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+find_package(pybind11 REQUIRED)
+set_target_properties(MiniExchangeCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(MiniExchangeClient PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+
+pybind11_add_module(miniexchange_client src/py/pyClient.cpp)
+target_include_directories(miniexchange_client PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(miniexchange_client PRIVATE MiniExchangeCore pybind11::module Python3::Python)
+set_target_properties(miniexchange_client PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/py"
+)
