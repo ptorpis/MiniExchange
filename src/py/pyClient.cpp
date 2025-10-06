@@ -15,7 +15,7 @@ public:
     PyClient(std::array<uint8_t, constants::HMAC_SIZE> hmacKey,
              std::array<uint8_t, 16> apiKey, const std::string& serverIP = "127.0.0.1",
              uint16_t port = 12345)
-        : client_(hmacKey, apiKey), net_(serverIP, port, client_), running_(true) {}
+        : client_(hmacKey, apiKey), net_(serverIP, port, client_), running_(false) {}
     ~PyClient() { stop(); }
 
     bool connect() { return net_.connectServer(); }
@@ -24,11 +24,13 @@ public:
         if (running_) return;
         running_ = true;
         recvThread_ = std::thread(&PyClient::receiveLoop_, this);
+        hbThread_ = std::thread(&PyClient::heartbeatLoop_, this);
     }
 
     void stop() {
         running_ = false;
         if (recvThread_.joinable()) recvThread_.join();
+        if (hbThread_.joinable()) hbThread_.join();
         net_.disconnectServer();
     }
 
@@ -41,7 +43,7 @@ public:
         net_.sendMessage();
     }
 
-    void sendOrder(uint64_t qty, double price, bool isBuy, bool isLimit) {
+    void sendOrder(Qty qty, Price price, bool isBuy, bool isLimit) {
         client_.sendOrder(qty, price, isBuy, isLimit);
         net_.sendMessage();
     }
@@ -50,21 +52,11 @@ public:
         client_.sendCancel(orderID);
         net_.sendMessage();
     }
-    void sendModify(uint64_t orderID, uint64_t qty, double price) {
+    void sendModify(uint64_t orderID, uint64_t qty, Price price) {
         client_.sendModify(orderID, qty, price);
         net_.sendMessage();
     }
 
-    std::vector<py::dict> pollMessages() {
-        std::lock_guard<std::mutex> lock(msgMutex_);
-        std::vector<py::dict> out;
-        out.reserve(messages_.size());
-        for (auto& m : messages_) out.push_back(m);
-        messages_.clear();
-        return out;
-    }
-
-private:
     void receiveLoop_() {
         while (running_) {
             try {
@@ -72,10 +64,22 @@ private:
                     if (net_.receiveMessage()) {
                         auto msgs = client_.processIncoming();
                         for (auto& msg : msgs) {
+                            py::gil_scoped_acquire gil;
                             py::dict pymsg = convertMessage_(msg);
+                            py::function cbCopy;
+
                             {
-                                std::lock_guard<std::mutex> lock(msgMutex_);
-                                messages_.push_back(std::move(pymsg));
+                                std::lock_guard<std::mutex> lock(cbMutex_);
+                                cbCopy = messageCallback_; // copy while holding lock
+                            }
+
+                            if (cbCopy && !cbCopy.is_none()) {
+                                try {
+                                    cbCopy(pymsg);
+                                } catch (py::error_already_set& e) {
+                                    std::cerr << "Python callback error: " << e.what()
+                                              << "\n";
+                                }
                             }
                         }
                     }
@@ -84,6 +88,14 @@ private:
                 std::cerr << "Receive error: " << e.what() << "\n";
                 running_ = false;
             }
+        }
+    }
+
+    void heartbeatLoop_() {
+        while (running_) {
+            client_.sendHeartbeat();
+            net_.sendMessage();
+            std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
         }
     }
 
@@ -114,8 +126,14 @@ private:
     ClientNetwork net_;
     std::atomic<bool> running_{false};
     std::thread recvThread_;
+    std::thread hbThread_;
     std::mutex msgMutex_;
     std::vector<py::dict> messages_;
+
+    std::chrono::seconds intervalSeconds{2};
+
+    std::mutex cbMutex_;
+    py::function messageCallback_;
 };
 
 PYBIND11_MODULE(miniexchange_client, m) {
@@ -127,7 +145,10 @@ PYBIND11_MODULE(miniexchange_client, m) {
         .def("connect", &PyClient::connect)
         .def("start", &PyClient::start)
         .def("stop", &PyClient::stop)
-        .def("poll_messages", &PyClient::pollMessages)
         .def("send_hello", &PyClient::sendHello)
-        .def("send_order", &PyClient::sendOrder);
+        .def("send_order", &PyClient::sendOrder)
+        .def("on_message", [](PyClient& self, py::function cb) {
+            std::lock_guard<std::mutex> lock(self.cbMutex_);
+            self.messageCallback_ = std::move(cb);
+        });
 }

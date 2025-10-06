@@ -101,7 +101,6 @@ public:
             ssize_t n = ::recv(sock_.fd, tempBuf, sizeof(tempBuf), 0);
             if (n < 0) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                    std::cout << "got jack" << std::endl;
                     break;
                 } else {
                     perror("recv");
@@ -113,8 +112,6 @@ public:
             } else {
                 gotData = true;
                 sess.recvBuffer.insert(sess.recvBuffer.end(), tempBuf, tempBuf + n);
-                std::cout << "received:" << std::endl;
-                utils::printHex(sess.recvBuffer.data(), n);
             }
         }
 
