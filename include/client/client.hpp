@@ -69,8 +69,6 @@ private:
     bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
                      size_t dataLen, const uint8_t* expectedHMAC, size_t HMACLen);
 
-    // std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
-    //                                   const uint8_t* data, size_t dataLen);
     std::optional<MessageHeader> peekHeader_() const;
 
     ClientSession session_;
