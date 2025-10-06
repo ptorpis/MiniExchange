@@ -4,11 +4,13 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
+#include <list>
 #include <optional>
 #include <span>
 #include <vector>
 
 #include "auth/session.hpp"
+#include "protocol/client/clientMessages.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/serialize.hpp"
 
@@ -31,7 +33,7 @@ public:
 
     ClientSession& getSession() { return session_; }
 
-    void processIncoming();
+    std::list<client::IncomingMessageVariant> processIncoming();
 
     std::array<uint8_t, 16> getAPIKey() { return APIKey_; }
     const std::vector<uint8_t>& readRecBuffer() const { return session_.recvBuffer; }
@@ -72,6 +74,15 @@ private:
     // std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
     //                                   const uint8_t* data, size_t dataLen);
     std::optional<MessageHeader> peekHeader_() const;
+    void eraseBytesFromBuffer(std::vector<uint8_t>& buffer, size_t n_bytes);
+
+    template <typename Payload> std::optional<client::IncomingMessageVariant>
+    makeIncomingVariant_(const Message<Payload>& msg, size_t n_bytes) {
+        eraseBytesFromBuffer(session_.recvBuffer, n_bytes);
+        return client::IncomingMessageVariant{msg.payload};
+    }
+
+    std::optional<client::IncomingMessageVariant> processIncomingMessage_();
 
     ClientSession session_;
     SendFn sendFn_;

@@ -1,7 +1,15 @@
 #pragma once
 #include "protocol/messages.hpp"
+#include "protocol/server/serverMessages.hpp"
+#include <variant>
 
 namespace client {
+
+using IncomingMessageVariant =
+    std::variant<server::HelloAckPayload, server::LogoutAckPayload,
+                 server::OrderAckPayload, server::TradePayload, server::CancelAckPayload,
+                 server::ModifyAckPayload>;
+
 #pragma pack(push, 1)
 struct HelloPayload {
     uint8_t apiKey[16];
