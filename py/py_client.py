@@ -13,13 +13,8 @@ if __name__ == "__main__":
     hmac_key = [0x11] * 32
     api_key = [0x22] * 16
 
-
-    client = miniexchange_client.MiniExchangeClient(hmac_key, api_key)
-    client.on_message(handle_message)
-    client.connect()
-    client.start()
-
-    client.send_hello()
-    client.send_order(100, 50, True, True)
-    time.sleep(1)
-    client.stop()
+    with miniexchange_client.MiniExchangeClient(hmac_key, api_key) as c:
+        c.on_message(handle_message)
+        c.send_hello()
+        c.send_order(100, 50, True, True)
+        time.sleep(1)

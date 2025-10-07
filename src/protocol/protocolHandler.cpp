@@ -219,15 +219,6 @@ void ProtocolHandler::onMessage(int fd) {
 
         session->recvBuffer.erase(session->recvBuffer.begin(),
                                   session->recvBuffer.begin() + totalSize);
-
-        auto now = std::chrono::steady_clock::now();
-
-        if (now - lastScreenUpdate_ > std::chrono::milliseconds(30)) {
-            auto bids = api_.getBidsSnapshop();
-            auto asks = api_.getAsksSnapshot();
-            utils::OrderBookRenderer::render(bids, asks);
-            lastScreenUpdate_ = now;
-        }
     }
 }
 

@@ -1,6 +1,7 @@
 #include "client/client.hpp"
 #include "client/clientNetwork.hpp"
 #include <atomic>
+#include <condition_variable>
 #include <list>
 #include <mutex>
 #include <pybind11/pybind11.h>
@@ -27,11 +28,32 @@ public:
         hbThread_ = std::thread(&PyClient::heartbeatLoop_, this);
     }
 
-    void stop() {
+    void stop() noexcept {
         running_ = false;
-        if (recvThread_.joinable()) recvThread_.join();
-        if (hbThread_.joinable()) hbThread_.join();
-        net_.disconnectServer();
+
+        try {
+            if (recvThread_.joinable()) recvThread_.join();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception joining recvThread_: " << e.what() << "\n";
+        } catch (...) {
+            std::cerr << "Unknown exception joining recvThread_\n";
+        }
+
+        try {
+            if (hbThread_.joinable()) hbThread_.join();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception joining hbThread_: " << e.what() << "\n";
+        } catch (...) {
+            std::cerr << "Unknown exception joining hbThread_\n";
+        }
+
+        try {
+            net_.disconnectServer();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception disconnecting server: " << e.what() << "\n";
+        } catch (...) {
+            std::cerr << "Unknown exception disconnecting server\n";
+        }
     }
 
     void sendHello() {
@@ -62,6 +84,7 @@ public:
             try {
                 if (net_.waitReadable(50)) {
                     if (net_.receiveMessage()) {
+                        if (!running_) break; // avoid race condition
                         auto msgs = client_.processIncoming();
                         for (auto& msg : msgs) {
                             py::gil_scoped_acquire gil;
@@ -70,8 +93,9 @@ public:
 
                             {
                                 std::lock_guard<std::mutex> lock(cbMutex_);
-                                cbCopy = messageCallback_; // copy while holding lock
+                                cbCopy = messageCallback_;
                             }
+                            messagesCv_.notify_all();
 
                             if (cbCopy && !cbCopy.is_none()) {
                                 try {
@@ -96,6 +120,21 @@ public:
             client_.sendHeartbeat();
             net_.sendMessage();
             std::this_thread::sleep_for(std::chrono::seconds(intervalSeconds));
+        }
+    }
+
+    void flush_messages(int timeout_ms = 1000) {
+        std::unique_lock<std::mutex> lock(msgMutex_);
+        auto start = std::chrono::steady_clock::now();
+
+        while (!messages_.empty()) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - start)
+                    .count();
+            if (elapsed >= timeout_ms) break;
+
+            messagesCv_.wait_for(lock, std::chrono::milliseconds(timeout_ms - elapsed));
         }
     }
 
@@ -134,6 +173,8 @@ public:
 
     std::mutex cbMutex_;
     py::function messageCallback_;
+
+    std::condition_variable messagesCv_;
 };
 
 PYBIND11_MODULE(miniexchange_client, m) {
@@ -147,8 +188,17 @@ PYBIND11_MODULE(miniexchange_client, m) {
         .def("stop", &PyClient::stop)
         .def("send_hello", &PyClient::sendHello)
         .def("send_order", &PyClient::sendOrder)
-        .def("on_message", [](PyClient& self, py::function cb) {
-            std::lock_guard<std::mutex> lock(self.cbMutex_);
-            self.messageCallback_ = std::move(cb);
-        });
+        .def("on_message",
+             [](PyClient& self, py::function cb) {
+                 std::lock_guard<std::mutex> lock(self.cbMutex_);
+                 self.messageCallback_ = std::move(cb);
+             })
+        .def("__enter__",
+             [](PyClient& self) {
+                 self.connect();
+                 self.start();
+                 return &self;
+             })
+        .def("__exit__",
+             [](PyClient& self, py::object, py::object, py::object) { self.stop(); });
 }

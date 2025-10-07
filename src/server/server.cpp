@@ -1,4 +1,5 @@
 #include "server/server.hpp"
+#include "utils/orderBookRenderer.hpp"
 #include "utils/utils.hpp"
 
 #include <arpa/inet.h>
@@ -207,6 +208,13 @@ void Server::run() {
         if (now - lastHeartbeatCheck >= std::chrono::seconds(2)) {
             checkHeartbeats_();
             lastHeartbeatCheck = now;
+        }
+
+        if (now - lastScreenUpdate_ > std::chrono::milliseconds(30)) {
+            auto bids = handler_.getBidsSnapshot();
+            auto asks = handler_.getAsksSnapshot();
+            utils::OrderBookRenderer::render(bids, asks);
+            lastScreenUpdate_ = now;
         }
     }
 }
