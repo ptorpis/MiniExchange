@@ -1,72 +1,121 @@
 #include "client/client.hpp"
 #include "client/clientNetwork.hpp"
 #include <atomic>
-#include <chrono>
-#include <functional>
+#include <condition_variable>
+#include <list>
+#include <mutex>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <thread>
 
 namespace py = pybind11;
+using namespace pybind11::literals;
 
 class PyClient {
 public:
     PyClient(std::array<uint8_t, constants::HMAC_SIZE> hmacKey,
              std::array<uint8_t, 16> apiKey, const std::string& serverIP = "127.0.0.1",
              uint16_t port = 12345)
-        : client_(hmacKey, apiKey), net_(serverIP, port, client_), running_(true) {}
+        : client_(hmacKey, apiKey), net_(serverIP, port, client_), running_(false) {}
+    ~PyClient() { stop(); }
 
-    bool connect() {
-        if (!net_.connectServer()) return false;
+    bool connect() { return net_.connectServer(); }
+
+    void start() {
+        if (running_) return;
         running_ = true;
-
-        // Launch heartbeat loop detached
-        hbThread_ = std::thread([this]() { heartbeatLoop(); });
-        hbThread_.detach();
-
-        // Launch receive loop detached
-        recThread_ = std::thread([this]() { receiveLoop(); });
-        recThread_.detach();
-
-        return true;
+        recvThread_ = std::thread(&PyClient::receiveLoop_, this);
+        hbThread_ = std::thread(&PyClient::heartbeatLoop_, this);
     }
 
-    void disconnect() {
+    void stop() noexcept {
         running_ = false;
-        net_.disconnectServer();
-        if (hbThread_.joinable()) hbThread_.join();
-        if (recThread_.joinable()) recThread_.join();
+
+        try {
+            if (recvThread_.joinable()) recvThread_.join();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception joining recvThread_: " << e.what() << "\n";
+        } catch (...) {
+            std::cerr << "Unknown exception joining recvThread_\n";
+        }
+
+        try {
+            if (hbThread_.joinable()) hbThread_.join();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception joining hbThread_: " << e.what() << "\n";
+        } catch (...) {
+            std::cerr << "Unknown exception joining hbThread_\n";
+        }
+
+        try {
+            net_.disconnectServer();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception disconnecting server: " << e.what() << "\n";
+        } catch (...) {
+            std::cerr << "Unknown exception disconnecting server\n";
+        }
     }
 
-    void send_hello() {
+    void sendHello() {
         client_.sendHello();
         net_.sendMessage();
     }
-    void send_logout() {
+    void sendLogout() {
         client_.sendLogout();
         net_.sendMessage();
     }
 
-    void send_order(uint64_t qty, double price, bool isBuy, bool isLimit) {
+    void sendOrder(Qty qty, Price price, bool isBuy, bool isLimit) {
         client_.sendOrder(qty, price, isBuy, isLimit);
         net_.sendMessage();
     }
 
-    void send_cancel(uint64_t orderID) {
+    void sendCancel(uint64_t orderID) {
         client_.sendCancel(orderID);
         net_.sendMessage();
     }
-    void send_modify(uint64_t orderID, uint64_t qty, double price) {
+    void sendModify(uint64_t orderID, uint64_t qty, Price price) {
         client_.sendModify(orderID, qty, price);
         net_.sendMessage();
     }
 
-    std::vector<uint8_t> read_recv_buffer() const { return client_.readRecBuffer(); }
-    std::vector<uint8_t> read_send_buffer() const { return client_.readSendBuffer(); }
-    bool is_running() const { return running_; }
+    void receiveLoop_() {
+        while (running_) {
+            try {
+                if (net_.waitReadable(50)) {
+                    if (net_.receiveMessage()) {
+                        if (!running_) break; // avoid race condition
+                        auto msgs = client_.processIncoming();
+                        for (auto& msg : msgs) {
+                            py::gil_scoped_acquire gil;
+                            py::dict pymsg = convertMessage_(msg);
+                            py::function cbCopy;
 
-private:
-    void heartbeatLoop(int intervalSeconds = 5) {
+                            {
+                                std::lock_guard<std::mutex> lock(cbMutex_);
+                                cbCopy = messageCallback_;
+                            }
+                            messagesCv_.notify_all();
+
+                            if (cbCopy && !cbCopy.is_none()) {
+                                try {
+                                    cbCopy(pymsg);
+                                } catch (py::error_already_set& e) {
+                                    std::cerr << "Python callback error: " << e.what()
+                                              << "\n";
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (const std::exception& e) {
+                std::cerr << "Receive error: " << e.what() << "\n";
+                running_ = false;
+            }
+        }
+    }
+
+    void heartbeatLoop_() {
         while (running_) {
             client_.sendHeartbeat();
             net_.sendMessage();
@@ -74,25 +123,58 @@ private:
         }
     }
 
-    void receiveLoop() {
-        while (running_) {
-            try {
-                net_.receiveMessage();
-            } catch (const std::exception& e) {
-                std::cerr << "Receive error: " << e.what() << "\n";
-                running_ = false;
-                return;
-            }
-            client_.processIncoming();
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    void flush_messages(int timeout_ms = 1000) {
+        std::unique_lock<std::mutex> lock(msgMutex_);
+        auto start = std::chrono::steady_clock::now();
+
+        while (!messages_.empty()) {
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(now - start)
+                    .count();
+            if (elapsed >= timeout_ms) break;
+
+            messagesCv_.wait_for(lock, std::chrono::milliseconds(timeout_ms - elapsed));
         }
+    }
+
+    py::dict convertMessage_(const client::IncomingMessageVariant& msg) {
+        return std::visit(
+            [](auto&& payload) -> py::dict {
+                using T = std::decay_t<decltype(payload)>;
+
+                if constexpr (std::is_same_v<T, server::HelloAckPayload>) {
+                    return py::dict("type"_a = "HELLO_ACK",
+                                    "clientId"_a = payload.serverClientID,
+                                    "status"_a = payload.status);
+                } else if constexpr (std::is_same_v<T, server::OrderAckPayload>) {
+                    return py::dict("type"_a = "ORDER_ACK",
+                                    "orderId"_a = payload.serverOrderID,
+                                    "status"_a = payload.status);
+                } else if constexpr (std::is_same_v<T, server::TradePayload>) {
+                    return py::dict("type"_a = "TRADE", "price"_a = payload.filledPrice,
+                                    "quantity"_a = payload.filledQty);
+                } else {
+                    return py::dict("type"_a = "UNKNOWN");
+                }
+            },
+            msg);
     }
 
     Client client_;
     ClientNetwork net_;
-    std::atomic<bool> running_;
+    std::atomic<bool> running_{false};
+    std::thread recvThread_;
     std::thread hbThread_;
-    std::thread recThread_;
+    std::mutex msgMutex_;
+    std::vector<py::dict> messages_;
+
+    std::chrono::seconds intervalSeconds{2};
+
+    std::mutex cbMutex_;
+    py::function messageCallback_;
+
+    std::condition_variable messagesCv_;
 };
 
 PYBIND11_MODULE(miniexchange_client, m) {
@@ -102,13 +184,21 @@ PYBIND11_MODULE(miniexchange_client, m) {
              py::arg("hmac_key"), py::arg("api_key"), py::arg("server_ip") = "127.0.0.1",
              py::arg("port") = 12345)
         .def("connect", &PyClient::connect)
-        .def("disconnect", &PyClient::disconnect)
-        .def("send_hello", &PyClient::send_hello)
-        .def("send_logout", &PyClient::send_logout)
-        .def("send_order", &PyClient::send_order)
-        .def("send_cancel", &PyClient::send_cancel)
-        .def("send_modify", &PyClient::send_modify)
-        .def("read_recv_buffer", &PyClient::read_recv_buffer)
-        .def("read_send_buffer", &PyClient::read_send_buffer)
-        .def("is_running", &PyClient::is_running);
+        .def("start", &PyClient::start)
+        .def("stop", &PyClient::stop)
+        .def("send_hello", &PyClient::sendHello)
+        .def("send_order", &PyClient::sendOrder)
+        .def("on_message",
+             [](PyClient& self, py::function cb) {
+                 std::lock_guard<std::mutex> lock(self.cbMutex_);
+                 self.messageCallback_ = std::move(cb);
+             })
+        .def("__enter__",
+             [](PyClient& self) {
+                 self.connect();
+                 self.start();
+                 return &self;
+             })
+        .def("__exit__",
+             [](PyClient& self, py::object, py::object, py::object) { self.stop(); });
 }

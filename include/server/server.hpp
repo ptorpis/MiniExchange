@@ -47,6 +47,8 @@ private:
     std::shared_ptr<Logger> logger_;
     std::unordered_map<int, Connection> connections_;
 
+    std::chrono::steady_clock::time_point lastScreenUpdate_;
+
     static const int MAX_EVENTS{128};
     const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{10};
 };

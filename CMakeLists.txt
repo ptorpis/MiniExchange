@@ -38,7 +38,6 @@ file(GLOB_RECURSE CLIENT_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/client/*
 # Remove executables and pybind11 bindings from core
 list(REMOVE_ITEM ALL_SRC 
     "${CMAKE_SOURCE_DIR}/src/main.cpp"
-    "${CMAKE_SOURCE_DIR}/src/client_main.cpp"
     "${CMAKE_SOURCE_DIR}/src/py/pyClient.cpp"
 )
 set(CORE_SOURCES ${ALL_SRC})
@@ -58,9 +57,6 @@ target_link_libraries(MiniExchangeClient PUBLIC MiniExchangeCore)
 # --- Executables ---
 add_executable(MiniExchange "${CMAKE_SOURCE_DIR}/src/main.cpp")
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
-
-add_executable(ClientBin "${CMAKE_SOURCE_DIR}/src/client_main.cpp")
-target_link_libraries(ClientBin PRIVATE MiniExchangeCore)
 
 # --- Python module ---
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)

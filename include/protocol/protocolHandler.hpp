@@ -23,7 +23,7 @@ public:
 
     The optional sendFn allows customizing how outgoing messages are being handled.
 
-    The defauly funciton for this copies the outgoing message into the sendbuffer of
+    The default function for this copies the outgoing message into the sendbuffer of
     of the given session
     */
 
@@ -50,6 +50,10 @@ public:
     MiniExchangeAPI* getAPI() { return &api_; }
 
     OutBoundFDs& getOutboundFDs() { return outBoundFDs_; }
+
+    auto getBidsSnapshot() const { return api_.getBidsSnapshot(); }
+
+    auto getAsksSnapshot() const { return api_.getAsksSnapshot(); }
 
 private:
     MiniExchangeAPI api_;
