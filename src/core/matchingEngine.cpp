@@ -29,9 +29,13 @@ void MatchingEngine::reset() {
 
 bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID) {
     std::unordered_map<OrderID, Order*>::iterator it = orderMap_.find(orderID);
-    if (it == orderMap_.end()) return false;
+    if (it == orderMap_.end()) {
+        return false;
+    }
 
-    if (it->second->clientID != clientID) return false;
+    if (it->second->clientID != clientID) {
+        return false;
+    }
 
     bool removed = (it->second->side == OrderSide::BUY)
                        ? (removeFromBook_(orderID, it->second->price, bids_))

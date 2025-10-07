@@ -46,12 +46,13 @@ enum class ModifyStatus : uint8_t {
 };
 
 enum class OrderStatus : uint8_t {
-    NEW,
-    REJECTED,
-    PARTIALLY_FILLED,
-    FILLED,
-    CANCELLED,
-    MODIFIED
+    NULLSTATUS = 0x00,
+    NEW = 0x01,
+    REJECTED = 0x02,
+    PARTIALLY_FILLED = 0x03,
+    FILLED = 0x04,
+    CANCELLED = 0x05,
+    MODIFIED = 0x06
 };
 
 constexpr const char* toStr(OrderStatus s) {

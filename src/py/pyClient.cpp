@@ -149,11 +149,36 @@ public:
                                     "status"_a = payload.status);
                 } else if constexpr (std::is_same_v<T, server::OrderAckPayload>) {
                     return py::dict("type"_a = "ORDER_ACK",
-                                    "orderId"_a = payload.serverOrderID,
+                                    "server_client_id"_a = payload.serverClientID,
+                                    "instrument_id"_a = payload.instrumentID,
+                                    "server_order_id"_a = payload.serverOrderID,
+                                    "status"_a = payload.status,
+                                    "accepted_price"_a = payload.acceptedPrice,
+                                    "server_time"_a = payload.serverTime,
+                                    "latency"_a = payload.latency);
+                } else if constexpr (std::is_same_v<T, server::CancelAckPayload>) {
+                    return py::dict("type"_a = "CANCEL_ACK",
+                                    "server_client_id"_a = payload.serverClientID,
+                                    "server_order_id"_a = payload.serverOrderID,
+                                    "status"_a = payload.status);
+                } else if constexpr (std::is_same_v<T, server::ModifyAckPayload>) {
+                    return py::dict("type"_a = "CANCEL_ACK",
+                                    "server_client_id"_a = payload.serverClientID,
+                                    "old_server_order_id"_a = payload.oldServerOrderID,
+                                    "new_server_order_id"_a = payload.newServerOrderID,
                                     "status"_a = payload.status);
                 } else if constexpr (std::is_same_v<T, server::TradePayload>) {
-                    return py::dict("type"_a = "TRADE", "price"_a = payload.filledPrice,
-                                    "quantity"_a = payload.filledQty);
+                    return py::dict(
+                        "type"_a = "TRADE", "server_client_id"_a = payload.serverClientID,
+                        "server_order_id"_a = payload.serverOrderID,
+                        "trade_id"_a = payload.tradeID, "price"_a = payload.filledPrice,
+                        "quantity"_a = payload.filledQty,
+                        "server_time"_a = payload.timestamp);
+                } else if constexpr (std::is_same_v<T, server::LogoutAckPayload>) {
+                    return py::dict("type"_a = "LOGOUT_ACK", "status"_a = payload.status);
+                } else if constexpr (std::is_same_v<T, server::SessionTimeoutPayload>) {
+                    return py::dict("type"_a = "SESSION_TIMEOUT",
+                                    "server_time"_a = payload.serverTime);
                 } else {
                     return py::dict("type"_a = "UNKNOWN");
                 }
@@ -188,6 +213,7 @@ PYBIND11_MODULE(miniexchange_client, m) {
         .def("stop", &PyClient::stop)
         .def("send_hello", &PyClient::sendHello)
         .def("send_order", &PyClient::sendOrder)
+        .def("send_cancel", &PyClient::sendCancel)
         .def("on_message",
              [](PyClient& self, py::function cb) {
                  std::lock_guard<std::mutex> lock(self.cbMutex_);

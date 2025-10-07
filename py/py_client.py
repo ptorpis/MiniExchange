@@ -16,5 +16,6 @@ if __name__ == "__main__":
     with miniexchange_client.MiniExchangeClient(hmac_key, api_key) as c:
         c.on_message(handle_message)
         c.send_hello()
-        c.send_order(100, 50, True, True)
+        time.sleep(1)
+        c.send_order(100, 50, False, True)
         time.sleep(1)
