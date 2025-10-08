@@ -76,7 +76,8 @@ class MiniExchangeClient(App):
             self.hello_ack_received = True
             status = msg.get("status", "unknown")
             client_id = msg.get("clientId", "?")
-            log.write(f"[bold cyan]< HELLO_ACK[/bold cyan] | Status: {status} | Client ID: {client_id}")
+            log.write(f"[bold cyan]< HELLO_ACK[/bold cyan] |"
+                      f" Status: {status} | Client ID: {client_id}")
             
         elif msg_type == "ORDER_ACK":
             status = msg.get("status", "unknown")
@@ -84,27 +85,34 @@ class MiniExchangeClient(App):
             price = msg.get("accepted_price", "?")
             latency = msg.get("latency", "?")
             if price == 0:
-                log.write(f"[bold yellow]< ORDER_ACK[/bold yellow] | Status: {status} | Order ID: {order_id} | Latency: {latency}μs")
+                log.write(f"[bold yellow]< ORDER_ACK[/bold yellow] |"
+                          f" Status: {status} | Order ID: {order_id} | "
+                          f"Latency: {latency}μs")
             else:
-                log.write(f"[bold yellow]< ORDER_ACK[/bold yellow] | Status: {status} | Order ID: {order_id} | Price: {price} | Latency: {latency}μs")
+                log.write(f"[bold yellow]< ORDER_ACK[/bold yellow] |"
+                          f" Status: {status} | Order ID: {order_id} |"
+                           f" Price: {price} | Latency: {latency}μs")
             
         elif msg_type == "TRADE":
             trade_id = msg.get("trade_id", "?")
             price = msg.get("price", "?")
             qty = msg.get("quantity", "?")
-            log.write(f"[bold magenta]< TRADE[/bold magenta] | Trade ID: {trade_id} | Price: {price} | Qty: {qty}")
+            log.write(f"[bold magenta]< TRADE[/bold magenta] |"
+                      f" Trade ID: {trade_id} | Price: {price} | Qty: {qty}")
             
         elif msg_type == "CANCEL_ACK":
             status = msg.get("status", "unknown")
             order_id = msg.get("server_order_id", "?")
-            log.write(f"[bold red]< CANCEL_ACK[/bold red] | Status: {status} | Order ID: {order_id}")
+            log.write(f"[bold red]< CANCEL_ACK[/bold red] "
+                      f"| Status: {status} | Order ID: {order_id}")
         
         elif msg_type == "MODIFY_ACK":
             status = msg.get("status", "?")
             old_order_id = msg.get("old_server_order_id", "?")
             new_order_id = msg.get("new_server_order_id", "?")
             log.write(f"[bold blue]< MODIFY_ACK[/bold blue] "
-                      f"| Status: {status} | Old Order ID: {old_order_id} | New Server ID: {new_order_id}")
+                      f"| Status: {status} | Old Order ID: {old_order_id} "
+                      f"| New Server ID: {new_order_id}")
             
         elif msg_type == "LOGOUT_ACK":
             status = msg.get("status", "unknown")
@@ -120,7 +128,9 @@ class MiniExchangeClient(App):
         """Poll for messages from the client."""
         if self.client:
             try:
-                msgs = await asyncio.to_thread(self.client.wait_for_messages, 10)
+                msgs = await asyncio.to_thread(
+                    self.client.wait_for_messages, 10
+                )
             except Exception as e:
                 log = self.query_one("#echo_panel", RichLog)
                 log.write(f"[bold red]Error polling messages: {e}[/bold red]")
@@ -143,6 +153,13 @@ class MiniExchangeClient(App):
             if cmd == "hello" or cmd == "login":
                 self.client.send_hello() # type: ignore
                 log.write("[dim]Sent HELLO[/dim]")
+
+            elif cmd == "connect":
+                if self.client.connect(): # type: ignore
+                    log.write("[dim]Connecting to MiniExchange[/dim]")
+                    self.client.start()
+                else:
+                    log.write("[bold red] Failed to Connect[/bold red]")
                 
             elif cmd == "order" and len(parts) >= 4:
                 side = parts[1]
@@ -154,14 +171,20 @@ class MiniExchangeClient(App):
                 
                 if is_limit:
                     if len(parts) < 5:
-                        log.write("[bold red]Error: Limit orders require a price[/bold red]")
+                        log.write(
+                            "[bold red]Error: Limit orders require a price[/bold red]"
+                        )
                     else:
                         price = int(parts[4])
                         self.client.send_order(qty, price, is_buy, is_limit) # type: ignore
-                        log.write(f"[dim]Sent ORDER: {qty} @ {price} ({side}, {order_type})[/dim]")
+                        log.write(
+                            f"[dim]Sent ORDER: {qty} @ {price} ({side}, {order_type})[/dim]"
+                        )
                 elif order_type == "market":
                     if len(parts) >= 5:
-                        log.write("[bold red]Error: Market orders cannot have a price[/bold red]")
+                        log.write(
+                            "[bold red]Error: Market orders cannot have a price[/bold red]"
+                        )
                     else:
                         price = 0
                         self.client.send_order(qty, price, is_buy, is_limit) # type: ignore
@@ -198,7 +221,8 @@ class MiniExchangeClient(App):
                 log.write("  quit - Exit application")
                 
             else:
-                log.write(f"[bold red]Unknown command: {cmd}[/bold red] (type 'help' for commands)")
+                log.write(f"[bold red]Unknown command: "
+                          f"{cmd}[/bold red] (type 'help' for commands)")
                 
         except ValueError as e:
             log.write(f"[bold red]Invalid arguments: {e}[/bold red]")
