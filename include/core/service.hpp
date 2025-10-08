@@ -38,7 +38,13 @@ public:
             false,
         };
 
-        req.valid = (msg.payload.price <= 0 || msg.payload.quantity <= 0) ? false : true;
+        if (msg.payload.orderType == +OrderType::LIMIT) {
+            req.valid =
+                (msg.payload.price <= 0 || msg.payload.quantity <= 0) ? false : true;
+        } else {
+            req.valid =
+                (msg.payload.price == 0 && msg.payload.quantity > 0) ? true : false;
+        }
 
         return req;
     }

@@ -31,6 +31,8 @@ public:
     void stop() noexcept {
         running_ = false;
 
+        messagesCv_.notify_all();
+
         try {
             if (recvThread_.joinable()) recvThread_.join();
         } catch (const std::exception& e) {
@@ -64,46 +66,47 @@ public:
         client_.sendLogout();
         net_.sendMessage();
     }
-
     void sendOrder(Qty qty, Price price, bool isBuy, bool isLimit) {
         client_.sendOrder(qty, price, isBuy, isLimit);
         net_.sendMessage();
     }
-
     void sendCancel(uint64_t orderID) {
         client_.sendCancel(orderID);
         net_.sendMessage();
     }
-    void sendModify(uint64_t orderID, uint64_t qty, Price price) {
-        client_.sendModify(orderID, qty, price);
+    void sendModify(uint64_t orderID, Qty newQty, Price newPrice) {
+        client_.sendModify(orderID, newQty, newPrice);
         net_.sendMessage();
     }
 
     void receiveLoop_() {
         while (running_) {
             try {
-                if (net_.waitReadable(50)) {
-                    if (net_.receiveMessage()) {
-                        if (!running_) break; // avoid race condition
-                        auto msgs = client_.processIncoming();
-                        for (auto& msg : msgs) {
-                            py::gil_scoped_acquire gil;
-                            py::dict pymsg = convertMessage_(msg);
-                            py::function cbCopy;
+                if (net_.waitReadable(50) && net_.receiveMessage() && running_) {
+                    auto msgs = client_.processIncoming();
 
-                            {
-                                std::lock_guard<std::mutex> lock(cbMutex_);
-                                cbCopy = messageCallback_;
-                            }
-                            messagesCv_.notify_all();
+                    for (auto& msg : msgs) {
+                        py::gil_scoped_acquire gil;
+                        py::dict pymsg = convertMessage_(msg);
 
-                            if (cbCopy && !cbCopy.is_none()) {
-                                try {
-                                    cbCopy(pymsg);
-                                } catch (py::error_already_set& e) {
-                                    std::cerr << "Python callback error: " << e.what()
-                                              << "\n";
-                                }
+                        py::function cbCopy;
+                        {
+                            std::lock_guard<std::mutex> lock(cbMutex_);
+                            cbCopy = messageCallback_;
+                        }
+
+                        {
+                            std::lock_guard<std::mutex> lock(msgMutex_);
+                            messages_.push_back(pymsg);
+                            messagesCv_.notify_one();
+                        }
+
+                        if (cbCopy && !cbCopy.is_none()) {
+                            try {
+                                cbCopy(pymsg);
+                            } catch (py::error_already_set& e) {
+                                std::cerr << "Python callback error: " << e.what()
+                                          << "\n";
                             }
                         }
                     }
@@ -123,26 +126,23 @@ public:
         }
     }
 
-    void flush_messages(int timeout_ms = 1000) {
+    py::list wait_for_messages(int timeout_ms = 1000) {
         std::unique_lock<std::mutex> lock(msgMutex_);
-        auto start = std::chrono::steady_clock::now();
-
-        while (!messages_.empty()) {
-            auto now = std::chrono::steady_clock::now();
-            auto elapsed =
-                std::chrono::duration_cast<std::chrono::milliseconds>(now - start)
-                    .count();
-            if (elapsed >= timeout_ms) break;
-
-            messagesCv_.wait_for(lock, std::chrono::milliseconds(timeout_ms - elapsed));
+        if (messages_.empty()) {
+            messagesCv_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
+                                 [this] { return !messages_.empty(); });
         }
+
+        py::list out;
+        for (auto& msg : messages_) out.append(msg);
+        messages_.clear();
+        return out;
     }
 
     py::dict convertMessage_(const client::IncomingMessageVariant& msg) {
         return std::visit(
             [](auto&& payload) -> py::dict {
                 using T = std::decay_t<decltype(payload)>;
-
                 if constexpr (std::is_same_v<T, server::HelloAckPayload>) {
                     return py::dict("type"_a = "HELLO_ACK",
                                     "clientId"_a = payload.serverClientID,
@@ -162,7 +162,7 @@ public:
                                     "server_order_id"_a = payload.serverOrderID,
                                     "status"_a = payload.status);
                 } else if constexpr (std::is_same_v<T, server::ModifyAckPayload>) {
-                    return py::dict("type"_a = "CANCEL_ACK",
+                    return py::dict("type"_a = "MODIFY_ACK",
                                     "server_client_id"_a = payload.serverClientID,
                                     "old_server_order_id"_a = payload.oldServerOrderID,
                                     "new_server_order_id"_a = payload.newServerOrderID,
@@ -193,13 +193,11 @@ public:
     std::thread hbThread_;
     std::mutex msgMutex_;
     std::vector<py::dict> messages_;
-
+    std::condition_variable messagesCv_;
     std::chrono::seconds intervalSeconds{2};
 
     std::mutex cbMutex_;
     py::function messageCallback_;
-
-    std::condition_variable messagesCv_;
 };
 
 PYBIND11_MODULE(miniexchange_client, m) {
@@ -214,11 +212,15 @@ PYBIND11_MODULE(miniexchange_client, m) {
         .def("send_hello", &PyClient::sendHello)
         .def("send_order", &PyClient::sendOrder)
         .def("send_cancel", &PyClient::sendCancel)
+        .def("send_modify", &PyClient::sendModify)
+        .def("send_logout", &PyClient::sendLogout)
         .def("on_message",
              [](PyClient& self, py::function cb) {
                  std::lock_guard<std::mutex> lock(self.cbMutex_);
                  self.messageCallback_ = std::move(cb);
              })
+        .def("wait_for_messages", &PyClient::wait_for_messages,
+             py::arg("timeout_ms") = 1000)
         .def("__enter__",
              [](PyClient& self) {
                  self.connect();
