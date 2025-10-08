@@ -113,7 +113,7 @@ class MiniExchangeClient(App):
             new_price = msg.get("new_price", "?")
             log.write(f"[bold blue]< MODIFY_ACK[/bold blue] "
                       f"| Status: {status} | Old Order ID: {old_order_id} "
-                      f"| New Server ID: {new_order_id} | New Price: {new_price} | "
+                      f"| New Order ID: {new_order_id} | New Price: {new_price} | "
                       f"New Quantity: {new_qty}")
             
         elif msg_type == "LOGOUT_ACK":

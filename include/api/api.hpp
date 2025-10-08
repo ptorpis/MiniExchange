@@ -66,7 +66,7 @@ private:
                                         statusCodes::LogoutStatus status);
     std::vector<uint8_t> makeTradeMsg_(Session& session, TradeEvent& trade, bool isBuyer);
     std::vector<uint8_t> makeOrderAck_(Session& session, OrderRequest& req,
-                                       std::optional<OrderID> orderID, Timestamp ts,
+                                       std::optional<OrderID> orderID,
                                        statusCodes::OrderAckStatus status);
     std::vector<uint8_t> makeCancelAck_(Session& session, const OrderID orderID,
                                         statusCodes::CancelAckStatus status);

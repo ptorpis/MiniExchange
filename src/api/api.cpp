@@ -69,25 +69,22 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
 
     if (!req.valid) {
         responses.push_back(
-            {session.FD,
-             makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
-                           statusCodes::OrderAckStatus::INVALID)});
+            {session.FD, makeOrderAck_(session, req, std::nullopt,
+                                       statusCodes::OrderAckStatus::INVALID)});
         return responses;
     }
 
     if (!session.authenticated) {
         responses.push_back(
-            {session.FD,
-             makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
-                           statusCodes::OrderAckStatus::NOT_AUTHENTICATED)});
+            {session.FD, makeOrderAck_(session, req, std::nullopt,
+                                       statusCodes::OrderAckStatus::NOT_AUTHENTICATED)});
         return responses;
     }
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
         responses.push_back(
-            {session.FD,
-             makeOrderAck_(session, req, std::nullopt, utils::getCurrentTimestampMicros(),
-                           statusCodes::OrderAckStatus::OUT_OF_ORDER)});
+            {session.FD, makeOrderAck_(session, req, std::nullopt,
+                                       statusCodes::OrderAckStatus::OUT_OF_ORDER)});
         return responses;
     }
 
@@ -95,13 +92,8 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
 
     MatchResult result = engine_.processOrder(req);
 
-    // std::cout << "Order Placed: "
-    //           << ((req.side == OrderSide::BUY) ? "BUY - client: " : "SELL - client: ")
-    //           << req.clientID << " : " << req.qty << " @ " << req.price << " ("
-    //           << result.orderID << ")" << std::endl;
-
     responses.push_back(
-        {session.FD, makeOrderAck_(session, req, result.orderID, result.ts,
+        {session.FD, makeOrderAck_(session, req, result.orderID,
                                    statusCodes::OrderAckStatus::ACCEPTED)});
 
     for (auto& trade : result.tradeVec) {
@@ -182,10 +174,9 @@ MiniExchangeAPI::handleModify(Session& session,
 
     if (modResult.event.status == statusCodes::ModifyStatus::ACCEPTED) {
         responses.push_back(
-            {session.FD,
-             makeModifyAck_(session, msg.payload.serverOrderID, msg.payload.newQty,
-                            msg.payload.newPrice, modResult.event.newOrderID,
-                            modResult.event.status)});
+            {session.FD, makeModifyAck_(session, msg.payload.serverOrderID,
+                                        modResult.event.newOrderID, msg.payload.newQty,
+                                        msg.payload.newPrice, modResult.event.status)});
 
         if (!modResult.result) {
             return responses;
@@ -209,20 +200,18 @@ MiniExchangeAPI::handleModify(Session& session,
     } else {
 
         responses.push_back(
-            {session.FD,
-             makeModifyAck_(session, modResult.event.oldOrderID, msg.payload.newQty,
-                            msg.payload.newPrice, modResult.event.newOrderID,
-                            modResult.event.status)});
+            {session.FD, makeModifyAck_(session, modResult.event.oldOrderID,
+                                        modResult.event.newOrderID, msg.payload.newQty,
+                                        msg.payload.newPrice, modResult.event.status)});
     }
     return responses;
 }
 
 std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session, OrderRequest& req,
                                                     std::optional<OrderID> orderID,
-                                                    Timestamp ts,
                                                     statusCodes::OrderAckStatus status) {
 
-    auto ackMsg = server::MessageFactory::makeOrderAck(session, req, orderID, status, ts);
+    auto ackMsg = server::MessageFactory::makeOrderAck(session, req, orderID, status);
     auto serialized =
         serializeMessage(MessageType::ORDER_ACK, ackMsg.payload, ackMsg.header);
     auto hmac = computeHMAC_(session.hmacKey, serialized.data(),

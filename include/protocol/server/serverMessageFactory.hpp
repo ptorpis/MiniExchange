@@ -51,7 +51,7 @@ struct MessageFactory {
 
     static Message<server::OrderAckPayload>
     makeOrderAck(Session& session, OrderRequest& req, std::optional<OrderID> orderID,
-                 statusCodes::OrderAckStatus status, Timestamp ts) {
+                 statusCodes::OrderAckStatus status) {
 
         Message<server::OrderAckPayload> ack;
         Timestamp currentTime = utils::getCurrentTimestampMicros();

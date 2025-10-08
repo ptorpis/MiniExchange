@@ -207,7 +207,7 @@ private:
                     break;
                 }
 
-                oss << "\n";
+                oss << std::dec << "\n";
                 out_ << oss.str();
             }
 
