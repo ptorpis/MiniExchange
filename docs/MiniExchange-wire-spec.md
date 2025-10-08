@@ -36,7 +36,7 @@ All messages start with this 16 byte header:
 - Message Type: `uint8_t` (see [table](#message-types) for all the message codes)
 - Protocol version flag: `uint8_t` [`0x01`=v1.0]
 - Reserved flags: `uint8_t[2]`
-- Payload Lenght (bytes): `uint16_t`
+- Payload Length (bytes): `uint16_t`
 - Client Message Sequence Number: `uint32_t`
 - Server Message Sequence Number: `uint32_t`
 - Reserved/Padding: `uint8_t[2]`
@@ -82,11 +82,11 @@ v1.0 | 1
 | **LOGOUT_ACK**             | 5 / `0x05`     | server -> client| 48       | Server Client ID `uint64_t` <br> Status `uint8_t` <br> Padding `uint8_t[7]` <br> HMAC: `uint8_t[32]`                                                                                                                                                           | 64           |
 | **SESSION_TIMEOUT**        | 6 / `0x06`     | server -> client| 48       | Server Client ID `uint64_t` <br> Server Time `uint64_t` <br> HMAC: `uint8_t[32]`                                                                                                                                                           | 64           |
 | **NEW_ORDER**              | 10 / `0x0A`    | client -> server | 80      | Server Client ID `uint64_t` <br> Instrument ID `uint32_t` <br> Order Side `uint8_t` <br> Order Tyoe `uint8_t` <br> Quantity `int64_t` <br> Price `int64_t` <br> Time-in-Force `uint8_t` <br> Good-till Date `uint64_t` <br> Padding `uint8_t[9]` <br> HMAC `uint8_t[32]`| 96           |
-| **ORDER_ACK**              | 11 / `0x0B`    | server - client | 80       | Server Client ID `uint64_t` <br> Instrument ID `uint32_t` <br>Server Order ID `uint64_t` <br> Status `uint8_t` <br> Reject Flag `uint8_t` <br> Accepted Price `int64_t` <br> Server Time `uint64_t` <br> Latency `uint32_t` <br> Padding `uint8_t[6]`<br> HMAC `uint8_t[32]`| 96           |
+| **ORDER_ACK**              | 11 / `0x0B`    | server - client | 80       | Server Client ID `uint64_t` <br> Instrument ID `uint32_t` <br>Server Order ID `uint64_t` <br> Status `uint8_t` <br> Accepted Price `int64_t` <br> Accepted Quantity `int64_t` <br> Server Time `uint64_t` <br>  Padding `uint8_t[3]`<br> HMAC `uint8_t[32]`| 96           |
 | **CANCEL_ORDER**           | 12 / `0x0C`    | client - server | 64       | Server Client ID `uint64_t`<br> Server Order ID: `uint64_t` <br> Padding `uint8_t[16]` <br> HMAC: `uint8_t[32]`                                                                                                           | 80           |
 | **CANCEL_ACK**             | 13 / `0x0D`    | server - client | 64       | Server Client ID `uint64_t` <br> Server Order ID: `uint64_t` <br> Status: `uint8_t` <br> Padding: `uint8_t[15]` <br> HMAC: `uint8_t[32]`                            | 80           |
 | **MODIFY_ORDER**           | 14 / `0x0E`    | client - server | 64       | Server Client ID `uint64_t` <br>Server Order ID: `uint64_t` <br> New Quantity: `int64_t` <br> New Price `uint64_t` <br> HMAC: `uint8_t[32]`                                                    | 80           |
-| **MODIFY_ACK**             | 15 / `0x0F`    | server - client | 64       | Server Client ID `uint64_t` <br> Old Server Order ID: `uint64_t` <br> New Server Order ID: `uint64_t` <br> Status: `uint8_t` <br> Padding: `uint8_t[7]` <br> HMAC: `uint8_t[32]`                             | 64           |
+| **MODIFY_ACK**             | 15 / `0x0F`    | server - client | 80       | Server Client ID `uint64_t` <br> Old Server Order ID: `uint64_t` <br> New Server Order ID: `uint64_t` <br> New Quantity: `int64_t` <br> New Price `int64_t` <br> Status: `uint8_t` <br> Padding: `uint8_t[7]` <br> HMAC: `uint8_t[32]`                             | 96           |
 | **TRADE**                   | 20 / `0x14`    | server - client | 80      | Server Client ID: `uint64_t` <br> Trade ID: `uint64_t` <br> Server Order ID: `uint64_t` <br> Filled Qty: `int64_t` <br> Filled Price: `int64_t` <br> Timestamp (us): `uint64_t` <br> HMAC: `uint8_t[32]` | 96           |
 | **RESEND_REQUEST**         | 40 / `0x28`    | both ways       | 48       | Start Seq: `uint32_t` <br> End Seq: `uint32_t` <br> Padding: `uint8_t[8]` <br> HMAC: `uint8_t[32]`                                                                                         | 64           |
 | **RESEND_RESPONSE**        | 41 / `0x29`    | both ways       | variable | Replayed messages (same format as originals)                                                                                                                                               | variable     |

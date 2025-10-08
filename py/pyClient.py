@@ -83,15 +83,14 @@ class MiniExchangeClient(App):
             status = msg.get("status", "unknown")
             order_id = msg.get("server_order_id", "?")
             price = msg.get("accepted_price", "?")
-            latency = msg.get("latency", "?")
+            qty = msg.get("qty", "?")
             if price == 0:
                 log.write(f"[bold yellow]< ORDER_ACK[/bold yellow] |"
-                          f" Status: {status} | Order ID: {order_id} | "
-                          f"Latency: {latency}μs")
+                          f" Status: {status} | Order ID: {order_id}")
             else:
                 log.write(f"[bold yellow]< ORDER_ACK[/bold yellow] |"
-                          f" Status: {status} | Order ID: {order_id} |"
-                           f" Price: {price} | Latency: {latency}μs")
+                          f" Status: {status} | Order ID: {order_id} | "
+                          f"Price: {price} | Quantity: {qty}")
             
         elif msg_type == "TRADE":
             trade_id = msg.get("trade_id", "?")
@@ -110,9 +109,12 @@ class MiniExchangeClient(App):
             status = msg.get("status", "?")
             old_order_id = msg.get("old_server_order_id", "?")
             new_order_id = msg.get("new_server_order_id", "?")
+            new_qty = msg.get("new_qty", "?")
+            new_price = msg.get("new_price", "?")
             log.write(f"[bold blue]< MODIFY_ACK[/bold blue] "
                       f"| Status: {status} | Old Order ID: {old_order_id} "
-                      f"| New Server ID: {new_order_id}")
+                      f"| New Server ID: {new_order_id} | New Price: {new_price} | "
+                      f"New Quantity: {new_qty}")
             
         elif msg_type == "LOGOUT_ACK":
             status = msg.get("status", "unknown")
@@ -157,7 +159,7 @@ class MiniExchangeClient(App):
             elif cmd == "connect":
                 if self.client.connect(): # type: ignore
                     log.write("[dim]Connecting to MiniExchange[/dim]")
-                    self.client.start()
+                    self.client.start() # type: ignore
                 else:
                     log.write("[bold red] Failed to Connect[/bold red]")
                 

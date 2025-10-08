@@ -5,12 +5,12 @@ FetchContent_Declare(
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 FetchContent_MakeAvailable(googletest)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE) # quick fix for dev warning
 
 add_executable(UnitTests
-    # test cpp files come here
     engineTests.cpp
-    # protocolHandlingTests.cpp
     protocolTests.cpp
 )
 

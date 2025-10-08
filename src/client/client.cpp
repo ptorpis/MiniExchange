@@ -3,6 +3,7 @@
 #include "protocol/client/clientMessages.hpp"
 #include "protocol/server/serverMessages.hpp"
 #include "protocol/traits.hpp"
+#include "utils/utils.hpp"
 #include <arpa/inet.h>
 #include <cassert>
 #include <cstring>
@@ -48,7 +49,7 @@ void Client::sendModify(OrderID orderID, Qty newQty, Price newPrice) {
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.serverOrderID = orderID;
 
-    msg.payload.newQuantity = newQty;
+    msg.payload.newQty = newQty;
     msg.payload.newPrice = newPrice;
     sendMessage(msg);
 }
@@ -167,6 +168,14 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
                 return std::nullopt;
             }
             session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+
+            if (auto msg = msgOpt.value();
+                msg.payload.status == +statusCodes::OrderAckStatus::ACCEPTED &&
+                msg.payload.acceptedPrice != 0) {
+                addOutstandingOrder(msg.payload.serverOrderID, msg.payload.acceptedQty,
+                                    msg.payload.acceptedPrice);
+            }
+
             return makeIncomingVariant_(msgOpt.value(), totalSize);
         } else {
             return std::nullopt;
@@ -198,6 +207,10 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
 
             session_.serverSqn = msgOpt.value().header.serverMsgSqn;
             session_.exeID++;
+
+            fillOutstandingOrder(msgOpt.value().payload.serverOrderID,
+                                 msgOpt.value().payload.filledQty);
+
             return makeIncomingVariant_(msgOpt.value(), totalSize);
         } else {
             return std::nullopt;
@@ -229,6 +242,12 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             }
 
             session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+
+            if (auto msg = msgOpt.value();
+                msg.payload.status == +statusCodes::CancelAckStatus::ACCEPTED) {
+                removeOutstandingOrder(msg.payload.serverOrderID);
+            }
+
             return makeIncomingVariant_(msgOpt.value(), totalSize);
         } else {
             return std::nullopt;
@@ -260,6 +279,14 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             }
 
             session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+
+            if (auto msg = msgOpt.value();
+                msg.payload.status == +statusCodes::ModifyStatus::ACCEPTED) {
+                modifyOutstandingOrder(msg.payload.oldServerOrderID,
+                                       msg.payload.newServerOrderID, msg.payload.newQty,
+                                       msg.payload.newPrice);
+            }
+
             return makeIncomingVariant_(msgOpt.value(), totalSize);
         } else {
             return std::nullopt;
@@ -345,4 +372,33 @@ void Client::sendHeartbeat() {
 
     session_.sendBuffer.insert(session_.sendBuffer.end(), serialized.begin(),
                                serialized.end());
+}
+
+void Client::addOutstandingOrder(OrderID orderID, Qty qty, Price price) {
+    OutstandingOrder order{std::chrono::steady_clock::now(), orderID, qty, price};
+    outstandingOrders_[orderID] = order;
+}
+
+void Client::removeOutstandingOrder(OrderID orderID) {
+    auto it = outstandingOrders_.find(orderID);
+    if (it == outstandingOrders_.end()) {
+        return;
+    }
+    outstandingOrders_.erase(it);
+}
+void Client::modifyOutstandingOrder(OrderID orderID, OrderID newOrderID, Qty newQty,
+                                    Price newPrice) {
+    if (auto it = outstandingOrders_.find(orderID); it != outstandingOrders_.end()) {
+        it->second.qty = newQty;
+        it->second.price = newPrice;
+        it->second.id = newOrderID;
+    }
+}
+
+void Client::fillOutstandingOrder(OrderID orderID, Qty filledQty) {
+    if (auto it = outstandingOrders_.find(orderID); it != outstandingOrders_.end()) {
+        if ((it->second.qty -= filledQty) == 0) {
+            removeOutstandingOrder(orderID);
+        }
+    }
 }

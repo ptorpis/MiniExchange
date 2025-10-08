@@ -54,8 +54,15 @@ private:
     TradeID exeID_{0};
 };
 
-struct ClientSession {
+struct OutstandingOrder {
+    std::chrono::steady_clock::time_point created;
+    OrderID id;
+    Qty qty;
+    Price price;
+};
 
+class ClientSession {
+public:
     uint32_t serverSqn{0};
     uint32_t clientSqn{0};
 

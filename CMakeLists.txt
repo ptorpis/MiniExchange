@@ -6,22 +6,43 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # --- Build type ---
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Debug")
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type (Debug, Release, RelWithDebInfo, MinSizeRel)" FORCE)
 endif()
 
-# --- Option for AddressSanitizer ---
+
+# --- Options ---
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(ENABLE_LTO "Enable Link Time Optimization (IPO/LTO)" OFF)
 
 # --- Compiler flags ---
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-Wall -Wextra -Wpedantic -Wshadow)
+
+    # Default debug flags
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+
+    # Optimized builds
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -march=native")
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG -march=native")
+
     if(ENABLE_ASAN)
         message(STATUS "Building with AddressSanitizer")
         add_compile_options(-g -O1 -fsanitize=address -fno-omit-frame-pointer)
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
     else()
-        message(STATUS "Building regular Debug")
-        add_compile_options(-g -O0)
+        message(STATUS "Building ${CMAKE_BUILD_TYPE} build")
+    endif()
+endif()
+
+# --- LTO (Link Time Optimization) ---
+if(ENABLE_LTO)
+    include(CheckIPOSupported)
+    check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+    if(ipo_supported)
+        message(STATUS "LTO (IPO) is supported and enabled")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    else()
+        message(WARNING "LTO not supported: ${ipo_error}")
     endif()
 endif()
 
@@ -49,21 +70,21 @@ target_include_directories(MiniExchangeCore PUBLIC ${PROJECT_SOURCE_DIR}/include
 find_package(OpenSSL REQUIRED)
 target_link_libraries(MiniExchangeCore PUBLIC OpenSSL::Crypto OpenSSL::SSL)
 
-# --- Client ---
+# --- Client library ---
 add_library(MiniExchangeClient STATIC ${CLIENT_SRC})
 target_include_directories(MiniExchangeClient PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(MiniExchangeClient PUBLIC MiniExchangeCore)
 
-# --- Executables ---
+# --- Executable ---
 add_executable(MiniExchange "${CMAKE_SOURCE_DIR}/src/main.cpp")
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
 
 # --- Python module ---
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 find_package(pybind11 REQUIRED)
+
 set_target_properties(MiniExchangeCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_target_properties(MiniExchangeClient PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 
 pybind11_add_module(miniexchange_client src/py/pyClient.cpp)
 target_include_directories(miniexchange_client PRIVATE ${PROJECT_SOURCE_DIR}/include)

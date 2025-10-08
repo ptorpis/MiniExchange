@@ -1,8 +1,6 @@
 .clang-format
-build/
+build*/
 .vscode/
-build-debug/
-build-asan/
 notes.txt
 *.log
 __pycache__/

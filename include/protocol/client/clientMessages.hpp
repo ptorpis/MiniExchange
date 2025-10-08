@@ -102,14 +102,14 @@ struct CancelOrderPayload {
 struct ModifyOrderPayload {
     uint64_t serverClientID;
     uint64_t serverOrderID;
-    int64_t newQuantity;
+    int64_t newQty;
     int64_t newPrice;
     uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverOrderID);
-        func(newQuantity);
+        func(newQty);
         func(newPrice);
         func(hmac);
     }

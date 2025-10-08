@@ -65,6 +65,12 @@ public:
     }
     bool isRunning() const { return running_; }
 
+    void addOutstandingOrder(OrderID orderID, Qty qty, Price price);
+    void removeOutstandingOrder(OrderID orderID);
+    void modifyOutstandingOrder(OrderID orderID, OrderID newOrderID, Qty newQty,
+                                Price newPrice);
+    void fillOutstandingOrder(OrderID orderID, Qty filledQty);
+
 private:
     std::array<uint8_t, 16> APIKey_;
 
@@ -85,6 +91,8 @@ private:
     ClientSession session_;
     SendFn sendFn_;
     bool running_{true};
+
+    std::unordered_map<OrderID, OutstandingOrder> outstandingOrders_;
 };
 
 template <typename Payload> void Client::sendMessage(Message<Payload> msg) {

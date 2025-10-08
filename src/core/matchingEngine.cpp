@@ -52,34 +52,37 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
                                          const Qty newQty, const Price newPrice) {
     auto it = orderMap_.find(orderID);
     if (it == orderMap_.end()) {
-        return {ModifyEvent{clientID, orderID, 0, statusCodes::ModifyStatus::NOT_FOUND},
+        return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
+                            statusCodes::ModifyStatus::NOT_FOUND},
                 std::nullopt};
     }
 
     auto& order = it->second;
     if (order->clientID != clientID) {
-        return {ModifyEvent{clientID, orderID, 0, statusCodes::ModifyStatus::INVALID},
+        return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
+                            statusCodes::ModifyStatus::INVALID},
                 std::nullopt};
     }
 
     if (newQty <= 0 || newPrice <= 0) {
-        return {ModifyEvent{clientID, orderID, 0, statusCodes::ModifyStatus::INVALID},
+        return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
+                            statusCodes::ModifyStatus::INVALID},
                 std::nullopt};
     }
 
     if (newPrice == order->price && newQty == order->qty) {
-        return {
-            ModifyEvent{clientID, orderID, orderID, statusCodes::ModifyStatus::ACCEPTED},
-            std::nullopt};
+        return {ModifyEvent{clientID, orderID, orderID, newQty, newPrice,
+                            statusCodes::ModifyStatus::ACCEPTED},
+                std::nullopt};
     }
 
     if (newPrice == order->price && newQty < order->qty) {
         order->qty = newQty;
         order->status = statusCodes::OrderStatus::MODIFIED;
 
-        return {
-            ModifyEvent{clientID, orderID, orderID, statusCodes::ModifyStatus::ACCEPTED},
-            std::nullopt};
+        return {ModifyEvent{clientID, orderID, orderID, newQty, newPrice,
+                            statusCodes::ModifyStatus::ACCEPTED},
+                std::nullopt};
     }
 
     OrderSide tmpSide = order->side;
@@ -89,7 +92,8 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
     Timestamp tmpGoodTill = order->goodTill;
 
     if (!cancelOrder(clientID, orderID)) {
-        return {ModifyEvent{clientID, orderID, 0, statusCodes::ModifyStatus::NOT_FOUND},
+        return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
+                            statusCodes::ModifyStatus::NOT_FOUND},
                 std::nullopt};
     }
 
@@ -99,7 +103,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
         clientID, tmpSide, tmpType, tmpInstrID, newQty, newPrice, tmpTif, tmpGoodTill);
 
     int sideIdx = (newOrder->side == OrderSide::BUY ? 0 : 1);
-    int typeIdx = (newOrder->type == OrderType::LIMIT ? 0 : 1);
+    int typeIdx = 0; // always limit
 
     OrderID tmpNewOrderID = newOrder->orderID;
 
@@ -108,8 +112,8 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
     // now the newOrder has been moved into the book, and ownership has been handed over
 
-    ModifyEvent modEvent{clientID, orderID, tmpNewOrderID,
-                         statusCodes::ModifyStatus::ACCEPTED};
+    ModifyEvent modEvent{clientID, orderID,  tmpNewOrderID,
+                         newQty,   newPrice, statusCodes::ModifyStatus::ACCEPTED};
 
     logger_->log(modEvent, matchResult, COMPONENT);
 

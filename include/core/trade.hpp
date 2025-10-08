@@ -21,11 +21,13 @@ struct MatchResult {
     std::vector<TradeEvent> tradeVec;
 };
 
-// if the status is not accepcted, the order IDs = 0
+// if the status is not accepted, the order IDs = 0
 struct ModifyEvent {
     uint64_t serverClientID;
     uint64_t oldOrderID;
     uint64_t newOrderID;
+    Qty newQty;
+    Price newPrice;
     statusCodes::ModifyStatus status;
 };
 

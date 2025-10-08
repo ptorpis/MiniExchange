@@ -157,31 +157,35 @@ MiniExchangeAPI::handleModify(Session& session,
     // new order id is automatically 0 if the status != accepted
     if (msg.payload.serverClientID != session.serverClientID) {
         responses.push_back(
-            {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
-                                        statusCodes::ModifyStatus::INVALID)});
+            {session.FD,
+             makeModifyAck_(session, msg.payload.serverOrderID, 0, msg.payload.newQty,
+                            msg.payload.newPrice, statusCodes::ModifyStatus::INVALID)});
     }
 
     if (!session.authenticated) {
         responses.push_back(
             {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
+                                        msg.payload.newQty, msg.payload.newPrice,
                                         statusCodes::ModifyStatus::NOT_AUTHENTICATED)});
     }
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
         responses.push_back(
             {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
+                                        msg.payload.newQty, msg.payload.newPrice,
                                         statusCodes::ModifyStatus::OUT_OF_ORDER)});
     }
 
     ModifyResult modResult =
         engine_.modifyOrder(msg.payload.serverClientID, msg.payload.serverOrderID,
-                            msg.payload.newQuantity, msg.payload.newPrice);
+                            msg.payload.newQty, msg.payload.newPrice);
 
     if (modResult.event.status == statusCodes::ModifyStatus::ACCEPTED) {
         responses.push_back(
             {session.FD,
-             makeModifyAck_(session, msg.payload.serverOrderID,
-                            modResult.event.newOrderID, modResult.event.status)});
+             makeModifyAck_(session, msg.payload.serverOrderID, msg.payload.newQty,
+                            msg.payload.newPrice, modResult.event.newOrderID,
+                            modResult.event.status)});
 
         if (!modResult.result) {
             return responses;
@@ -206,8 +210,9 @@ MiniExchangeAPI::handleModify(Session& session,
 
         responses.push_back(
             {session.FD,
-             makeModifyAck_(session, modResult.event.oldOrderID,
-                            modResult.event.newOrderID, modResult.event.status)});
+             makeModifyAck_(session, modResult.event.oldOrderID, msg.payload.newQty,
+                            msg.payload.newPrice, modResult.event.newOrderID,
+                            modResult.event.status)});
     }
     return responses;
 }
@@ -280,10 +285,11 @@ MiniExchangeAPI::makeCancelAck_(Session& session, const OrderID orderID,
 }
 
 std::vector<uint8_t> MiniExchangeAPI::makeModifyAck_(Session& session, OrderID oldOrderID,
-                                                     OrderID newOrderID,
+                                                     OrderID newOrderID, Qty newQty,
+                                                     Price newPrice,
                                                      statusCodes::ModifyStatus status) {
-    Message<server::ModifyAckPayload> msg =
-        server::MessageFactory::makeModifyAck(session, oldOrderID, newOrderID, status);
+    Message<server::ModifyAckPayload> msg = server::MessageFactory::makeModifyAck(
+        session, oldOrderID, newOrderID, newQty, newPrice, status);
 
     auto serialized = serializeMessage<server::ModifyAckPayload>(MessageType::MODIFY_ACK,
                                                                  msg.payload, msg.header);

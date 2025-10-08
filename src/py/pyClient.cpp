@@ -155,7 +155,7 @@ public:
                                     "status"_a = payload.status,
                                     "accepted_price"_a = payload.acceptedPrice,
                                     "server_time"_a = payload.serverTime,
-                                    "latency"_a = payload.latency);
+                                    "qty"_a = payload.acceptedQty);
                 } else if constexpr (std::is_same_v<T, server::CancelAckPayload>) {
                     return py::dict("type"_a = "CANCEL_ACK",
                                     "server_client_id"_a = payload.serverClientID,
@@ -166,6 +166,8 @@ public:
                                     "server_client_id"_a = payload.serverClientID,
                                     "old_server_order_id"_a = payload.oldServerOrderID,
                                     "new_server_order_id"_a = payload.newServerOrderID,
+                                    "new_qty"_a = payload.newQty,
+                                    "new_price"_a = payload.newPrice,
                                     "status"_a = payload.status);
                 } else if constexpr (std::is_same_v<T, server::TradePayload>) {
                     return py::dict(

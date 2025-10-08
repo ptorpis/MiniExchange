@@ -60,7 +60,7 @@ struct MessageFactory {
         ack.payload.instrumentID = req.instrumentID;
         ack.payload.status = +(status);
         ack.payload.serverTime = currentTime;
-        ack.payload.latency = static_cast<int32_t>(currentTime - ts);
+        ack.payload.acceptedQty = (req.type == OrderType::LIMIT) ? req.qty : 0;
         if (!orderID) {
             ack.payload.serverOrderID = 0x00;
             ack.payload.acceptedPrice = 0;
@@ -113,12 +113,14 @@ struct MessageFactory {
     }
 
     static Message<server::ModifyAckPayload>
-    makeModifyAck(Session& session, OrderID oldOrderID, OrderID newOrderID,
-                  statusCodes::ModifyStatus status) {
+    makeModifyAck(Session& session, OrderID oldOrderID, OrderID newOrderID, Qty newQty,
+                  Price newPrice, statusCodes::ModifyStatus status) {
         Message<server::ModifyAckPayload> msg;
         msg.header = makeHeader<server::ModifyAckPayload>(session);
         msg.payload.oldServerOrderID = oldOrderID;
         msg.payload.newServerOrderID = newOrderID;
+        msg.payload.newQty = newQty;
+        msg.payload.newPrice = newPrice;
         msg.payload.status = +(status);
 
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);

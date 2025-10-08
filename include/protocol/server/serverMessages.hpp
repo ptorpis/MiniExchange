@@ -56,9 +56,9 @@ struct OrderAckPayload {
     uint64_t serverOrderID;
     uint8_t status;
     int64_t acceptedPrice;
+    int64_t acceptedQty;
     uint64_t serverTime;
-    uint32_t latency;
-    uint8_t padding[7];
+    uint8_t padding[3];
     uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
@@ -67,8 +67,8 @@ struct OrderAckPayload {
         func(serverOrderID);
         func(status);
         func(acceptedPrice);
+        func(acceptedQty);
         func(serverTime);
-        func(latency);
         func(padding);
         func(hmac);
     }
@@ -98,6 +98,8 @@ struct ModifyAckPayload {
     uint64_t serverClientID;
     uint64_t oldServerOrderID;
     uint64_t newServerOrderID;
+    int64_t newQty;
+    int64_t newPrice;
     uint8_t status;
     uint8_t padding[7];
     uint8_t hmac[32];

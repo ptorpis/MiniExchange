@@ -72,6 +72,6 @@ private:
                                         statusCodes::CancelAckStatus status);
 
     std::vector<uint8_t> makeModifyAck_(Session& session, OrderID oldOrderID,
-                                        OrderID newOrderID,
+                                        OrderID newOrderID, Qty newQty, Price newPrice,
                                         statusCodes::ModifyStatus status);
 };
