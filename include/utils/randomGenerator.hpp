@@ -18,7 +18,7 @@ public:
         return dist(rng_);
     }
 
-    Price randomQty(Price min, Price max) {
+    Price randomPrice(Price min, Price max) {
         std::uniform_int_distribution<Price> dist(min, max);
         return dist(rng_);
     }
