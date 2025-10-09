@@ -28,7 +28,7 @@ struct ModifyEvent {
     uint64_t newOrderID;
     Qty newQty;
     Price newPrice;
-    statusCodes::ModifyStatus status;
+    statusCodes::ModifyAckStatus status;
 };
 
 struct ModifyResult {

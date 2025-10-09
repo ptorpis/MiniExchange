@@ -53,26 +53,26 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
     auto it = orderMap_.find(orderID);
     if (it == orderMap_.end()) {
         return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
-                            statusCodes::ModifyStatus::NOT_FOUND},
+                            statusCodes::ModifyAckStatus::NOT_FOUND},
                 std::nullopt};
     }
 
     auto& order = it->second;
     if (order->clientID != clientID) {
         return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
-                            statusCodes::ModifyStatus::INVALID},
+                            statusCodes::ModifyAckStatus::INVALID},
                 std::nullopt};
     }
 
     if (newQty <= 0 || newPrice <= 0) {
         return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
-                            statusCodes::ModifyStatus::INVALID},
+                            statusCodes::ModifyAckStatus::INVALID},
                 std::nullopt};
     }
 
     if (newPrice == order->price && newQty == order->qty) {
         return {ModifyEvent{clientID, orderID, orderID, newQty, newPrice,
-                            statusCodes::ModifyStatus::ACCEPTED},
+                            statusCodes::ModifyAckStatus::ACCEPTED},
                 std::nullopt};
     }
 
@@ -81,7 +81,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
         order->status = statusCodes::OrderStatus::MODIFIED;
 
         return {ModifyEvent{clientID, orderID, orderID, newQty, newPrice,
-                            statusCodes::ModifyStatus::ACCEPTED},
+                            statusCodes::ModifyAckStatus::ACCEPTED},
                 std::nullopt};
     }
 
@@ -93,7 +93,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
     if (!cancelOrder(clientID, orderID)) {
         return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
-                            statusCodes::ModifyStatus::NOT_FOUND},
+                            statusCodes::ModifyAckStatus::NOT_FOUND},
                 std::nullopt};
     }
 
@@ -113,7 +113,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
     // now the newOrder has been moved into the book, and ownership has been handed over
 
     ModifyEvent modEvent{clientID, orderID,  tmpNewOrderID,
-                         newQty,   newPrice, statusCodes::ModifyStatus::ACCEPTED};
+                         newQty,   newPrice, statusCodes::ModifyAckStatus::ACCEPTED};
 
     logger_->log(modEvent, matchResult, COMPONENT);
 

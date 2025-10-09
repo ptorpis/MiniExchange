@@ -103,8 +103,8 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             session_.serverSqn = msgOpt.value().header.serverMsgSqn;
             session_.serverClientID = msgOpt.value().payload.serverClientID;
 
-            if (statusCodes::HelloStatus::ACCEPTED ==
-                static_cast<statusCodes::HelloStatus>(msgOpt.value().payload.status)) {
+            if (statusCodes::HelloAckStatus::ACCEPTED ==
+                static_cast<statusCodes::HelloAckStatus>(msgOpt.value().payload.status)) {
                 session_.authenticated = true;
                 return makeIncomingVariant_(msgOpt.value(), totalSize);
             } else {
@@ -136,8 +136,9 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             }
             session_.clientSqn = msgOpt.value().header.clientMsgSqn;
 
-            if (statusCodes::LogoutStatus::ACCEPTED ==
-                static_cast<statusCodes::LogoutStatus>(msgOpt.value().payload.status)) {
+            if (statusCodes::LogoutAckStatus::ACCEPTED ==
+                static_cast<statusCodes::LogoutAckStatus>(
+                    msgOpt.value().payload.status)) {
                 session_.authenticated = false;
             }
             return makeIncomingVariant_(msgOpt.value(), totalSize);
@@ -281,7 +282,7 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             session_.serverSqn = msgOpt.value().header.serverMsgSqn;
 
             if (auto msg = msgOpt.value();
-                msg.payload.status == +statusCodes::ModifyStatus::ACCEPTED) {
+                msg.payload.status == +statusCodes::ModifyAckStatus::ACCEPTED) {
                 modifyOutstandingOrder(msg.payload.oldServerOrderID,
                                        msg.payload.newServerOrderID, msg.payload.newQty,
                                        msg.payload.newPrice);

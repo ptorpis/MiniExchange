@@ -20,7 +20,7 @@ template <typename Payload> inline MessageHeader makeHeader(Session& session) {
 
 struct MessageFactory {
     static Message<server::HelloAckPayload>
-    makeHelloAck(Session& session, statusCodes::HelloStatus status) {
+    makeHelloAck(Session& session, statusCodes::HelloAckStatus status) {
         Message<server::HelloAckPayload> msg;
 
         msg.header = makeHeader<server::HelloAckPayload>(session);
@@ -35,7 +35,7 @@ struct MessageFactory {
     }
 
     static Message<server::LogoutAckPayload>
-    makeLoutAck(Session& session, statusCodes::LogoutStatus status) {
+    makeLoutAck(Session& session, statusCodes::LogoutAckStatus status) {
         Message<server::LogoutAckPayload> msg;
 
         msg.header = makeHeader<server::LogoutAckPayload>(session);
@@ -114,7 +114,7 @@ struct MessageFactory {
 
     static Message<server::ModifyAckPayload>
     makeModifyAck(Session& session, OrderID oldOrderID, OrderID newOrderID, Qty newQty,
-                  Price newPrice, statusCodes::ModifyStatus status) {
+                  Price newPrice, statusCodes::ModifyAckStatus status) {
         Message<server::ModifyAckPayload> msg;
         msg.header = makeHeader<server::ModifyAckPayload>(session);
         msg.payload.oldServerOrderID = oldOrderID;

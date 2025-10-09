@@ -174,7 +174,7 @@ TEST_F(MatchingEngineTest, CancelOrderNotFound) {
 
 TEST_F(MatchingEngineTest, ModifyOrderNotFound) {
     ModifyResult modRes = engine->modifyOrder(1, 9999, 100, 200);
-    EXPECT_EQ(modRes.event.status, statusCodes::ModifyStatus::NOT_FOUND);
+    EXPECT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::NOT_FOUND);
 }
 
 TEST_F(MatchingEngineTest, LimitDoesNotCross) {
@@ -195,7 +195,7 @@ TEST_F(MatchingEngineTest, ModifyReduceQty) {
     MatchResult res = engine->processOrder(req);
     ModifyResult modRes = engine->modifyOrder(1, res.orderID, 99, 200);
 
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::ACCEPTED);
     std::optional<const Order*> order = engine->getOrder(res.orderID);
 
     // check if the modification was in-place
@@ -211,7 +211,7 @@ TEST_F(MatchingEngineTest, ModifyIncreaseQty) {
     MatchResult res = engine->processOrder(req);
     ModifyResult modRes = engine->modifyOrder(1, res.orderID, 101, 200);
 
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::ACCEPTED);
     ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
     std::optional<const Order*> order = engine->getOrder(modRes.event.newOrderID);
 
@@ -229,7 +229,7 @@ TEST_F(MatchingEngineTest, ModifyChangePrice) {
     MatchResult res = engine->processOrder(req);
     ModifyResult modRes = engine->modifyOrder(1, res.orderID, 100, 250);
 
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::ACCEPTED);
     ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
     std::optional<const Order*> order = engine->getOrder(modRes.event.newOrderID);
 
@@ -247,7 +247,7 @@ TEST_F(MatchingEngineTest, ModifyInvalidClient) {
     MatchResult res = engine->processOrder(req);
     ModifyResult modRes = engine->modifyOrder(2, res.orderID, 100, 250);
 
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::INVALID);
     std::optional<const Order*> order = engine->getOrder(res.orderID);
 
     ASSERT_TRUE(order.has_value());
@@ -266,7 +266,7 @@ TEST_F(MatchingEngineTest, ModifyToCross) {
     ASSERT_EQ(sellRes.status, statusCodes::OrderStatus::NEW);
 
     ModifyResult modRes = engine->modifyOrder(1, buyRes.orderID, 100, 350);
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::ACCEPTED);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::ACCEPTED);
     ASSERT_NE(modRes.event.newOrderID, modRes.event.oldOrderID);
 
     ASSERT_EQ(modRes.result.value().tradeVec.size(), 1);
@@ -307,7 +307,7 @@ TEST_F(MatchingEngineTest, ModifyToZeroQty) {
     MatchResult res = engine->processOrder(req);
     ModifyResult modRes = engine->modifyOrder(1, res.orderID, 0, 200);
 
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::INVALID);
     std::optional<const Order*> order = engine->getOrder(res.orderID);
 
     ASSERT_TRUE(order.has_value());
@@ -320,7 +320,7 @@ TEST_F(MatchingEngineTest, ModifyToZeroPrice) {
     MatchResult res = engine->processOrder(req);
     ModifyResult modRes = engine->modifyOrder(1, res.orderID, 100, 0);
 
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::INVALID);
     std::optional<const Order*> order = engine->getOrder(res.orderID);
 
     ASSERT_TRUE(order.has_value());
@@ -333,7 +333,7 @@ TEST_F(MatchingEngineTest, ModifyToNegativeQty) {
     MatchResult res = engine->processOrder(req);
     ModifyResult modRes = engine->modifyOrder(1, res.orderID, -10, 200);
 
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::INVALID);
     std::optional<const Order*> order = engine->getOrder(res.orderID);
 
     ASSERT_TRUE(order.has_value());
@@ -346,7 +346,7 @@ TEST_F(MatchingEngineTest, ModifyToNegativePrice) {
     MatchResult res = engine->processOrder(req);
     ModifyResult modRes = engine->modifyOrder(1, res.orderID, 100, -50);
 
-    ASSERT_EQ(modRes.event.status, statusCodes::ModifyStatus::INVALID);
+    ASSERT_EQ(modRes.event.status, statusCodes::ModifyAckStatus::INVALID);
     std::optional<const Order*> order = engine->getOrder(res.orderID);
 
     ASSERT_TRUE(order.has_value());

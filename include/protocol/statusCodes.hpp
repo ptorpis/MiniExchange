@@ -3,7 +3,7 @@
 #include <cstdint>
 
 namespace statusCodes {
-enum class HelloStatus : uint8_t {
+enum class HelloAckStatus : uint8_t {
     NULLSTATUS = 0x00,
     ACCEPTED = 0x01,
     INVALID_HMAC = 0x02,
@@ -12,7 +12,7 @@ enum class HelloStatus : uint8_t {
     ILL_FORMED = 0x05
 };
 
-enum class LogoutStatus : uint8_t {
+enum class LogoutAckStatus : uint8_t {
     NULLSTATUS = 0x00,
     ACCEPTED = 0x01,
     INVALID_HMAC = 0x02,
@@ -36,7 +36,7 @@ enum class CancelAckStatus : uint8_t {
     OUT_OF_ORDER = 0x05
 };
 
-enum class ModifyStatus : uint8_t {
+enum class ModifyAckStatus : uint8_t {
     NULLSTATUS = 0x00,
     ACCEPTED = 0x01,
     INVALID = 0x02,
@@ -74,34 +74,34 @@ constexpr const char* toStr(OrderStatus s) {
     }
 }
 
-constexpr const char* toStr(HelloStatus s) {
+constexpr const char* toStr(HelloAckStatus s) {
     switch (s) {
-    case HelloStatus::NULLSTATUS:
+    case HelloAckStatus::NULLSTATUS:
         return "NULLSTATUS";
-    case HelloStatus::ACCEPTED:
+    case HelloAckStatus::ACCEPTED:
         return "ACCEPTED";
-    case HelloStatus::INVALID_HMAC:
+    case HelloAckStatus::INVALID_HMAC:
         return "INVALID_HMAC";
-    case HelloStatus::INVALID_API_KEY:
+    case HelloAckStatus::INVALID_API_KEY:
         return "INVALID_API_KEY";
-    case HelloStatus::OUT_OF_ORDER:
+    case HelloAckStatus::OUT_OF_ORDER:
         return "OUT_OF_ORDER";
-    case HelloStatus::ILL_FORMED:
+    case HelloAckStatus::ILL_FORMED:
         return "ILL_FORMED";
     default:
         return "UNKNOWN_HELLO_STATUS";
     }
 }
 
-constexpr const char* toStr(LogoutStatus s) {
+constexpr const char* toStr(LogoutAckStatus s) {
     switch (s) {
-    case LogoutStatus::NULLSTATUS:
+    case LogoutAckStatus::NULLSTATUS:
         return "NULLSTATUS";
-    case LogoutStatus::ACCEPTED:
+    case LogoutAckStatus::ACCEPTED:
         return "ACCEPTED";
-    case LogoutStatus::INVALID_HMAC:
+    case LogoutAckStatus::INVALID_HMAC:
         return "INVALID_HMAC";
-    case LogoutStatus::OUT_OF_ORDER:
+    case LogoutAckStatus::OUT_OF_ORDER:
         return "OUT_OF_ORDER";
     default:
         return "UNKNOWN_LOGOUT_STATUS";
@@ -144,19 +144,19 @@ constexpr const char* toStr(CancelAckStatus s) {
     }
 }
 
-constexpr const char* toStr(ModifyStatus s) {
+constexpr const char* toStr(ModifyAckStatus s) {
     switch (s) {
-    case ModifyStatus::NULLSTATUS:
+    case ModifyAckStatus::NULLSTATUS:
         return "NULLSTATUS";
-    case ModifyStatus::ACCEPTED:
+    case ModifyAckStatus::ACCEPTED:
         return "ACCEPTED";
-    case ModifyStatus::INVALID:
+    case ModifyAckStatus::INVALID:
         return "INVALID";
-    case ModifyStatus::NOT_FOUND:
+    case ModifyAckStatus::NOT_FOUND:
         return "NOT_FOUND";
-    case ModifyStatus::NOT_AUTHENTICATED:
+    case ModifyAckStatus::NOT_AUTHENTICATED:
         return "NOT_AUTHENTICATED";
-    case ModifyStatus::OUT_OF_ORDER:
+    case ModifyAckStatus::OUT_OF_ORDER:
         return "OUT_OF_ORDER";
     default:
         return "UNKNOWN_MODIFY_STATUS";

@@ -29,19 +29,19 @@ std::vector<uint8_t> MiniExchangeAPI::handleHello(Session& session,
     ack.reserve(sizeof(MessageHeader) + sizeof(server::HelloAckPayload));
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
-        ack = makeHelloAck_(session, statusCodes::HelloStatus::OUT_OF_ORDER);
+        ack = makeHelloAck_(session, statusCodes::HelloAckStatus::OUT_OF_ORDER);
         return ack;
     }
 
     session.clientSqn = msg.header.clientMsgSqn;
 
     if (!isValidAPIKey_(session, msg.payload.apiKey)) {
-        ack = makeHelloAck_(session, statusCodes::HelloStatus::INVALID_API_KEY);
+        ack = makeHelloAck_(session, statusCodes::HelloAckStatus::INVALID_API_KEY);
         return ack;
     }
 
     session.authenticated = true;
-    ack = makeHelloAck_(session, statusCodes::HelloStatus::ACCEPTED);
+    ack = makeHelloAck_(session, statusCodes::HelloAckStatus::ACCEPTED);
     return ack;
 }
 
@@ -51,13 +51,13 @@ std::vector<uint8_t> MiniExchangeAPI::handleLogout(Session& session,
     ack.reserve(sizeof(MessageHeader) + sizeof(server::LogoutAckPayload));
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
-        ack = makeLogoutAck_(session, statusCodes::LogoutStatus::OUT_OF_ORDER);
+        ack = makeLogoutAck_(session, statusCodes::LogoutAckStatus::OUT_OF_ORDER);
         return ack;
     }
     session.clientSqn = msg.header.clientMsgSqn;
 
     session.authenticated = false;
-    ack = makeLogoutAck_(session, statusCodes::LogoutStatus::ACCEPTED);
+    ack = makeLogoutAck_(session, statusCodes::LogoutAckStatus::ACCEPTED);
     return ack;
 }
 
@@ -149,30 +149,31 @@ MiniExchangeAPI::handleModify(Session& session,
     // new order id is automatically 0 if the status != accepted
     if (msg.payload.serverClientID != session.serverClientID) {
         responses.push_back(
-            {session.FD,
-             makeModifyAck_(session, msg.payload.serverOrderID, 0, msg.payload.newQty,
-                            msg.payload.newPrice, statusCodes::ModifyStatus::INVALID)});
+            {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
+                                        msg.payload.newQty, msg.payload.newPrice,
+                                        statusCodes::ModifyAckStatus::INVALID)});
     }
 
     if (!session.authenticated) {
         responses.push_back(
-            {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
-                                        msg.payload.newQty, msg.payload.newPrice,
-                                        statusCodes::ModifyStatus::NOT_AUTHENTICATED)});
+            {session.FD,
+             makeModifyAck_(session, msg.payload.serverOrderID, 0, msg.payload.newQty,
+                            msg.payload.newPrice,
+                            statusCodes::ModifyAckStatus::NOT_AUTHENTICATED)});
     }
 
     if (session.clientSqn >= msg.header.clientMsgSqn) {
         responses.push_back(
             {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
                                         msg.payload.newQty, msg.payload.newPrice,
-                                        statusCodes::ModifyStatus::OUT_OF_ORDER)});
+                                        statusCodes::ModifyAckStatus::OUT_OF_ORDER)});
     }
 
     ModifyResult modResult =
         engine_.modifyOrder(msg.payload.serverClientID, msg.payload.serverOrderID,
                             msg.payload.newQty, msg.payload.newPrice);
 
-    if (modResult.event.status == statusCodes::ModifyStatus::ACCEPTED) {
+    if (modResult.event.status == statusCodes::ModifyAckStatus::ACCEPTED) {
         responses.push_back(
             {session.FD, makeModifyAck_(session, msg.payload.serverOrderID,
                                         modResult.event.newOrderID, msg.payload.newQty,
@@ -221,7 +222,7 @@ std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session, OrderReque
 }
 
 std::vector<uint8_t> MiniExchangeAPI::makeHelloAck_(Session& session,
-                                                    statusCodes::HelloStatus status) {
+                                                    statusCodes::HelloAckStatus status) {
     Message<server::HelloAckPayload> msg =
         server::MessageFactory::makeHelloAck(session, status);
     auto serialized = serializeMessage(MessageType::HELLO_ACK, msg.payload, msg.header);
@@ -233,8 +234,8 @@ std::vector<uint8_t> MiniExchangeAPI::makeHelloAck_(Session& session,
     return serialized;
 }
 
-std::vector<uint8_t> MiniExchangeAPI::makeLogoutAck_(Session& session,
-                                                     statusCodes::LogoutStatus status) {
+std::vector<uint8_t>
+MiniExchangeAPI::makeLogoutAck_(Session& session, statusCodes::LogoutAckStatus status) {
     Message<server::LogoutAckPayload> msg =
         server::MessageFactory::makeLoutAck(session, status);
     auto serialized = serializeMessage(MessageType::LOGOUT_ACK, msg.payload, msg.header);
@@ -273,10 +274,10 @@ MiniExchangeAPI::makeCancelAck_(Session& session, const OrderID orderID,
     return serialized;
 }
 
-std::vector<uint8_t> MiniExchangeAPI::makeModifyAck_(Session& session, OrderID oldOrderID,
-                                                     OrderID newOrderID, Qty newQty,
-                                                     Price newPrice,
-                                                     statusCodes::ModifyStatus status) {
+std::vector<uint8_t>
+MiniExchangeAPI::makeModifyAck_(Session& session, OrderID oldOrderID, OrderID newOrderID,
+                                Qty newQty, Price newPrice,
+                                statusCodes::ModifyAckStatus status) {
     Message<server::ModifyAckPayload> msg = server::MessageFactory::makeModifyAck(
         session, oldOrderID, newOrderID, newQty, newPrice, status);
 
