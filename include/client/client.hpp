@@ -46,6 +46,7 @@ public:
     void sendOrder(Qty qty, Price price, bool isBuy, bool isLimit);
 
     void sendCancel(OrderID orderID);
+    void cancelAll();
     void sendModify(OrderID orderID, Qty newQty, Price newPrice);
 
     void sendHeartbeat();
@@ -70,6 +71,10 @@ public:
     void modifyOutstandingOrder(OrderID orderID, OrderID newOrderID, Qty newQty,
                                 Price newPrice);
     void fillOutstandingOrder(OrderID orderID, Qty filledQty);
+
+    const std::unordered_map<OrderID, OutstandingOrder>& getOutstandingOrders() const {
+        return outstandingOrders_;
+    }
 
 private:
     std::array<uint8_t, 16> APIKey_;

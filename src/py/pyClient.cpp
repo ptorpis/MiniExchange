@@ -188,6 +188,29 @@ public:
             msg);
     }
 
+    py::dict getOrders() const {
+        py::dict result;
+        const auto& orders = client_.getOutstandingOrders();
+
+        for (const auto& [id, order] : orders) {
+            py::dict order_dict;
+            order_dict["id"] = id;
+            order_dict["qty"] = order.qty;
+            order_dict["price"] = order.price;
+
+            auto created_sec = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   order.created.time_since_epoch())
+                                   .count();
+            order_dict["created_ms"] = created_sec;
+
+            result[py::cast(id)] = order_dict;
+        }
+
+        return result;
+    }
+
+    void cancelAll() { client_.cancelAll(); }
+
     Client client_;
     ClientNetwork net_;
     std::atomic<bool> running_{false};
@@ -216,6 +239,8 @@ PYBIND11_MODULE(miniexchange_client, m) {
         .def("send_cancel", &PyClient::sendCancel)
         .def("send_modify", &PyClient::sendModify)
         .def("send_logout", &PyClient::sendLogout)
+        .def("get_orders", &PyClient::getOrders)
+        .def("cancel_all", &PyClient::cancelAll)
         .def("on_message",
              [](PyClient& self, py::function cb) {
                  std::lock_guard<std::mutex> lock(self.cbMutex_);

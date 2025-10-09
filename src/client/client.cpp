@@ -386,12 +386,17 @@ void Client::removeOutstandingOrder(OrderID orderID) {
     }
     outstandingOrders_.erase(it);
 }
+
 void Client::modifyOutstandingOrder(OrderID orderID, OrderID newOrderID, Qty newQty,
                                     Price newPrice) {
     if (auto it = outstandingOrders_.find(orderID); it != outstandingOrders_.end()) {
-        it->second.qty = newQty;
-        it->second.price = newPrice;
-        it->second.id = newOrderID;
+        auto node = outstandingOrders_.extract(it);
+        node.key() = newOrderID;
+        node.mapped().id = newOrderID;
+        node.mapped().qty = newQty;
+        node.mapped().price = newPrice;
+
+        outstandingOrders_.insert(std::move(node));
     }
 }
 
@@ -400,5 +405,13 @@ void Client::fillOutstandingOrder(OrderID orderID, Qty filledQty) {
         if ((it->second.qty -= filledQty) == 0) {
             removeOutstandingOrder(orderID);
         }
+    }
+}
+
+void Client::cancelAll() {
+    auto& orders = getOutstandingOrders();
+
+    for (auto& order : orders) {
+        sendCancel(order.second.id);
     }
 }

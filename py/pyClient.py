@@ -195,9 +195,14 @@ class MiniExchangeClient(App):
                     log.write("[bold red]Error: Unknown order type[/bold red]")
                 
             elif cmd == "cancel" and len(parts) >= 2:
-                order_id = int(parts[1])
-                self.client.send_cancel(order_id) # type: ignore
-                log.write(f"[dim]Sent CANCEL for order {order_id}[/dim]")
+                if parts[1] == "all":
+                    self.client.cancel_all()
+                    log.write("[dim]Cancelling all orders...")
+
+                else:
+                    order_id = int(parts[1])
+                    self.client.send_cancel(order_id) # type: ignore
+                    log.write(f"[dim]Sent CANCEL for order {order_id}[/dim]")
             
             elif (cmd == "mod" or cmd == "modify") and len(parts) == 4:
                 order_id = int(parts[1])
@@ -207,6 +212,22 @@ class MiniExchangeClient(App):
 
             elif cmd == "logout":
                 self.client.send_logout() # type: ignore
+
+            elif cmd == "orders":
+                orders = self.client.get_orders()  # type: ignore
+
+                if not orders:
+                    log.write("No outstanding orders.")
+                else:
+                    log.write("Outstanding orders:")
+                    log.write(f"{'ID':<8} {'QTY':<6} {'PRICE':<8} {'CREATED (s)':<12}")
+                    log.write("-" * 36)
+                    for order_id, order in orders.items():
+                        created = order.get("created_ms", 0) / 1000.0
+                        log.write(f"{order_id:<8} {order['qty']:<6d} {order['price']:<8d} {created:<12.3f}")
+
+
+
                 
             elif cmd == "quit" or cmd == "exit" or cmd == "q":
                 self.exit()
