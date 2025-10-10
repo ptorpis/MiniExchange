@@ -3,10 +3,15 @@ import asyncio
 from textual.app import App, ComposeResult
 from textual.widgets import Input, Header, Footer, RichLog
 from textual.containers import Container
+from textual.events import Key
 
 sys.path.append("build-debug/py")
 import miniexchange_client  # type: ignore
 
+
+"""
+Sorry about all the # type: ignore comments, the lsp is not complying
+"""
 
 class MiniExchangeClient(App):
     """A TUI for the MiniExchange trading client."""
@@ -35,6 +40,9 @@ class MiniExchangeClient(App):
         super().__init__()
         self.client = None
         self.hello_ack_received = False
+        self.command_history = []
+        self.history_index = -1
+        self.current_input = ""
         
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -137,6 +145,36 @@ class MiniExchangeClient(App):
                 log = self.query_one("#echo_panel", RichLog)
                 log.write(f"[bold red]Error polling messages: {e}[/bold red]")
     
+    def on_key(self, event: Key) -> None:
+        """Handle arrow key navigation for command history."""
+        input_widget = self.query_one(Input)
+        
+        if event.key == "up":
+            if self.command_history:
+                if self.history_index == -1:
+                    self.current_input = input_widget.value
+                    self.history_index = len(self.command_history) - 1
+                elif self.history_index > 0:
+                    self.history_index -= 1
+                
+                if self.history_index >= 0:
+                    input_widget.value = self.command_history[self.history_index]
+                    input_widget.cursor_position = len(input_widget.value)
+            event.prevent_default()
+            
+        elif event.key == "down":
+            if self.history_index != -1:
+                self.history_index += 1
+                
+                if self.history_index >= len(self.command_history):
+                    input_widget.value = self.current_input
+                    self.history_index = -1
+                else:
+                    input_widget.value = self.command_history[self.history_index]
+                
+                input_widget.cursor_position = len(input_widget.value)
+            event.prevent_default()
+    
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle user commands."""
         log = self.query_one("#echo_panel", RichLog)
@@ -145,6 +183,11 @@ class MiniExchangeClient(App):
         if not command:
             event.input.value = ""
             return
+        
+        if not self.command_history or self.command_history[-1] != event.value:
+            self.command_history.append(event.value)
+        self.history_index = -1
+        self.current_input = ""
         
         log.write(f"[bold white]> {event.value}[/bold white]")
         
@@ -196,7 +239,7 @@ class MiniExchangeClient(App):
                 
             elif cmd == "cancel" and len(parts) >= 2:
                 if parts[1] == "all":
-                    self.client.cancel_all()
+                    self.client.cancel_all() # type: ignore
                     log.write("[dim]Cancelling all orders...")
 
                 else:
