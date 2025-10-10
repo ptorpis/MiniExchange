@@ -60,6 +60,7 @@ file(GLOB_RECURSE CLIENT_SRC CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/client/*
 list(REMOVE_ITEM ALL_SRC 
     "${CMAKE_SOURCE_DIR}/src/main.cpp"
     "${CMAKE_SOURCE_DIR}/src/py/pyClient.cpp"
+    "${CMAKE_SOURCE_DIR}/src/runner/clientRunnerMain.cpp"
 )
 set(CORE_SOURCES ${ALL_SRC})
 
@@ -78,6 +79,11 @@ target_link_libraries(MiniExchangeClient PUBLIC MiniExchangeCore)
 # --- Executable ---
 add_executable(MiniExchange "${CMAKE_SOURCE_DIR}/src/main.cpp")
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
+
+# --- Runner executable ---
+add_executable(ClientRunner "${CMAKE_SOURCE_DIR}/src/runner/clientRunnerMain.cpp")
+target_link_libraries(ClientRunner PRIVATE MiniExchangeClient MiniExchangeCore)
+target_include_directories(ClientRunner PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 # --- Python module ---
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
