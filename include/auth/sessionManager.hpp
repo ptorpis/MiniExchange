@@ -1,7 +1,6 @@
 #pragma once
 
 #include "auth/session.hpp"
-#include "logger/logger.hpp"
 #include "utils/types.hpp"
 #include <algorithm>
 #include <chrono>
@@ -11,8 +10,6 @@
 
 class SessionManager {
 public:
-    SessionManager(auto logger = nullptr) : logger_(logger) {}
-
     struct Heartbeat {
         int fd;
         std::chrono::steady_clock::time_point lastHeartbeat;
@@ -110,6 +107,4 @@ private:
     std::vector<Heartbeat> heartbeats_;           // all heartbeats
     std::unordered_map<int, size_t> fdToHbIndex_; // FD -> heartbeat index
     std::vector<int> inactiveFDs_;
-
-    std::shared_ptr<Logger> logger_;
 };

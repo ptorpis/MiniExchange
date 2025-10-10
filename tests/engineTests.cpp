@@ -7,13 +7,13 @@ class MatchingEngineTest : public ::testing::Test {
 protected:
     void SetUp() override {
         utils::OrderBookRenderer::enabled = false;
-        logger = std::make_unique<Logger>("exchange.log", false);
+        evBus = std::make_unique<EventBus>();
 
-        engine = std::make_unique<MatchingEngine>(logger);
+        engine = std::make_unique<MatchingEngine>(evBus);
     }
 
     std::unique_ptr<MatchingEngine> engine;
-    std::shared_ptr<Logger> logger{nullptr};
+    std::shared_ptr<EventBus> evBus{nullptr};
 };
 
 OrderRequest createTestMarketRequest(bool isBuy, Qty qty, Price price,

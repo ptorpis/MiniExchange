@@ -43,6 +43,8 @@ void ProtocolHandler::onMessage(int fd) {
                 return; // wait for more data
             }
 
+            // HELLO_MSG_REC EVENT
+
             if (session->authenticated) {
                 break;
             }
@@ -83,6 +85,8 @@ void ProtocolHandler::onMessage(int fd) {
                 return;
             }
 
+            // LOGOUT_MSG_REC EVENT
+
             if (!session->authenticated) {
                 break;
             }
@@ -108,6 +112,8 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
+
+            // NEW_ORDER_MSG_REC EVENT
 
             if (!session->authenticated) {
                 break;
@@ -143,6 +149,8 @@ void ProtocolHandler::onMessage(int fd) {
                 return;
             }
 
+            // CANCEL_ORDER_MSG_REC EVENT
+
             if (!session->authenticated) {
                 break;
             }
@@ -177,6 +185,8 @@ void ProtocolHandler::onMessage(int fd) {
                 return;
             }
 
+            // MODIFY_MSG_REC EVENT
+
             if (!session->authenticated) {
                 break;
             }
@@ -207,12 +217,15 @@ void ProtocolHandler::onMessage(int fd) {
             totalSize = client::PayloadTraits<client::HeartBeatPayload>::msgSize;
             if (!session) return;
             if (session->recvBuffer.size() < totalSize) return;
+
+            // HEARTBEAT REC EVENT
             api_.updateHb(session->FD);
             break;
         }
         default: {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
             session->recvBuffer.clear();
+            // UNKNOWN MSG EVENT
             return;
         }
         }

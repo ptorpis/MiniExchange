@@ -19,6 +19,11 @@ void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
         asks_[order->price].push_back(std::move(order));
     }
     orderMap_[raw->orderID] = raw;
+
+    evBus_->publish<AddedToBookEvent>(ServerEvent<AddedToBookEvent>{
+        utils::getTimestampNs(),
+        {raw->orderID, raw->clientID, raw->side, raw->qty, raw->price, raw->tif,
+         raw->goodTill, raw->instrumentID}});
 }
 
 void MatchingEngine::reset() {
@@ -43,6 +48,8 @@ bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID)
 
     if (removed) {
         orderMap_.erase(it);
+        evBus_->publish<OrderCancelledEvent>(
+            ServerEvent<OrderCancelledEvent>{utils::getTimestampNs(), orderID});
     }
 
     return removed;
@@ -71,18 +78,22 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
     }
 
     if (newPrice == order->price && newQty == order->qty) {
-        return {ModifyEvent{clientID, orderID, orderID, newQty, newPrice,
-                            statusCodes::ModifyAckStatus::ACCEPTED},
-                std::nullopt};
+        ModifyEvent modEv{clientID, orderID,  orderID,
+                          newQty,   newPrice, statusCodes::ModifyAckStatus::ACCEPTED};
+        evBus_->publish<ModifyEvent>({utils::getTimestampNs(), modEv});
+
+        return {modEv, std::nullopt};
     }
 
     if (newPrice == order->price && newQty < order->qty) {
         order->qty = newQty;
         order->status = statusCodes::OrderStatus::MODIFIED;
 
-        return {ModifyEvent{clientID, orderID, orderID, newQty, newPrice,
-                            statusCodes::ModifyAckStatus::ACCEPTED},
-                std::nullopt};
+        ModifyEvent modEv{clientID, orderID,  orderID,
+                          newQty,   newPrice, statusCodes::ModifyAckStatus::ACCEPTED};
+        evBus_->publish<ModifyEvent>({utils::getTimestampNs(), modEv});
+
+        return {modEv, std::nullopt};
     }
 
     OrderSide tmpSide = order->side;
@@ -112,12 +123,11 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
     // now the newOrder has been moved into the book, and ownership has been handed over
 
-    ModifyEvent modEvent{clientID, orderID,  tmpNewOrderID,
-                         newQty,   newPrice, statusCodes::ModifyAckStatus::ACCEPTED};
+    ModifyEvent modEv{clientID, orderID,  tmpNewOrderID,
+                      newQty,   newPrice, statusCodes::ModifyAckStatus::ACCEPTED};
+    evBus_->publish<ModifyEvent>({utils::getTimestampNs(), modEv});
 
-    logger_->log(modEvent, matchResult, COMPONENT);
-
-    return {modEvent, matchResult};
+    return {modEv, matchResult};
 }
 
 std::optional<const Order*> MatchingEngine::getOrder(OrderID orderID) const {

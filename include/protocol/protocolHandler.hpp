@@ -2,6 +2,7 @@
 
 #include "api/api.hpp"
 #include "auth/sessionManager.hpp"
+#include "events/eventBus.hpp"
 #include "protocol/messages.hpp"
 #include "server/clients.hpp"
 #include "utils/utils.hpp"
@@ -28,14 +29,14 @@ public:
     */
 
     ProtocolHandler(
-        SessionManager& sm, std::shared_ptr<Logger> logger = nullptr,
+        SessionManager& sm, std::shared_ptr<EventBus> evBus = nullptr,
         SendFn sendFn =
             [](Session& session, const std::span<const uint8_t> buffer) {
                 session.sendBuffer.insert(std::end(session.sendBuffer),
                                           std::begin(buffer), std::end(buffer));
             })
-        : api_(MiniExchangeAPI(sm, logger)), sendFn_(std::move(sendFn)),
-          clientManager_(ClientManager()), logger_(logger) {
+        : api_(MiniExchangeAPI(sm, evBus)), sendFn_(std::move(sendFn)),
+          clientManager_(ClientManager()), evBus_(evBus) {
         clientManager_.addTestDefault();
         outBoundFDs_.reserve(16);
         lastScreenUpdate_ = std::chrono::steady_clock::now();
@@ -59,7 +60,7 @@ private:
     MiniExchangeAPI api_;
     SendFn sendFn_; // custom send function, assigned at construction
     ClientManager clientManager_;
-    std::shared_ptr<Logger> logger_;
+    std::shared_ptr<EventBus> evBus_;
 
     OutBoundFDs outBoundFDs_;
 

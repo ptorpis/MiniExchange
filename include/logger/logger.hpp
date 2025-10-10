@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/trade.hpp"
+#include "events/events.hpp"
 
 #include <atomic>
 #include <chrono>

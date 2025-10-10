@@ -11,9 +11,10 @@
 
 #include "core/order.hpp"
 #include "core/service.hpp"
-#include "core/trade.hpp"
-#include "logger/logger.hpp"
+#include "events/eventBus.hpp"
+#include "events/events.hpp"
 #include "utils/types.hpp"
+#include "utils/utils.hpp"
 
 using OrderQueue = std::deque<std::unique_ptr<Order>>;
 
@@ -21,7 +22,9 @@ static const std::string COMPONENT = "ENGINE";
 
 class MatchingEngine {
 public:
-    MatchingEngine(std::shared_ptr<Logger> logger = nullptr) : logger_(logger) {
+    MatchingEngine(std::shared_ptr<EventBus> evBus = nullptr,
+                   InstrumentID instrumentID = 1)
+        : evBus_(evBus), instrument_(instrumentID) {
         dispatchTable_[0][0] = &MatchingEngine::matchOrder_<BuySide, LimitOrderPolicy>;
         dispatchTable_[0][1] = &MatchingEngine::matchOrder_<BuySide, MarketOrderPolicy>;
         dispatchTable_[1][0] = &MatchingEngine::matchOrder_<SellSide, LimitOrderPolicy>;
@@ -90,15 +93,18 @@ private:
 
         static auto& book(MatchingEngine& eng) { return eng.asks_; }
         static TradeEvent makeTradeEvent(TradeID tradeID, Order* taker, Order* maker,
-                                         Price p, Qty q, Timestamp ts) {
-            return TradeEvent{tradeID,
-                              taker->orderID,
-                              maker->orderID,
-                              taker->clientID,
-                              maker->clientID,
-                              q,
-                              p,
-                              ts};
+                                         Price p, Qty q, Timestamp ts,
+                                         MatchingEngine& eng) {
+            TradeEvent tradeEv{tradeID,
+                               taker->orderID,
+                               maker->orderID,
+                               taker->clientID,
+                               maker->clientID,
+                               q,
+                               p,
+                               ts};
+            eng.evBus_->publish<TradeEvent>({utils::getTimestampNs(), tradeEv});
+            return tradeEv;
         }
         static bool pricePasses(Price orderPrice, Price bestPrice) {
             return orderPrice >= bestPrice;
@@ -108,15 +114,18 @@ private:
     struct SellSide {
         static auto& book(MatchingEngine& eng) { return eng.bids_; }
         static TradeEvent makeTradeEvent(TradeID tradeID, Order* taker, Order* maker,
-                                         Price p, Qty q, Timestamp ts) {
-            return TradeEvent{tradeID,
-                              maker->orderID,
-                              taker->orderID,
-                              maker->clientID,
-                              taker->clientID,
-                              q,
-                              p,
-                              ts};
+                                         Price p, Qty q, Timestamp ts,
+                                         MatchingEngine& eng) {
+            TradeEvent tradeEv{tradeID,
+                               maker->orderID,
+                               taker->orderID,
+                               maker->clientID,
+                               taker->clientID,
+                               q,
+                               p,
+                               ts};
+            eng.evBus_->publish<TradeEvent>({utils::getTimestampNs(), tradeEv});
+            return tradeEv;
         }
 
         static bool pricePasses(Price orderPrice, Price bestPrice) {
@@ -184,7 +193,8 @@ private:
 
     OrderService service_;
 
-    std::shared_ptr<Logger> logger_;
+    std::shared_ptr<EventBus> evBus_;
+    InstrumentID instrument_;
 };
 
 template <typename SidePolicy, typename OrderTypePolicy>
@@ -220,9 +230,9 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
 
             Qty matchQty = std::min(remainingQty, restingOrder->qty);
 
-            trades.emplace_back(
-                SidePolicy::makeTradeEvent(getNextTradeID_(), order.get(), restingOrder,
-                                           bestPrice, matchQty, currentTimestamp_()));
+            trades.emplace_back(SidePolicy::makeTradeEvent(
+                getNextTradeID_(), order.get(), restingOrder, bestPrice, matchQty,
+                currentTimestamp_(), *this));
 
             remainingQty -= matchQty;
             restingOrder->qty -= matchQty;
@@ -255,8 +265,6 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
 
     MatchResult result(orderID, timestamp, status, trades);
 
-    logger_->log(result, COMPONENT);
-
     return result;
 }
 
@@ -274,6 +282,10 @@ MatchingEngine::removeFromBook_(const OrderID orderID, const Price price, Book& 
             if (queue.empty()) {
                 book.erase(it);
             }
+
+            evBus_->publish<RemoveFromBookEvent>(
+                ServerEvent<RemoveFromBookEvent>{utils::getTimestampNs(), {orderID}});
+
             return true;
         }
     }

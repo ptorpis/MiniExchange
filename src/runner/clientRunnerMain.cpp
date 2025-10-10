@@ -17,7 +17,7 @@ int main() {
 
     std::string serverIP = "127.0.0.1";
     uint16_t port = 12345;
-    size_t nClients = 100;
+    size_t nClients = 10;
 
     ClientRunner runner(serverIP, port, nClients);
 

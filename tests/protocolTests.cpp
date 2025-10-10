@@ -26,7 +26,7 @@ protected:
 
     void SetUp() override {
         utils::OrderBookRenderer::enabled = false;
-        sessionManager = std::make_unique<SessionManager>(nullptr);
+        sessionManager = std::make_unique<SessionManager>();
         handler = std::make_unique<ProtocolHandler>(
             *sessionManager.get(), nullptr,
             [this]([[maybe_unused]] Session& session,

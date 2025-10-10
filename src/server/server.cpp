@@ -68,8 +68,8 @@ void Server::acceptConnections() {
         std::cout << "New Connection" << ip << ":" << port << " (fd=" << clientFD << ")"
                   << std::endl;
 
-        logger_->log("SERVER", "New Connection " + ip + ":" + std::to_string(port) +
-                                   " (fd=" + std::to_string(clientFD) + ")");
+        // NEW CONNECTION EVENT
+
         handleRead(clientFD);
     }
 }
@@ -96,11 +96,6 @@ void Server::handleRead(int fd) {
         ssize_t n = ::read(fd, sess->recvBuffer.data() + oldSize, freesSpace);
         if (n > 0) {
             sess->recvBuffer.resize(oldSize + n);
-            logger_->logBytes(std::vector<uint8_t>(sess->recvBuffer.begin(),
-                                                   sess->recvBuffer.begin() + n),
-                              "Received " + std::to_string(n) +
-                                  " bytes from fd=" + std::to_string(fd),
-                              "SERVER");
 
             handler_.onMessage(fd);
 
@@ -146,11 +141,8 @@ void Server::handleWrite(int fd) {
     while (!sess->sendBuffer.empty()) {
         ssize_t n = ::write(fd, sess->sendBuffer.data(), sess->sendBuffer.size());
         if (n > 0) {
-            logger_->logBytes(std::vector<uint8_t>(sess->sendBuffer.begin(),
-                                                   sess->sendBuffer.begin() + n),
-                              "Sent " + std::to_string(n) +
-                                  " bytes to fd=" + std::to_string(fd),
-                              "SERVER");
+
+            // MSG_SENT EVENT
             sess->sendBuffer.erase(sess->sendBuffer.begin(),
                                    sess->sendBuffer.begin() + n);
         } else {
@@ -210,12 +202,12 @@ void Server::run() {
             lastHeartbeatCheck = now;
         }
 
-        if (now - lastScreenUpdate_ > std::chrono::milliseconds(30)) {
-            auto bids = handler_.getBidsSnapshot();
-            auto asks = handler_.getAsksSnapshot();
-            utils::OrderBookRenderer::render(bids, asks);
-            lastScreenUpdate_ = now;
-        }
+        // if (now - lastScreenUpdate_ > std::chrono::milliseconds(30)) {
+        //     auto bids = handler_.getBidsSnapshot();
+        //     auto asks = handler_.getAsksSnapshot();
+        //     utils::OrderBookRenderer::render(bids, asks);
+        //     lastScreenUpdate_ = now;
+        // }
     }
 }
 
@@ -226,7 +218,7 @@ void Server::handleDisconnect(int fd) {
     if (!conn) return;
 
     removeConnection(fd);
-    logger_->log("SERVER", "Connection closed (fd=" + std::to_string(fd) + ")");
+    // DISCONNECT EVENT
 }
 
 int Server::createListenSocket(uint16_t port) {

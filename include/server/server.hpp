@@ -1,5 +1,6 @@
 #pragma once
 
+#include "events/eventBus.hpp"
 #include "protocol/protocolHandler.hpp"
 #include "server/connection.hpp"
 
@@ -15,8 +16,8 @@
 class Server {
 public:
     Server(uint16_t port, SessionManager& sm, ProtocolHandler& handler,
-           std::shared_ptr<Logger> logger = nullptr)
-        : port_(port), sessionManager_(sm), handler_(handler), logger_(logger) {}
+           std::shared_ptr<EventBus> evBus = nullptr)
+        : port_(port), sessionManager_(sm), handler_(handler), evBus_(evBus) {}
 
     bool start(uint16_t port);
     void run();
@@ -44,7 +45,7 @@ private:
 
     SessionManager& sessionManager_;
     ProtocolHandler& handler_;
-    std::shared_ptr<Logger> logger_;
+    std::shared_ptr<EventBus> evBus_;
     std::unordered_map<int, Connection> connections_;
 
     std::chrono::steady_clock::time_point lastScreenUpdate_;

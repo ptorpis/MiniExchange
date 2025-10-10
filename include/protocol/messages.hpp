@@ -2,7 +2,7 @@
 
 #include "auth/session.hpp"
 #include "core/order.hpp"
-#include "core/trade.hpp"
+#include "events/events.hpp"
 #include "protocol/statusCodes.hpp"
 #include "utils/utils.hpp"
 
