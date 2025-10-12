@@ -63,7 +63,7 @@ struct NewOrderPayload {
     int64_t quantity;
     int64_t price;
     uint8_t timeInForce;
-    uint64_t goodTillDate;
+    Timestamp goodTillDate;
     uint8_t padding[9];
     uint8_t hmac[32];
 

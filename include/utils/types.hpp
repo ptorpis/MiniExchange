@@ -8,7 +8,7 @@ using Qty = int64_t;
 using ClientID = uint64_t;
 using OrderID = uint64_t;
 using InstrumentID = uint32_t;
-using Timestamp = uint64_t;
+using Timestamp = long long;
 using TradeID = uint64_t;
 
 enum class OrderType : uint8_t { LIMIT, MARKET };

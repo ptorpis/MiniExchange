@@ -14,6 +14,8 @@
 #include <openssl/hmac.h>
 #include <stdexcept>
 
+using MsgEvent = ServerEvent<ReceiveMessageEvent>;
+
 void ProtocolHandler::onMessage(int fd) {
     outBoundFDs_.clear();
     Session* session = api_.getSession(fd);
@@ -43,7 +45,8 @@ void ProtocolHandler::onMessage(int fd) {
                 return; // wait for more data
             }
 
-            // HELLO_MSG_REC EVENT
+            evBus_->publish<ReceiveMessageEvent>(
+                MsgEvent{utils::getTimestampNs(), {fd, session->serverClientID, +type}});
 
             if (session->authenticated) {
                 break;
@@ -85,7 +88,8 @@ void ProtocolHandler::onMessage(int fd) {
                 return;
             }
 
-            // LOGOUT_MSG_REC EVENT
+            evBus_->publish<ReceiveMessageEvent>(
+                MsgEvent{utils::getTimestampNs(), {fd, session->serverClientID, +type}});
 
             if (!session->authenticated) {
                 break;
@@ -114,6 +118,8 @@ void ProtocolHandler::onMessage(int fd) {
             }
 
             // NEW_ORDER_MSG_REC EVENT
+            evBus_->publish<ReceiveMessageEvent>(
+                MsgEvent{utils::getTimestampNs(), {fd, session->serverClientID, +type}});
 
             if (!session->authenticated) {
                 break;
@@ -150,6 +156,8 @@ void ProtocolHandler::onMessage(int fd) {
             }
 
             // CANCEL_ORDER_MSG_REC EVENT
+            evBus_->publish<ReceiveMessageEvent>(
+                MsgEvent{utils::getTimestampNs(), {fd, session->serverClientID, +type}});
 
             if (!session->authenticated) {
                 break;
@@ -186,6 +194,8 @@ void ProtocolHandler::onMessage(int fd) {
             }
 
             // MODIFY_MSG_REC EVENT
+            evBus_->publish<ReceiveMessageEvent>(
+                MsgEvent{utils::getTimestampNs(), {fd, session->serverClientID, +type}});
 
             if (!session->authenticated) {
                 break;
@@ -219,6 +229,8 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) return;
 
             // HEARTBEAT REC EVENT
+            evBus_->publish<ReceiveMessageEvent>(
+                MsgEvent{utils::getTimestampNs(), {fd, session->serverClientID, +type}});
             api_.updateHb(session->FD);
             break;
         }
@@ -226,6 +238,8 @@ void ProtocolHandler::onMessage(int fd) {
             // unknown message type: drop connection sessionManager_.dropSession(fd);
             session->recvBuffer.clear();
             // UNKNOWN MSG EVENT
+            evBus_->publish<ReceiveMessageEvent>(
+                MsgEvent{utils::getTimestampNs(), {fd, session->serverClientID, +type}});
             return;
         }
         }

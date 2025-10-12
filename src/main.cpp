@@ -46,6 +46,12 @@ int main() {
                   << " orderID=" << e.orderID << std::endl;
     });
 
+    evBus->subscribe<ReceiveMessageEvent>([](const ServerEvent<ReceiveMessageEvent>& ev) {
+        std::cout << "[MSG] ts=" << ev.tsNs << " fd=" << ev.event.fd
+                  << " clientID=" << ev.event.clientID
+                  << " type=" << static_cast<int>(ev.event.type) << std::endl;
+    });
+
     SessionManager sessionManager;
     ProtocolHandler handler(sessionManager, evBus);
     uint16_t port = 12345;

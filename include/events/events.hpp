@@ -48,6 +48,8 @@ struct RemoveFromBookEvent {
 };
 
 struct ReceiveMessageEvent {
+    int fd;
+    ClientID clientID;
     uint8_t type;
 };
 

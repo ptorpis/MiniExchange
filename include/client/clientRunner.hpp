@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <poll.h>
+#include <queue>
 #include <sys/socket.h>
 #include <thread>
 #include <unistd.h>
@@ -18,6 +19,22 @@ struct ClientState {
     Client c;
     std::chrono::steady_clock::time_point nextOrder{std::chrono::steady_clock::now()};
     bool connected{false};
+};
+
+struct CompareEvent {
+    bool operator()(const ClientState& stateA, const ClientState& stateB) {
+        return stateA.nextOrder > stateB.nextOrder;
+    }
+};
+
+enum class EventType { Order, Heartbeat };
+
+struct ScheduledEvent {
+    std::chrono::steady_clock::time_point time;
+    size_t clientIndex;
+    EventType type;
+
+    bool operator>(const ScheduledEvent& other) const { return time > other.time; }
 };
 
 class ClientRunner {
@@ -35,8 +52,9 @@ public:
 
             auto& session = clients_.back().c.getSession();
 
-            session.lastHeartBeat = std::chrono::steady_clock::now() - rand_.jitter(2000);
+            session.lastHeartBeat = std::chrono::steady_clock::now() - rand_.jitter(500);
         }
+
         std::cout << "Connecting " << nClients << " clients" << std::endl;
     }
 
@@ -47,7 +65,12 @@ public:
         loginAll();
 
         std::cout << "Connected and logged in... sending orders" << std::endl;
+        std::thread timer([&] {
+            std::this_thread::sleep_for(std::chrono::seconds(5));
+            running_ = false;
+        });
         runLoop();
+        timer.join();
     }
 
     void stop() { running_ = false; }
@@ -101,40 +124,66 @@ private:
         using namespace std::chrono;
         constexpr milliseconds HEARTBEAT_INTERVAL{2000};
 
+        // Schedule initial events
+        for (size_t i = 0; i < clients_.size(); ++i) {
+            if (!clients_[i].connected) continue;
+
+            eventQueue_.push(
+                {steady_clock::now() + rand_.jitter(100), i, EventType::Order});
+            eventQueue_.push(
+                {steady_clock::now() + HEARTBEAT_INTERVAL, i, EventType::Heartbeat});
+        }
+
         while (running_) {
-            int timeoutMs = 10; // poll timeout
-            int nReady = poll(pollfds_.data(), pollfds_.size(), timeoutMs);
             auto now = steady_clock::now();
 
-            if (nReady < 0) {
-                perror("poll");
-                break;
+            int timeoutMs = -1;
+            if (!eventQueue_.empty()) {
+                auto nextTime = eventQueue_.top().time;
+                if (nextTime > now)
+                    timeoutMs = duration_cast<milliseconds>(nextTime - now).count();
+                else
+                    timeoutMs = 0;
             }
 
-            for (size_t i = 0; i < pollfds_.size(); ++i) {
-                auto& pfd = pollfds_[i];
-                auto& state = clients_[i];
+            int nReady = poll(pollfds_.data(), pollfds_.size(), timeoutMs);
+            now = steady_clock::now();
 
+            if (nReady > 0) {
+                for (size_t i = 0; i < pollfds_.size(); ++i) {
+                    auto& pfd = pollfds_[i];
+                    auto& state = clients_[i];
+                    if (!state.connected) continue;
+
+                    if (pfd.revents & POLLIN) readIncoming(state);
+                    if (pfd.revents & POLLOUT) flushSendBuffer(state);
+                }
+            }
+
+            while (!eventQueue_.empty() && eventQueue_.top().time <= now) {
+                ScheduledEvent ev = eventQueue_.top();
+                eventQueue_.pop();
+
+                auto& state = clients_[ev.clientIndex];
                 if (!state.connected) continue;
 
-                if (pfd.revents & POLLIN) {
-                    readIncoming(state);
-                }
-
-                if (pfd.revents & POLLOUT) {
-                    flushSendBuffer(state);
-                }
-
-                auto& session = state.c.getSession();
-                if (session.serverClientID != 0 &&
-                    now - session.lastHeartBeat >= HEARTBEAT_INTERVAL) {
-                    state.c.sendHeartbeat();
-                    session.updateHeartbeat();
-                }
-
-                if (now >= state.nextOrder) {
+                switch (ev.type) {
+                case EventType::Order:
                     generateAndSendOrder(state);
-                    state.nextOrder = now + milliseconds(200) + rand_.jitter(100);
+                    ev.time = now + milliseconds(200) + rand_.jitter(10);
+                    eventQueue_.push(ev);
+                    break;
+
+                case EventType::Heartbeat: {
+                    auto& session = state.c.getSession();
+                    if (session.serverClientID != 0) {
+                        state.c.sendHeartbeat();
+                        session.updateHeartbeat();
+                    }
+                    ev.time = now + HEARTBEAT_INTERVAL;
+                    eventQueue_.push(ev);
+                    break;
+                }
                 }
             }
         }
@@ -160,6 +209,7 @@ private:
         if (n > 0)
             buf.erase(buf.begin(), buf.begin() + n);
         else if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) return;
             perror("send");
             state.connected = false;
             close(state.fd);
@@ -183,11 +233,13 @@ private:
         }
     }
 
-    bool running_{false};
+    std::atomic<bool> running_{false};
     std::string serverIP_;
     uint16_t port_;
     std::vector<pollfd> pollfds_;
     RandomGenerator rand_;
 
     std::vector<ClientState> clients_;
+    std::priority_queue<ScheduledEvent, std::vector<ScheduledEvent>, std::greater<>>
+        eventQueue_;
 };

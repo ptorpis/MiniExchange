@@ -9,7 +9,7 @@ public:
     RandomGenerator(uint64_t seed = 0) : rng_(seed) {}
 
     std::chrono::milliseconds jitter(int maxMillis) {
-        std::uniform_int_distribution<int> dist(0, maxMillis);
+        std::uniform_int_distribution<int> dist(1, maxMillis);
         return std::chrono::milliseconds(dist(rng_));
     }
 
