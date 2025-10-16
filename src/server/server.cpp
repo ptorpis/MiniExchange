@@ -65,9 +65,6 @@ void Server::acceptConnections() {
         ev.events = EPOLLIN | EPOLLET;
         epoll_ctl(epollFd_, EPOLL_CTL_ADD, clientFD, &ev);
 
-        std::cout << "New Connection" << ip << ":" << port << " (fd=" << clientFD << ")"
-                  << std::endl;
-
         // NEW CONNECTION EVENT
 
         handleRead(clientFD);

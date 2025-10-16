@@ -8,14 +8,23 @@
 #include "server/server.hpp"
 #include "utils/timing.hpp"
 
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <memory>
 #include <string>
 
+std::filesystem::path getOutputDir() {
+    if (const char* env = std::getenv("EXCHANGE_OUTPUT_DIR")) {
+        return env;
+    }
+    return "output/default";
+}
+
 int main() {
-    std::filesystem::path outputDir = "output";
+    std::filesystem::path outputDir = getOutputDir();
     std::filesystem::create_directories(outputDir);
+    std::cout << "Writing to " << outputDir << std::endl;
 
     TSCClock::calibrate();
     std::string timingsFile = (outputDir / "timings.csv").string();

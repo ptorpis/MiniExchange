@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [[ "$(basename "$PWD")" == build-* ]]; then
+    BUILD_DIR="$PWD"
+else
+    BUILD_TYPE="${1:-debug}"
+    BUILD_DIR="${PROJECT_ROOT}/build-${BUILD_TYPE,,}"
+fi
+
+if [[ ! -d "$BUILD_DIR" ]]; then
+    echo "Build directory not found: $BUILD_DIR"
+    echo "   Run cmake -S . -B build-${BUILD_TYPE,,} -DCMAKE_BUILD_TYPE=${BUILD_TYPE^}"
+    exit 1
+fi
+
+BUILD_TYPE="$(basename "$BUILD_DIR" | cut -d'-' -f2 | tr '[:upper:]' '[:lower:]')"
+
+OUTPUT_DIR="${PROJECT_ROOT}/output/${BUILD_TYPE}"
+export EXCHANGE_OUTPUT_DIR="$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR"
+
+EXE="$BUILD_DIR/MiniExchange"
+if [[ ! -x "$EXE" ]]; then
+    echo "MiniExchange not built in $BUILD_DIR"
+    exit 1
+fi
+
+echo "Running MiniExchange"
+echo "   Build type:     $BUILD_TYPE"
+echo "   Build dir:      $BUILD_DIR"
+echo "   Output dir:     $OUTPUT_DIR"
+echo
+
+"$EXE"

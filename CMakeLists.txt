@@ -18,10 +18,10 @@ option(ENABLE_LTO "Enable Link Time Optimization (IPO/LTO)" OFF)
 option(ENABLE_TIMING "Enable high-resolution timing instrumentation" ON)
 
 if(ENABLE_TIMING)
-    message(STATUS "Timing instrumentation enabled")
+    message(STATUS "Timing instrumentation enabled.")
     add_compile_definitions(ENABLE_TIMING)
 else()
-    message(STATUS "Timing instrumentation disabled")
+    message(STATUS "Timing instrumentation disabled.")
 endif()
 
 option(ENABLE_LOGGING "Enable event logging" ON)
