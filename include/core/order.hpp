@@ -14,6 +14,7 @@ struct Order {
     Timestamp goodTill;
     statusCodes::OrderStatus status;
     const Timestamp timestamp;
+    const uint32_t ref;
 };
 
 struct OrderRequest {
@@ -26,4 +27,5 @@ struct OrderRequest {
     TimeInForce tif;
     Timestamp goodTill;
     bool valid;
+    const uint32_t ref;
 };

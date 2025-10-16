@@ -23,7 +23,7 @@ void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
     evBus_->publish<AddedToBookEvent>(ServerEvent<AddedToBookEvent>{
         utils::getTimestampNs(),
         {raw->orderID, raw->clientID, raw->side, raw->qty, raw->price, raw->tif,
-         raw->goodTill, raw->instrumentID}});
+         raw->goodTill, raw->instrumentID, raw->ref}});
 }
 
 void MatchingEngine::reset() {
@@ -101,6 +101,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
     InstrumentID tmpInstrID = order->instrumentID;
     TimeInForce tmpTif = order->tif;
     Timestamp tmpGoodTill = order->goodTill;
+    uint32_t ref = order->ref;
 
     if (!cancelOrder(clientID, orderID)) {
         return {ModifyEvent{clientID, orderID, 0, newQty, newPrice,
@@ -110,8 +111,9 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
     // now, the order is cancelled, and the pointer [order] is invalidated
 
-    std::unique_ptr<Order> newOrder = service_.createModified(
-        clientID, tmpSide, tmpType, tmpInstrID, newQty, newPrice, tmpTif, tmpGoodTill);
+    std::unique_ptr<Order> newOrder =
+        service_.createModified(clientID, tmpSide, tmpType, tmpInstrID, newQty, newPrice,
+                                tmpTif, tmpGoodTill, ref);
 
     int sideIdx = (newOrder->side == OrderSide::BUY ? 0 : 1);
     int typeIdx = 0; // always limit

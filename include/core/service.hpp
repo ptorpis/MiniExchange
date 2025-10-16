@@ -26,17 +26,12 @@ public:
     static OrderRequest createRequestFromMessage(Message<client::NewOrderPayload>& msg) {
 
         OrderRequest req = OrderRequest{
-            msg.payload.serverClientID,
-            static_cast<OrderSide>(msg.payload.orderSide),
-            static_cast<OrderType>(msg.payload.orderType),
-            msg.payload.instrumentID,
-            static_cast<Qty>(msg.payload.quantity),
-            static_cast<Price>(msg.payload.price),
-            static_cast<TimeInForce>(msg.payload.timeInForce),
-            msg.payload.goodTillDate,
+            msg.payload.serverClientID, static_cast<OrderSide>(msg.payload.orderSide),
+            static_cast<OrderType>(msg.payload.orderType), msg.payload.instrumentID,
+            static_cast<Qty>(msg.payload.quantity), static_cast<Price>(msg.payload.price),
+            static_cast<TimeInForce>(msg.payload.timeInForce), msg.payload.goodTillDate,
             // isvalid
-            false,
-        };
+            false, msg.header.clientMsgSqn};
 
         if (msg.payload.orderType == +OrderType::LIMIT) {
             req.valid =
@@ -53,16 +48,16 @@ public:
         return std::make_unique<Order>(
             Order{++idSqn_, req.clientID, req.side, req.type, req.instrumentID, req.qty,
                   req.price, req.tif, req.goodTill, statusCodes::OrderStatus::NEW,
-                  utils::getTimestampNs()});
+                  utils::getTimestampNs(), req.ref});
     }
 
     std::unique_ptr<Order> createModified(ClientID clientID, OrderSide side,
                                           OrderType orderType, InstrumentID instrumentID,
                                           Qty qty, Price price, TimeInForce tif,
-                                          Timestamp goodTill) {
-        return std::make_unique<Order>(
-            Order{++idSqn_, clientID, side, orderType, instrumentID, qty, price, tif,
-                  goodTill, statusCodes::OrderStatus::MODIFIED, utils::getTimestampNs()});
+                                          Timestamp goodTill, uint32_t ref) {
+        return std::make_unique<Order>(Order{
+            ++idSqn_, clientID, side, orderType, instrumentID, qty, price, tif, goodTill,
+            statusCodes::OrderStatus::MODIFIED, utils::getTimestampNs(), ref});
     }
 
 private:

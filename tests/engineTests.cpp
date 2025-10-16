@@ -1,5 +1,4 @@
 #include "core/matchingEngine.hpp"
-#include "logger/logger.hpp"
 #include "utils/orderBookRenderer.hpp"
 #include <gtest/gtest.h>
 
@@ -18,17 +17,16 @@ protected:
 
 OrderRequest createTestMarketRequest(bool isBuy, Qty qty, Price price,
                                      ClientID clientID = 1) {
-    return OrderRequest{
-        clientID,                                 // clientid
-        isBuy ? OrderSide::BUY : OrderSide::SELL, // orderside
-        OrderType::MARKET,                        // ordertype
-        1,                                        // instrumentid
-        qty,                                      // qty
-        price,                                    // price
-        TimeInForce::GTC,                         // timeinforce
-        std::numeric_limits<Timestamp>::max(),    // goodtill
-        true                                      // isvalid
-    };
+    return OrderRequest{clientID,                                 // clientid
+                        isBuy ? OrderSide::BUY : OrderSide::SELL, // orderside
+                        OrderType::MARKET,                        // ordertype
+                        1,                                        // instrumentid
+                        qty,                                      // qty
+                        price,                                    // price
+                        TimeInForce::GTC,                         // timeinforce
+                        std::numeric_limits<Timestamp>::max(),    // goodtill
+                        true,                                     // isvalid
+                        0};
 }
 
 OrderRequest createTestLimitRequest(bool isBuy, Qty qty, Price price,
@@ -42,7 +40,8 @@ OrderRequest createTestLimitRequest(bool isBuy, Qty qty, Price price,
         price,                                    // price
         TimeInForce::GTC,                         // timeinforce
         std::numeric_limits<Timestamp>::max(),    // goodtill
-        true                                      // isvalid
+        true,
+        0 // isvalid
     };
 }
 

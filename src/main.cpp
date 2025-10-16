@@ -1,56 +1,50 @@
 #include "client/client.hpp"
 #include "events/eventBus.hpp"
+#include "logger/eventLogger.hpp"
 #include "protocol/client/clientMessageFactory.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/protocolHandler.hpp"
 #include "protocol/traits.hpp"
 #include "server/server.hpp"
+#include "utils/timing.hpp"
 
 #include <iostream>
 #include <memory>
 
 int main() {
+    TSCClock::calibrate();
+    utils::startTimingConsumer("timings.csv");
+    std::cout << "Timer calibrated: " << TSCClock::nsPerTick << "ns/Tick" << std::endl;
     auto evBus = std::make_shared<EventBus>();
     evBus->start();
-    evBus->subscribe<AddedToBookEvent>([](const ServerEvent<AddedToBookEvent>& ev) {
-        const auto& e = ev.event;
-        std::cout << "[EVENT][ADDED] ts=" << ev.tsNs << " order=" << e.orderID
-                  << " client=" << e.clientID << " side=" << static_cast<int>(e.side)
-                  << " qty=" << e.qty << " price=" << e.price << std::endl;
-    });
+    auto tscStart = TSCClock::now();
+    auto clockStart = std::chrono::steady_clock::now();
 
-    evBus->subscribe<OrderCancelledEvent>([](const ServerEvent<OrderCancelledEvent>& ev) {
-        std::cout << "[EVENT][CANCELLED] ts=" << ev.tsNs << " order=" << ev.event.orderID
-                  << std::endl;
-    });
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    evBus->subscribe<ModifyEvent>([](const ServerEvent<ModifyEvent>& ev) {
-        const auto& e = ev.event;
-        std::cout << "[EVENT][MODIFIED] ts=" << ev.tsNs << " oldOrder=" << e.oldOrderID
-                  << " newOrder=" << e.newOrderID << " qty=" << e.newQty
-                  << " price=" << e.newPrice << std::endl;
-    });
+    auto tscEnd = TSCClock::now();
+    auto clockEnd = std::chrono::steady_clock::now();
 
-    evBus->subscribe<TradeEvent>([](const ServerEvent<TradeEvent>& ev) {
-        const auto& e = ev.event;
-        std::cout << "[EVENT][TRADE] ts=" << ev.tsNs << " tradeID=" << e.tradeID
-                  << " buyerOrder=" << e.buyerOrderID
-                  << " sellerOrder=" << e.sellerOrderID << " buyer=" << e.buyerID
-                  << " seller=" << e.sellerID << " qty=" << e.qty << " price=" << e.price
-                  << " instrument=" << e.instrumentID << std::endl;
-    });
+    uint64_t elapsedTscNs = uint64_t((tscEnd - tscStart) * TSCClock::nsPerTick);
+    auto elapsedClockNs =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(clockEnd - clockStart)
+            .count();
 
-    evBus->subscribe<RemoveFromBookEvent>([](const ServerEvent<RemoveFromBookEvent>& ev) {
-        const auto& e = ev.event;
-        std::cout << "[EVENT][REMOVE FROM BOOK] ts=" << ev.tsNs
-                  << " orderID=" << e.orderID << std::endl;
-    });
+    std::cout << "TSC elapsed ns: " << elapsedTscNs << "\n";
+    std::cout << "SteadyClock elapsed ns: " << elapsedClockNs << "\n";
 
-    evBus->subscribe<ReceiveMessageEvent>([](const ServerEvent<ReceiveMessageEvent>& ev) {
-        std::cout << "[MSG] ts=" << ev.tsNs << " fd=" << ev.event.fd
-                  << " clientID=" << ev.event.clientID
-                  << " type=" << static_cast<int>(ev.event.type) << std::endl;
-    });
+    auto recvLogger = std::make_shared<GenericEventLogger<ReceiveMessageEvent>>(
+        evBus, "recv_messages.csv");
+    auto addedLogger = std::make_shared<GenericEventLogger<AddedToBookEvent>>(
+        evBus, "added_to_book.csv");
+    auto cancelLogger = std::make_shared<GenericEventLogger<OrderCancelledEvent>>(
+        evBus, "cancelled_orders.csv");
+    auto modifyLogger =
+        std::make_shared<GenericEventLogger<ModifyEvent>>(evBus, "modified_orders.csv");
+    auto tradeLogger =
+        std::make_shared<GenericEventLogger<TradeEvent>>(evBus, "trades.csv");
+    auto removeLogger = std::make_shared<GenericEventLogger<RemoveFromBookEvent>>(
+        evBus, "removed_from_book.csv");
 
     SessionManager sessionManager;
     ProtocolHandler handler(sessionManager, evBus);
