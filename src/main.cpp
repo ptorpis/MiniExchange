@@ -8,43 +8,43 @@
 #include "server/server.hpp"
 #include "utils/timing.hpp"
 
+#include <filesystem>
 #include <iostream>
 #include <memory>
+#include <string>
 
 int main() {
+    std::filesystem::path outputDir = "output";
+    std::filesystem::create_directories(outputDir);
+
     TSCClock::calibrate();
-    utils::startTimingConsumer("timings.csv");
+    std::string timingsFile = (outputDir / "timings.csv").string();
+    utils::startTimingConsumer(timingsFile.c_str());
     std::cout << "Timer calibrated: " << TSCClock::nsPerTick << "ns/Tick" << std::endl;
+
     auto evBus = std::make_shared<EventBus>();
     evBus->start();
-    auto tscStart = TSCClock::now();
-    auto clockStart = std::chrono::steady_clock::now();
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+#ifdef ENABLE_LOGGING
+    std::string recvFile = (outputDir / "recv_messages.csv").string();
+    std::string addedFile = (outputDir / "added_to_book.csv").string();
+    std::string cancelFile = (outputDir / "cancelled_orders.csv").string();
+    std::string modifyFile = (outputDir / "modified_orders.csv").string();
+    std::string tradeFile = (outputDir / "trades.csv").string();
+    std::string removeFile = (outputDir / "removed_from_book.csv").string();
 
-    auto tscEnd = TSCClock::now();
-    auto clockEnd = std::chrono::steady_clock::now();
-
-    uint64_t elapsedTscNs = uint64_t((tscEnd - tscStart) * TSCClock::nsPerTick);
-    auto elapsedClockNs =
-        std::chrono::duration_cast<std::chrono::nanoseconds>(clockEnd - clockStart)
-            .count();
-
-    std::cout << "TSC elapsed ns: " << elapsedTscNs << "\n";
-    std::cout << "SteadyClock elapsed ns: " << elapsedClockNs << "\n";
-
-    auto recvLogger = std::make_shared<GenericEventLogger<ReceiveMessageEvent>>(
-        evBus, "recv_messages.csv");
-    auto addedLogger = std::make_shared<GenericEventLogger<AddedToBookEvent>>(
-        evBus, "added_to_book.csv");
-    auto cancelLogger = std::make_shared<GenericEventLogger<OrderCancelledEvent>>(
-        evBus, "cancelled_orders.csv");
+    auto recvLogger =
+        std::make_shared<GenericEventLogger<ReceiveMessageEvent>>(evBus, recvFile);
+    auto addedLogger =
+        std::make_shared<GenericEventLogger<AddedToBookEvent>>(evBus, addedFile);
+    auto cancelLogger =
+        std::make_shared<GenericEventLogger<OrderCancelledEvent>>(evBus, cancelFile);
     auto modifyLogger =
-        std::make_shared<GenericEventLogger<ModifyEvent>>(evBus, "modified_orders.csv");
-    auto tradeLogger =
-        std::make_shared<GenericEventLogger<TradeEvent>>(evBus, "trades.csv");
-    auto removeLogger = std::make_shared<GenericEventLogger<RemoveFromBookEvent>>(
-        evBus, "removed_from_book.csv");
+        std::make_shared<GenericEventLogger<ModifyEvent>>(evBus, modifyFile);
+    auto tradeLogger = std::make_shared<GenericEventLogger<TradeEvent>>(evBus, tradeFile);
+    auto removeLogger =
+        std::make_shared<GenericEventLogger<RemoveFromBookEvent>>(evBus, removeFile);
+#endif
 
     SessionManager sessionManager;
     ProtocolHandler handler(sessionManager, evBus);
@@ -54,6 +54,7 @@ int main() {
     if (!server.start(port)) {
         return 1;
     }
+
     server.run();
 
     evBus->stop();

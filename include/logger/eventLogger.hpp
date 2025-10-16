@@ -8,7 +8,7 @@
 
 template <typename EventT, size_t MAX_EVENTS = 16384> class GenericEventLogger {
 public:
-    GenericEventLogger(std::shared_ptr<EventBus> evBus, const char* filename)
+    GenericEventLogger(std::shared_ptr<EventBus> evBus, const std::string& filename)
         : evBus_(evBus), filename_(filename) {
         buffer_.fill({});
         evBus_->subscribe<EventT>([this](const ServerEvent<EventT>& ev) { record(ev); });
@@ -17,7 +17,7 @@ public:
 
 private:
     std::shared_ptr<EventBus> evBus_;
-    const char* filename_;
+    std::string filename_;
 
     std::array<ServerEvent<EventT>, MAX_EVENTS> buffer_;
     std::atomic<size_t> index_{0};
@@ -29,7 +29,7 @@ private:
 
     void startConsumer() {
         std::thread([this] {
-            FILE* f = fopen(filename_, "w");
+            FILE* f = fopen(filename_.c_str(), "w");
             if (!f) return;
             setvbuf(f, nullptr, _IOFBF, 1 << 20);
 

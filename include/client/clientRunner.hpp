@@ -68,6 +68,7 @@ public:
         std::thread timer([&] {
             std::this_thread::sleep_for(std::chrono::seconds(5));
             running_ = false;
+            std::cout << "Stopped." << std::endl;
         });
         runLoop();
         timer.join();

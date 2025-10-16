@@ -24,6 +24,15 @@ else()
     message(STATUS "Timing instrumentation disabled")
 endif()
 
+option(ENABLE_LOGGING "Enable event logging" ON)
+if(ENABLE_LOGGING)
+    message(STATUS "Event logging enabled.")
+    add_compile_definitions(ENABLE_LOGGING)
+else()
+    message(STATUS "Event logging disabled.")
+endif()
+
+
 
 # --- Compiler flags ---
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
