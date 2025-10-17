@@ -21,7 +21,7 @@ void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
     orderMap_[raw->orderID] = raw;
 
     evBus_->publish<AddedToBookEvent>(ServerEvent<AddedToBookEvent>{
-        utils::getTimestampNs(),
+        TSCClock::now(),
         {raw->orderID, raw->clientID, raw->side, raw->qty, raw->price, raw->tif,
          raw->goodTill, raw->instrumentID, raw->ref}});
 }
@@ -49,7 +49,7 @@ bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID)
     if (removed) {
         orderMap_.erase(it);
         evBus_->publish<OrderCancelledEvent>(
-            ServerEvent<OrderCancelledEvent>{utils::getTimestampNs(), orderID});
+            ServerEvent<OrderCancelledEvent>{TSCClock::now(), orderID});
     }
 
     return removed;
@@ -80,7 +80,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
     if (newPrice == order->price && newQty == order->qty) {
         ModifyEvent modEv{clientID, orderID,  orderID,
                           newQty,   newPrice, statusCodes::ModifyAckStatus::ACCEPTED};
-        evBus_->publish<ModifyEvent>({utils::getTimestampNs(), modEv});
+        evBus_->publish<ModifyEvent>({TSCClock::now(), modEv});
 
         return {modEv, std::nullopt};
     }
@@ -91,7 +91,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
         ModifyEvent modEv{clientID, orderID,  orderID,
                           newQty,   newPrice, statusCodes::ModifyAckStatus::ACCEPTED};
-        evBus_->publish<ModifyEvent>({utils::getTimestampNs(), modEv});
+        evBus_->publish<ModifyEvent>({TSCClock::now(), modEv});
 
         return {modEv, std::nullopt};
     }
@@ -127,7 +127,7 @@ ModifyResult MatchingEngine::modifyOrder(const ClientID clientID, const OrderID 
 
     ModifyEvent modEv{clientID, orderID,  tmpNewOrderID,
                       newQty,   newPrice, statusCodes::ModifyAckStatus::ACCEPTED};
-    evBus_->publish<ModifyEvent>({utils::getTimestampNs(), modEv});
+    evBus_->publish<ModifyEvent>({TSCClock::now(), modEv});
 
     return {modEv, matchResult};
 }

@@ -13,6 +13,7 @@
 #include "core/service.hpp"
 #include "events/eventBus.hpp"
 #include "events/events.hpp"
+#include "utils/timing.hpp"
 #include "utils/types.hpp"
 #include "utils/utils.hpp"
 
@@ -103,7 +104,7 @@ private:
                                q,
                                p,
                                ts};
-            eng.evBus_->publish<TradeEvent>({utils::getTimestampNs(), tradeEv});
+            eng.evBus_->publish<TradeEvent>({TSCClock::now(), tradeEv});
             return tradeEv;
         }
         static bool pricePasses(Price orderPrice, Price bestPrice) {
@@ -124,7 +125,7 @@ private:
                                q,
                                p,
                                ts};
-            eng.evBus_->publish<TradeEvent>({utils::getTimestampNs(), tradeEv});
+            eng.evBus_->publish<TradeEvent>({TSCClock::now(), tradeEv});
             return tradeEv;
         }
 
@@ -284,7 +285,7 @@ MatchingEngine::removeFromBook_(const OrderID orderID, const Price price, Book& 
             }
 
             evBus_->publish<RemoveFromBookEvent>(
-                ServerEvent<RemoveFromBookEvent>{utils::getTimestampNs(), {orderID}});
+                ServerEvent<RemoveFromBookEvent>{TSCClock::now(), {orderID}});
 
             return true;
         }

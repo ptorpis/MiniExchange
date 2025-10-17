@@ -1,7 +1,9 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <thread>
 
 #if defined(__x86_64__) || defined(_M_X64)
 inline uint64_t rdtsc() {

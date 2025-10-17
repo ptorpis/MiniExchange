@@ -5,13 +5,11 @@
 #include <optional>
 
 struct NewConnectionEvent {
-    ClientID clientID;
     int fd;
     uint16_t port;
     std::array<uint8_t, 4> ip;
 
     template <typename F> void iterateElements(F&& func) const {
-        func("clientID", clientID);
         func("fd", fd);
         func("port", port);
         for (size_t i = 0; i < ip.size(); ++i) {
@@ -21,13 +19,9 @@ struct NewConnectionEvent {
 };
 
 struct DisconnectEvent {
-    ClientID clientID;
     int fd;
 
-    template <typename F> void iterateElements(F&& func) const {
-        func("clientID", clientID);
-        func("fd", fd);
-    }
+    template <typename F> void iterateElements(F&& func) const { func("fd", fd); }
 };
 
 struct TradeEvent {
@@ -153,6 +147,6 @@ struct ModifyResult {
 };
 
 template <typename EventT> struct ServerEvent {
-    Timestamp tsNs;
+    uint64_t ts; // clock cycles
     EventT event;
 };

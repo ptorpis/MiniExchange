@@ -41,6 +41,9 @@ int main() {
     std::string modifyFile = (outputDir / "modified_orders.csv").string();
     std::string tradeFile = (outputDir / "trades.csv").string();
     std::string removeFile = (outputDir / "removed_from_book.csv").string();
+    std::string newConnFile = (outputDir / "new_connections.csv").string();
+    std::string disconnectFile = (outputDir / "disconnects.csv").string();
+    std::string msgSentFile = (outputDir / "sent_messages.csv").string();
 
     auto recvLogger =
         std::make_shared<GenericEventLogger<ReceiveMessageEvent>>(evBus, recvFile);
@@ -53,6 +56,12 @@ int main() {
     auto tradeLogger = std::make_shared<GenericEventLogger<TradeEvent>>(evBus, tradeFile);
     auto removeLogger =
         std::make_shared<GenericEventLogger<RemoveFromBookEvent>>(evBus, removeFile);
+    auto connLogger =
+        std::make_unique<GenericEventLogger<NewConnectionEvent>>(evBus, newConnFile);
+    auto disconnectLogger =
+        std::make_unique<GenericEventLogger<DisconnectEvent>>(evBus, disconnectFile);
+    auto msgSentLogger =
+        std::make_unique<GenericEventLogger<SendMessageEvent>>(evBus, msgSentFile);
 #endif
 
     SessionManager sessionManager;

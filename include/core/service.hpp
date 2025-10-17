@@ -13,6 +13,7 @@ the orderFromRequest() and orderModified() are for the engine.
 #include "core/order.hpp"
 #include "protocol/client/clientMessages.hpp"
 #include "protocol/messages.hpp"
+#include "utils/timing.hpp"
 #include "utils/types.hpp"
 #include "utils/utils.hpp"
 #include <chrono>
@@ -48,16 +49,16 @@ public:
         return std::make_unique<Order>(
             Order{++idSqn_, req.clientID, req.side, req.type, req.instrumentID, req.qty,
                   req.price, req.tif, req.goodTill, statusCodes::OrderStatus::NEW,
-                  utils::getTimestampNs(), req.ref});
+                  TSCClock::now(), req.ref});
     }
 
     std::unique_ptr<Order> createModified(ClientID clientID, OrderSide side,
                                           OrderType orderType, InstrumentID instrumentID,
                                           Qty qty, Price price, TimeInForce tif,
                                           Timestamp goodTill, uint32_t ref) {
-        return std::make_unique<Order>(Order{
-            ++idSqn_, clientID, side, orderType, instrumentID, qty, price, tif, goodTill,
-            statusCodes::OrderStatus::MODIFIED, utils::getTimestampNs(), ref});
+        return std::make_unique<Order>(
+            Order{++idSqn_, clientID, side, orderType, instrumentID, qty, price, tif,
+                  goodTill, statusCodes::OrderStatus::MODIFIED, TSCClock::now(), ref});
     }
 
 private:

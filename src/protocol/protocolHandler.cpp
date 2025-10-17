@@ -53,7 +53,7 @@ void ProtocolHandler::onMessage(int fd) {
 #endif
 
             evBus_->publish<ReceiveMessageEvent>(
-                MsgEvent{utils::getTimestampNs(),
+                MsgEvent{TSCClock::now(),
                          {fd, session->serverClientID, +type, header.clientMsgSqn}});
 
             if (session->authenticated) {
@@ -104,6 +104,7 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
+
 #ifdef ENABLE_TIMING
             TimingRecord timingRec;
             timingRec.tReceived = TSCClock::now();
@@ -111,7 +112,7 @@ void ProtocolHandler::onMessage(int fd) {
 #endif
 
             evBus_->publish<ReceiveMessageEvent>(
-                MsgEvent{utils::getTimestampNs(),
+                MsgEvent{TSCClock::now(),
                          {fd, session->serverClientID, +type, header.clientMsgSqn}});
 
             if (!session->authenticated) {
@@ -155,7 +156,7 @@ void ProtocolHandler::onMessage(int fd) {
 #endif
 
             evBus_->publish<ReceiveMessageEvent>(
-                MsgEvent{utils::getTimestampNs(),
+                MsgEvent{TSCClock::now(),
                          {fd, session->serverClientID, +type, header.clientMsgSqn}});
 
             if (!session->authenticated) {
@@ -205,7 +206,7 @@ void ProtocolHandler::onMessage(int fd) {
 #endif
 
             evBus_->publish<ReceiveMessageEvent>(
-                MsgEvent{utils::getTimestampNs(),
+                MsgEvent{TSCClock::now(),
                          {fd, session->serverClientID, +type, header.clientMsgSqn}});
 
             if (!session->authenticated) {
@@ -255,7 +256,7 @@ void ProtocolHandler::onMessage(int fd) {
 #endif
 
             evBus_->publish<ReceiveMessageEvent>(
-                MsgEvent{utils::getTimestampNs(),
+                MsgEvent{TSCClock::now(),
                          {fd, session->serverClientID, +type, header.clientMsgSqn}});
 
             if (!session->authenticated) {
@@ -308,7 +309,7 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) return;
 
             evBus_->publish<ReceiveMessageEvent>(
-                MsgEvent{utils::getTimestampNs(),
+                MsgEvent{TSCClock::now(),
                          {fd, session->serverClientID, +type, header.clientMsgSqn}});
 
             api_.updateHb(session->FD);
@@ -322,7 +323,7 @@ void ProtocolHandler::onMessage(int fd) {
         default: {
             session->recvBuffer.clear();
             evBus_->publish<ReceiveMessageEvent>(
-                MsgEvent{utils::getTimestampNs(),
+                MsgEvent{TSCClock::now(),
                          {fd, session->serverClientID, +type, header.clientMsgSqn}});
             return;
         }

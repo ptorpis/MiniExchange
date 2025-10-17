@@ -45,7 +45,7 @@ private:
                 if (currentIndex > lastIndex) {
                     for (size_t i = lastIndex; i < currentIndex; ++i) {
                         const auto& rec = buffer_[i];
-                        fprintf(f, "%" PRIu64, rec.tsNs);
+                        fprintf(f, "%" PRIu64, rec.ts);
                         rec.event.iterateElements([&](const char*, auto& field) {
                             fprintf(f, ",%" PRIu64, uint64_t(field));
                         });

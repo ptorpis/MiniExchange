@@ -1,5 +1,6 @@
 #include "server/server.hpp"
 #include "utils/orderBookRenderer.hpp"
+#include "utils/timing.hpp"
 #include "utils/utils.hpp"
 
 #include <arpa/inet.h>
@@ -46,26 +47,26 @@ void Server::acceptConnections() {
             accept4(listenFd_, (sockaddr*)&clientAddr, &addrlen, SOCK_NONBLOCK);
         if (clientFD < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            if (errno == EINTR)
-                continue;
-            else {
-                perror("accept4");
-                break;
-            }
-            return;
+            if (errno == EINTR) continue;
+            perror("accept4");
+            break;
         }
 
-        std::string ip = inet_ntoa(clientAddr.sin_addr);
+        std::string ipStr = inet_ntoa(clientAddr.sin_addr);
         uint16_t port = ntohs(clientAddr.sin_port);
 
-        addConnection(port, ip, clientFD);
+        addConnection(port, ipStr, clientFD);
 
         epoll_event ev{};
         ev.data.fd = clientFD;
         ev.events = EPOLLIN | EPOLLET;
         epoll_ctl(epollFd_, EPOLL_CTL_ADD, clientFD, &ev);
 
-        // NEW CONNECTION EVENT
+        std::array<uint8_t, 4> ipBytes{};
+        inet_pton(AF_INET, ipStr.c_str(), ipBytes.data());
+
+        evBus_->publish<NewConnectionEvent>(
+            ServerEvent<NewConnectionEvent>{TSCClock::now(), {clientFD, port, ipBytes}});
 
         handleRead(clientFD);
     }
@@ -139,9 +140,12 @@ void Server::handleWrite(int fd) {
         ssize_t n = ::write(fd, sess->sendBuffer.data(), sess->sendBuffer.size());
         if (n > 0) {
 
-            // MSG_SENT EVENT
+            evBus_->publish<SendMessageEvent>(ServerEvent<SendMessageEvent>{
+                TSCClock::now(), {sess->sendBuffer.at(0), sess->serverSqn}});
+
             sess->sendBuffer.erase(sess->sendBuffer.begin(),
                                    sess->sendBuffer.begin() + n);
+
         } else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 break;
@@ -216,6 +220,7 @@ void Server::handleDisconnect(int fd) {
 
     removeConnection(fd);
     // DISCONNECT EVENT
+    evBus_->publish<DisconnectEvent>(ServerEvent<DisconnectEvent>{TSCClock::now(), fd});
 }
 
 int Server::createListenSocket(uint16_t port) {
