@@ -33,7 +33,7 @@ private:
             if (!f) return;
             setvbuf(f, nullptr, _IOFBF, 1 << 20);
 
-            fprintf(f, "tsNs");
+            fprintf(f, "ts");
             EventT dummy{};
             dummy.iterateElements(
                 [&](const char* name, auto&) { fprintf(f, ",%s", name); });
