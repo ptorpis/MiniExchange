@@ -68,12 +68,14 @@ int main() {
     ProtocolHandler handler(sessionManager, evBus);
     uint16_t port = 12345;
 
-    Server server(port, sessionManager, handler, evBus);
-    if (!server.start(port)) {
-        return 1;
-    }
+    if (false) {
+        Server server(port, sessionManager, handler, evBus);
+        if (!server.start(port)) {
+            return 1;
+        }
 
-    server.run();
+        server.run();
+    }
 
     evBus->stop();
     return 0;
