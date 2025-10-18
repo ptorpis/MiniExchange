@@ -7,3 +7,5 @@ __pycache__/
 venv/
 output/
 .env
+config/server_run_cfg.json
+config/build_config.json

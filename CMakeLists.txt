@@ -61,9 +61,18 @@ if(ENABLE_LTO)
     if(ipo_supported)
         message(STATUS "LTO (IPO) is supported and enabled")
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+        # Ensure compiler flag explicitly added
+        add_compile_options(-flto)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
     else()
         message(WARNING "LTO not supported: ${ipo_error}")
     endif()
+else()
+    message(STATUS "LTO disabled, removing any LTO flags")
+    # Explicitly unset LTO-related variables
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
+    string(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REPLACE "-flto" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
 endif()
 
 # --- Testing ---
