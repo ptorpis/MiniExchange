@@ -1,6 +1,6 @@
 from pathlib import Path
 import json
-from py.analytics.data_streamer import DataStreamer
+from scripts.analytics.data_streamer import DataStreamer
 
 BASE = Path("output/runs")
 
