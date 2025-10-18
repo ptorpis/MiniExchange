@@ -131,8 +131,8 @@ private:
 
             eventQueue_.push(
                 {steady_clock::now() + rand_.jitter(100), i, EventType::Order});
-            eventQueue_.push(
-                {steady_clock::now() + HEARTBEAT_INTERVAL, i, EventType::Heartbeat});
+            eventQueue_.push({steady_clock::now() + HEARTBEAT_INTERVAL + rand_.jitter(10),
+                              i, EventType::Heartbeat});
         }
 
         while (running_) {
