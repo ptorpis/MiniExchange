@@ -50,13 +50,12 @@ constexpr size_t MAX_TIMING_RECORDS = 8192;
 
 inline std::array<TimingRecord, MAX_TIMING_RECORDS> timingBuffer;
 inline std::atomic<size_t> timingIndex{0};
-
+inline std::atomic<size_t> droppedEvents{0};
 namespace utils {
 inline void recordTiming(const TimingRecord& rec) {
     size_t i = timingIndex.fetch_add(1, std::memory_order_relaxed);
-    if (i < MAX_TIMING_RECORDS) {
-        timingBuffer[i] = rec;
-    }
+    size_t idx = i % MAX_TIMING_RECORDS;
+    timingBuffer[idx] = rec;
 }
 
 inline void startTimingConsumer(const char* filename = "timings.csv") {
@@ -69,18 +68,31 @@ inline void startTimingConsumer(const char* filename = "timings.csv") {
         fprintf(f, "messageType,tReceived,tDeserialized,tBuffered\n");
 
         size_t lastIndex = 0;
-
+        size_t totalDropped = 0;
         while (true) {
             size_t currentIndex = timingIndex.load(std::memory_order_acquire);
 
             if (currentIndex > lastIndex) {
-                for (size_t i = lastIndex; i < currentIndex; ++i) {
-                    const auto& rec = timingBuffer[i];
+                size_t available = currentIndex - lastIndex;
+                size_t dropped = 0;
+                size_t startIdx = lastIndex;
+                size_t endIdx = currentIndex;
+                if (available > MAX_TIMING_RECORDS) {
+                    dropped = available - MAX_TIMING_RECORDS;
+                    totalDropped += dropped;
+                    startIdx = currentIndex - MAX_TIMING_RECORDS;
+                    fprintf(stderr,
+                            "WARNING: Dropped %zu timing events (total dropped: %zu)\n",
+                            dropped, totalDropped);
+                }
+                for (size_t i = startIdx; i < endIdx; ++i) {
+                    size_t idx = i % MAX_TIMING_RECORDS;
+                    const auto& rec = timingBuffer[idx];
                     fprintf(f, "%u,%lu,%lu,%lu\n", rec.messageType, rec.tReceived,
                             rec.tDeserialized, rec.tBuffered);
                 }
                 lastIndex = currentIndex;
-                fflush(f); // flush every batch
+                fflush(f);
             }
 
             std::this_thread::sleep_for(std::chrono::milliseconds(100));

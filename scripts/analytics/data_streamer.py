@@ -3,7 +3,7 @@ import csv
 
 
 class DataStreamer:
-    def __init__(self, run_config: dict, chunk_size: int) -> None:
+    def __init__(self, run_config: dict, chunk_size: int = 10000) -> None:
         self.files = run_config.get("files", {})
         self.chunk_size = chunk_size
 

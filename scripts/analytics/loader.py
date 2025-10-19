@@ -27,12 +27,14 @@ def load_run_cfg(path):
     return cfg
 
 
-if __name__ == "__main__":
+def load_latest_run_cfg():
     configs = locate_runs()
-    latest_conf = latest_run(configs)
-    print(latest_conf)
-    run_conf = load_run_cfg(latest_conf)
-    print(json.dumps(run_conf, indent=4))
+    latest = latest_run(configs)
+    return load_run_cfg(latest)
+
+
+if __name__ == "__main__":
+    run_conf = load_latest_run_cfg()
 
     streamer = DataStreamer(run_conf, chunk_size=100)
 

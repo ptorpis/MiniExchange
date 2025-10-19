@@ -27,6 +27,7 @@ nlohmann::json readRunConfig(const std::filesystem::path& cfgPath) {
 }
 
 void enrichRunConfig(nlohmann::json& cfg, const std::filesystem::path& outputDir) {
+    cfg["baseTick"] = TSCClock::now();
     cfg["nsPerTick"] = TSCClock::nsPerTick;
     nlohmann::json files;
 

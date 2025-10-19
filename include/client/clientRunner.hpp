@@ -66,7 +66,13 @@ public:
 
         std::cout << "Connected and logged in... sending orders" << std::endl;
         std::thread timer([&] {
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+            for (int i{}; i < 15; ++i) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                if (!running_) {
+                    std::cout << "Stopped early." << std::endl;
+                    return;
+                }
+            }
             running_ = false;
             std::cout << "Stopped." << std::endl;
         });
@@ -171,7 +177,7 @@ private:
                 switch (ev.type) {
                 case EventType::Order:
                     generateAndSendOrder(state);
-                    ev.time = now + milliseconds(200) + rand_.jitter(10);
+                    ev.time = now + milliseconds(10) + rand_.jitter(10);
                     eventQueue_.push(ev);
                     break;
 
