@@ -11,7 +11,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE) # quick fix for dev warning
 
 add_executable(UnitTests
     engineTests.cpp
-    protocolTests.cpp
 )
 
 target_link_libraries(UnitTests

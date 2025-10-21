@@ -14,7 +14,7 @@
 #include "utils/randomGenerator.hpp"
 
 struct ClientState {
-    ClientState(HMACKey h, ApiKey a) : c(h, a) {}
+    ClientState(ApiKey a) : c(a) {}
     int fd{-1};
     Client c;
     std::chrono::steady_clock::time_point nextOrder{std::chrono::steady_clock::now()};
@@ -45,10 +45,8 @@ public:
         clients_.reserve(nClients);
         for (size_t i{}; i < nClients; ++i) {
             ApiKey apiKey;
-            HMACKey hmacKey;
-            hmacKey.fill(0x11);
             apiKey.fill(0x22);
-            clients_.emplace_back(hmacKey, apiKey);
+            clients_.emplace_back(apiKey);
 
             auto& session = clients_.back().c.getSession();
 
@@ -177,7 +175,7 @@ private:
                 switch (ev.type) {
                 case EventType::Order:
                     generateAndSendOrder(state);
-                    ev.time = now + milliseconds(10) + rand_.jitter(10);
+                    ev.time = now + milliseconds(1) + rand_.jitter(5);
                     eventQueue_.push(ev);
                     break;
 

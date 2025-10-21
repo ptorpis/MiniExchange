@@ -11,8 +11,6 @@
 #include <arpa/inet.h>
 #include <chrono>
 #include <iostream>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
 #include <stdexcept>
 
 using MsgEvent = ServerEvent<ReceiveMessageEvent>;
@@ -65,32 +63,15 @@ void ProtocolHandler::onMessage(int fd) {
                 return;
             }
 
-            ApiKey apiKey = msgOpt->payload.getApiKeyArray();
-            auto hmacKeyOpt = clientManager_.getHMACKey(apiKey);
-
-            if (hmacKeyOpt.has_value()) {
-                session->hmacKey = hmacKeyOpt.value();
-            }
-
-            const uint8_t* expectedHMAC =
-                session->recvBuffer.data() +
-                client::PayloadTraits<client::HelloPayload>::dataSize;
-
-            if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            client::PayloadTraits<client::HelloPayload>::dataSize,
-                            expectedHMAC, constants::HMAC_SIZE)) {
-
 #ifdef ENABLE_TIMING
-                timingRec.tDeserialized = TSCClock::now();
+            timingRec.tDeserialized = TSCClock::now();
 #endif
 
-                if (!session) {
-                    return;
-                }
-                sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
-                outBoundFDs_.push_back(session->FD);
-            } else {
+            if (!session) {
+                return;
             }
+            sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
+            outBoundFDs_.push_back(session->FD);
 #ifdef ENABLE_TIMING
             timingRec.tBuffered = TSCClock::now();
             utils::recordTiming(timingRec);
@@ -119,26 +100,18 @@ void ProtocolHandler::onMessage(int fd) {
                 break;
             }
 
-            const uint8_t* expectedHMAC =
-                session->recvBuffer.data() +
-                client::PayloadTraits<client::LogoutPayload>::dataSize;
-
-            if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            client::PayloadTraits<client::LogoutPayload>::dataSize,
-                            expectedHMAC, constants::HMAC_SIZE)) {
-                if (auto msgOpt =
-                        deserializeMessage<client::LogoutPayload>(session->recvBuffer)) {
+            if (auto msgOpt =
+                    deserializeMessage<client::LogoutPayload>(session->recvBuffer)) {
 #ifdef ENABLE_TIMING
-                    timingRec.tDeserialized = TSCClock::now();
+                timingRec.tDeserialized = TSCClock::now();
 #endif
-                    sendFn_(*session, api_.handleLogout(*session, msgOpt.value()));
-                    outBoundFDs_.push_back(session->FD);
-                }
-#ifdef ENABLE_TIMING
-                timingRec.tBuffered = TSCClock::now();
-                utils::recordTiming(timingRec);
-#endif
+                sendFn_(*session, api_.handleLogout(*session, msgOpt.value()));
+                outBoundFDs_.push_back(session->FD);
             }
+#ifdef ENABLE_TIMING
+            timingRec.tBuffered = TSCClock::now();
+            utils::recordTiming(timingRec);
+#endif
 
             break;
         }
@@ -163,33 +136,25 @@ void ProtocolHandler::onMessage(int fd) {
                 break;
             }
 
-            const uint8_t* expectedHMAC =
-                session->recvBuffer.data() +
-                client::PayloadTraits<client::NewOrderPayload>::dataSize;
-
-            if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            client::PayloadTraits<client::NewOrderPayload>::dataSize,
-                            expectedHMAC, constants::HMAC_SIZE)) {
-                if (auto msgOpt = deserializeMessage<client::NewOrderPayload>(
-                        session->recvBuffer)) {
+            if (auto msgOpt =
+                    deserializeMessage<client::NewOrderPayload>(session->recvBuffer)) {
 #ifdef ENABLE_TIMING
-                    timingRec.tDeserialized = TSCClock::now();
+                timingRec.tDeserialized = TSCClock::now();
 #endif
-                    if (!session) {
-                        return;
-                    }
-                    auto responses = api_.handleNewOrder(*session, msgOpt.value());
-                    for (auto& response : responses) {
-                        Session* sess = api_.getSession(response.fd);
-                        sendFn_(*sess, response.data);
-                        outBoundFDs_.push_back(response.fd);
-                    }
+                if (!session) {
+                    return;
                 }
-#ifdef ENABLE_TIMING
-                timingRec.tBuffered = TSCClock::now();
-                utils::recordTiming(timingRec);
-#endif
+                auto responses = api_.handleNewOrder(*session, msgOpt.value());
+                for (auto& response : responses) {
+                    Session* sess = api_.getSession(response.fd);
+                    sendFn_(*sess, response.data);
+                    outBoundFDs_.push_back(response.fd);
+                }
             }
+#ifdef ENABLE_TIMING
+            timingRec.tBuffered = TSCClock::now();
+            utils::recordTiming(timingRec);
+#endif
             break;
         }
 
@@ -213,31 +178,22 @@ void ProtocolHandler::onMessage(int fd) {
                 break;
             }
 
-            const uint8_t* expectedHMAC =
-                session->recvBuffer.data() +
-                client::PayloadTraits<client::CancelOrderPayload>::dataSize;
-
-            if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            client::PayloadTraits<client::CancelOrderPayload>::dataSize,
-                            expectedHMAC, constants::HMAC_SIZE)) {
-                auto msgOpt =
-                    deserializeMessage<client::CancelOrderPayload>(session->recvBuffer);
+            if (auto msgOpt =
+                    deserializeMessage<client::CancelOrderPayload>(session->recvBuffer)) {
 #ifdef ENABLE_TIMING
                 timingRec.tDeserialized = TSCClock::now();
 #endif
-                if (msgOpt) {
 
-                    if (!session) {
-                        return;
-                    }
-                    sendFn_(*session, api_.handleCancel(*session, msgOpt.value()));
-                    outBoundFDs_.push_back(session->FD);
+                if (!session) {
+                    return;
                 }
-#ifdef ENABLE_TIMING
-                timingRec.tBuffered = TSCClock::now();
-                utils::recordTiming(timingRec);
-#endif
+                sendFn_(*session, api_.handleCancel(*session, msgOpt.value()));
+                outBoundFDs_.push_back(session->FD);
             }
+#ifdef ENABLE_TIMING
+            timingRec.tBuffered = TSCClock::now();
+            utils::recordTiming(timingRec);
+#endif
 
             break;
         }
@@ -263,18 +219,8 @@ void ProtocolHandler::onMessage(int fd) {
                 break;
             }
 
-            const uint8_t* expectedHMAC =
-                session->recvBuffer.data() +
-                client::PayloadTraits<client::ModifyOrderPayload>::dataSize;
-
-            if (verifyHMAC_(session->hmacKey, session->recvBuffer.data(),
-                            client::PayloadTraits<client::ModifyOrderPayload>::dataSize,
-                            expectedHMAC, constants::HMAC_SIZE)) {
-                auto msgOpt =
-                    deserializeMessage<client::ModifyOrderPayload>(session->recvBuffer);
-                if (!msgOpt) {
-                    break;
-                }
+            if (auto msgOpt =
+                    deserializeMessage<client::ModifyOrderPayload>(session->recvBuffer)) {
 #ifdef ENABLE_TIMING
                 timingRec.tDeserialized = TSCClock::now();
 #endif
@@ -288,11 +234,11 @@ void ProtocolHandler::onMessage(int fd) {
                     sendFn_(*(api_.getSession(response.fd)), response.data);
                     outBoundFDs_.push_back(response.fd);
                 }
-#ifdef ENABLE_TIMING
-                timingRec.tBuffered = TSCClock::now();
-                utils::recordTiming(timingRec);
-#endif
             }
+#ifdef ENABLE_TIMING
+            timingRec.tBuffered = TSCClock::now();
+            utils::recordTiming(timingRec);
+#endif
             break;
         }
         case MessageType::HEARTBEAT: {
@@ -347,26 +293,4 @@ std::optional<MessageHeader> ProtocolHandler::peekHeader_(Session& session) cons
     header.serverMsgSqn = ntohl(header.serverMsgSqn);
 
     return header;
-}
-
-bool ProtocolHandler::verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
-                                  size_t dataLen, const uint8_t* expectedHMAC,
-                                  size_t HMACLen) {
-    auto computed = computeHMAC_(key, data, dataLen);
-    if (computed.size() != HMACLen) return false;
-
-    uint8_t diff = 0;
-    for (size_t i = 0; i < HMACLen; ++i) {
-        diff |= computed[i] ^ expectedHMAC[i];
-    }
-    return diff == 0;
-}
-
-std::vector<uint8_t> ProtocolHandler::computeHMAC_(const std::array<uint8_t, 32>& key,
-                                                   const uint8_t* data, size_t dataLen) {
-    unsigned int len = 32;
-
-    std::vector<uint8_t> hmac(len);
-    HMAC(EVP_sha256(), key.data(), key.size(), data, dataLen, hmac.data(), &len);
-    return hmac;
 }

@@ -13,10 +13,9 @@ using namespace pybind11::literals;
 
 class PyClient {
 public:
-    PyClient(std::array<uint8_t, constants::HMAC_SIZE> hmacKey,
-             std::array<uint8_t, 16> apiKey, const std::string& serverIP = "127.0.0.1",
+    PyClient(std::array<uint8_t, 16> apiKey, const std::string& serverIP = "127.0.0.1",
              uint16_t port = 12345)
-        : client_(hmacKey, apiKey), net_(serverIP, port, client_), running_(false) {}
+        : client_(apiKey), net_(serverIP, port, client_), running_(false) {}
     ~PyClient() { stop(); }
 
     bool connect() { return net_.connectServer(); }
@@ -227,9 +226,8 @@ public:
 
 PYBIND11_MODULE(miniexchange_client, m) {
     py::class_<PyClient>(m, "MiniExchangeClient")
-        .def(py::init<std::array<uint8_t, constants::HMAC_SIZE>, std::array<uint8_t, 16>,
-                      const std::string&, uint16_t>(),
-             py::arg("hmac_key"), py::arg("api_key"), py::arg("server_ip") = "127.0.0.1",
+        .def(py::init<std::array<uint8_t, 16>, const std::string&, uint16_t>(),
+             py::arg("api_key"), py::arg("server_ip") = "127.0.0.1",
              py::arg("port") = 12345)
         .def("connect", &PyClient::connect)
         .def("start", &PyClient::start)

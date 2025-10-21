@@ -8,8 +8,6 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
 #include <utility>
 
 void Client::eraseBytesFromBuffer(std::vector<uint8_t>& buffer, size_t n_bytes) {
@@ -20,7 +18,6 @@ void Client::sendHello() {
     Message<client::HelloPayload> msg;
     msg.header = client::makeClientHeader<client::HelloPayload>(session_);
     std::memcpy(msg.payload.apiKey, getAPIKey().data(), getAPIKey().size());
-    std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
     sendMessage(msg);
 }
 
@@ -87,32 +84,22 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             return std::nullopt;
         }
 
-        const uint8_t* expectedHMAC =
-            session_.recvBuffer.data() +
-            server::PayloadTraits<server::HelloAckPayload>::dataSize;
-
-        if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                        server::PayloadTraits<server::HelloAckPayload>::dataSize,
-                        expectedHMAC, constants::HMAC_SIZE)) {
-            auto msgOpt =
-                deserializeMessage<server::HelloAckPayload>(session_.recvBuffer);
-            if (!msgOpt) {
-                return std::nullopt;
-            }
-
-            session_.serverSqn = msgOpt.value().header.serverMsgSqn;
-            session_.serverClientID = msgOpt.value().payload.serverClientID;
-
-            if (statusCodes::HelloAckStatus::ACCEPTED ==
-                static_cast<statusCodes::HelloAckStatus>(msgOpt.value().payload.status)) {
-                session_.authenticated = true;
-                return makeIncomingVariant_(msgOpt.value(), totalSize);
-            } else {
-                return makeIncomingVariant_(msgOpt.value(), totalSize);
-            }
-        } else {
+        auto msgOpt = deserializeMessage<server::HelloAckPayload>(session_.recvBuffer);
+        if (!msgOpt) {
             return std::nullopt;
         }
+
+        session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+        session_.serverClientID = msgOpt.value().payload.serverClientID;
+
+        if (statusCodes::HelloAckStatus::ACCEPTED ==
+            static_cast<statusCodes::HelloAckStatus>(msgOpt.value().payload.status)) {
+            session_.authenticated = true;
+            return makeIncomingVariant_(msgOpt.value(), totalSize);
+        } else {
+            return makeIncomingVariant_(msgOpt.value(), totalSize);
+        }
+
         break;
     }
     case MessageType::LOGOUT_ACK: {
@@ -121,30 +108,19 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
         if (session_.recvBuffer.size() < totalSize) {
             return std::nullopt;
         }
-        const uint8_t* expectedHMAC =
-            session_.recvBuffer.data() +
-            server::PayloadTraits<server::LogoutAckPayload>::dataSize;
 
-        if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                        server::PayloadTraits<server::LogoutAckPayload>::dataSize,
-                        expectedHMAC, constants::HMAC_SIZE)) {
-            auto msgOpt =
-                deserializeMessage<server::LogoutAckPayload>(session_.recvBuffer);
+        auto msgOpt = deserializeMessage<server::LogoutAckPayload>(session_.recvBuffer);
 
-            if (!msgOpt) {
-                return std::nullopt;
-            }
-            session_.clientSqn = msgOpt.value().header.clientMsgSqn;
-
-            if (statusCodes::LogoutAckStatus::ACCEPTED ==
-                static_cast<statusCodes::LogoutAckStatus>(
-                    msgOpt.value().payload.status)) {
-                session_.authenticated = false;
-            }
-            return makeIncomingVariant_(msgOpt.value(), totalSize);
-        } else {
+        if (!msgOpt) {
             return std::nullopt;
         }
+        session_.clientSqn = msgOpt.value().header.clientMsgSqn;
+
+        if (statusCodes::LogoutAckStatus::ACCEPTED ==
+            static_cast<statusCodes::LogoutAckStatus>(msgOpt.value().payload.status)) {
+            session_.authenticated = false;
+        }
+        return makeIncomingVariant_(msgOpt.value(), totalSize);
 
         break;
     }
@@ -155,32 +131,21 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
         if (session_.recvBuffer.size() < totalSize) {
             return std::nullopt;
         }
-        const uint8_t* expectedHMAC =
-            session_.recvBuffer.data() +
-            server::PayloadTraits<server::OrderAckPayload>::dataSize;
+        auto msgOpt = deserializeMessage<server::OrderAckPayload>(session_.recvBuffer);
 
-        if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                        server::PayloadTraits<server::OrderAckPayload>::dataSize,
-                        expectedHMAC, constants::HMAC_SIZE)) {
-            auto msgOpt =
-                deserializeMessage<server::OrderAckPayload>(session_.recvBuffer);
-
-            if (!msgOpt) {
-                return std::nullopt;
-            }
-            session_.serverSqn = msgOpt.value().header.serverMsgSqn;
-
-            if (auto msg = msgOpt.value();
-                msg.payload.status == +statusCodes::OrderAckStatus::ACCEPTED &&
-                msg.payload.acceptedPrice != 0) {
-                addOutstandingOrder(msg.payload.serverOrderID, msg.payload.acceptedQty,
-                                    msg.payload.acceptedPrice);
-            }
-
-            return makeIncomingVariant_(msgOpt.value(), totalSize);
-        } else {
+        if (!msgOpt) {
             return std::nullopt;
         }
+        session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+
+        if (auto msg = msgOpt.value();
+            msg.payload.status == +statusCodes::OrderAckStatus::ACCEPTED &&
+            msg.payload.acceptedPrice != 0) {
+            addOutstandingOrder(msg.payload.serverOrderID, msg.payload.acceptedQty,
+                                msg.payload.acceptedPrice);
+        }
+
+        return makeIncomingVariant_(msgOpt.value(), totalSize);
         break;
     }
 
@@ -191,31 +156,19 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             return std::nullopt;
         }
 
-        std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
-        std::memcpy(expectedHMAC.data(),
-                    session_.recvBuffer.data() +
-                        server::PayloadTraits<server::TradePayload>::dataSize,
-                    constants::HMAC_SIZE);
+        auto msgOpt = deserializeMessage<server::TradePayload>(session_.recvBuffer);
 
-        if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                        server::PayloadTraits<server::TradePayload>::dataSize,
-                        expectedHMAC.data(), constants::HMAC_SIZE)) {
-            auto msgOpt = deserializeMessage<server::TradePayload>(session_.recvBuffer);
-
-            if (!msgOpt) {
-                return std::nullopt;
-            }
-
-            session_.serverSqn = msgOpt.value().header.serverMsgSqn;
-            session_.exeID++;
-
-            fillOutstandingOrder(msgOpt.value().payload.serverOrderID,
-                                 msgOpt.value().payload.filledQty);
-
-            return makeIncomingVariant_(msgOpt.value(), totalSize);
-        } else {
+        if (!msgOpt) {
             return std::nullopt;
         }
+
+        session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+        session_.exeID++;
+
+        fillOutstandingOrder(msgOpt.value().payload.serverOrderID,
+                             msgOpt.value().payload.filledQty);
+
+        return makeIncomingVariant_(msgOpt.value(), totalSize);
         break;
     }
 
@@ -226,33 +179,20 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             return std::nullopt;
         }
 
-        std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
-        std::memcpy(expectedHMAC.data(),
-                    session_.recvBuffer.data() +
-                        server::PayloadTraits<server::CancelAckPayload>::dataSize,
-                    constants::HMAC_SIZE);
+        auto msgOpt = deserializeMessage<server::CancelAckPayload>(session_.recvBuffer);
 
-        if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                        server::PayloadTraits<server::CancelAckPayload>::dataSize,
-                        expectedHMAC.data(), constants::HMAC_SIZE)) {
-            auto msgOpt =
-                deserializeMessage<server::CancelAckPayload>(session_.recvBuffer);
-
-            if (!msgOpt) {
-                return std::nullopt;
-            }
-
-            session_.serverSqn = msgOpt.value().header.serverMsgSqn;
-
-            if (auto msg = msgOpt.value();
-                msg.payload.status == +statusCodes::CancelAckStatus::ACCEPTED) {
-                removeOutstandingOrder(msg.payload.serverOrderID);
-            }
-
-            return makeIncomingVariant_(msgOpt.value(), totalSize);
-        } else {
+        if (!msgOpt) {
             return std::nullopt;
         }
+
+        session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+
+        if (auto msg = msgOpt.value();
+            msg.payload.status == +statusCodes::CancelAckStatus::ACCEPTED) {
+            removeOutstandingOrder(msg.payload.serverOrderID);
+        }
+
+        return makeIncomingVariant_(msgOpt.value(), totalSize);
         break;
     }
 
@@ -263,35 +203,22 @@ std::optional<client::IncomingMessageVariant> Client::processIncomingMessage_() 
             return std::nullopt;
         }
 
-        std::array<uint8_t, constants::HMAC_SIZE> expectedHMAC{0};
-        std::memcpy(expectedHMAC.data(),
-                    session_.recvBuffer.data() +
-                        server::PayloadTraits<server::ModifyAckPayload>::dataSize,
-                    constants::HMAC_SIZE);
+        auto msgOpt = deserializeMessage<server::ModifyAckPayload>(session_.recvBuffer);
 
-        if (verifyHMAC_(session_.hmacKey, session_.recvBuffer.data(),
-                        server::PayloadTraits<server::ModifyAckPayload>::dataSize,
-                        expectedHMAC.data(), constants::HMAC_SIZE)) {
-            auto msgOpt =
-                deserializeMessage<server::ModifyAckPayload>(session_.recvBuffer);
-
-            if (!msgOpt) {
-                return std::nullopt;
-            }
-
-            session_.serverSqn = msgOpt.value().header.serverMsgSqn;
-
-            if (auto msg = msgOpt.value();
-                msg.payload.status == +statusCodes::ModifyAckStatus::ACCEPTED) {
-                modifyOutstandingOrder(msg.payload.oldServerOrderID,
-                                       msg.payload.newServerOrderID, msg.payload.newQty,
-                                       msg.payload.newPrice);
-            }
-
-            return makeIncomingVariant_(msgOpt.value(), totalSize);
-        } else {
+        if (!msgOpt) {
             return std::nullopt;
         }
+
+        session_.serverSqn = msgOpt.value().header.serverMsgSqn;
+
+        if (auto msg = msgOpt.value();
+            msg.payload.status == +statusCodes::ModifyAckStatus::ACCEPTED) {
+            modifyOutstandingOrder(msg.payload.oldServerOrderID,
+                                   msg.payload.newServerOrderID, msg.payload.newQty,
+                                   msg.payload.newPrice);
+        }
+
+        return makeIncomingVariant_(msgOpt.value(), totalSize);
 
         break;
     }
@@ -318,27 +245,6 @@ std::optional<MessageHeader> Client::peekHeader_() const {
     return header;
 }
 
-bool Client::verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
-                         size_t dataLen, const uint8_t* expectedHMAC, size_t HMACLen) {
-    auto computed = computeHMAC_(key, data, dataLen);
-    if (computed.size() != HMACLen) return false;
-
-    volatile uint8_t diff = 0;
-    for (size_t i = 0; i < HMACLen; ++i) {
-        diff |= computed[i] ^ expectedHMAC[i];
-    }
-    return diff == 0;
-}
-
-std::vector<uint8_t> Client::computeHMAC_(const std::array<uint8_t, 32>& key,
-                                          const uint8_t* data, size_t dataLen) {
-    unsigned int len = 32;
-
-    std::vector<uint8_t> hmac(len);
-    HMAC(EVP_sha256(), key.data(), key.size(), data, dataLen, hmac.data(), &len);
-    return hmac;
-}
-
 void Client::appendRecvBuffer(std::span<const uint8_t> data) {
     session_.recvBuffer.insert(std::end(session_.recvBuffer), std::begin(data),
                                std::end(data));
@@ -356,7 +262,6 @@ void Client::sendOrder(Qty qty = 100, Price price = 200, bool isBuy = true,
     msg.payload.price = price;
     msg.payload.timeInForce = +(TimeInForce::GTC);
     msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
-    std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
     std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
     sendMessage(msg);

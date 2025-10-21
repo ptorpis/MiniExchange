@@ -15,7 +15,6 @@
 
 namespace constants {
 inline constexpr size_t HEADER_SIZE = 16;
-inline constexpr size_t HMAC_SIZE = 32;
 
 enum class HeaderFlags : uint8_t { PROTOCOL_VERSION = 0x01 };
 
@@ -138,33 +137,14 @@ template <typename Payload> struct Message {
     Payload payload;
 };
 
-// #pragma pack(push, 1)
-// struct ResendRequestPayload {
-//     uint32_t startSqn;
-//     uint32_t endSqn;
-//     uint8_t padding[8];
-//     uint8_t hmac[32];
-// };
-// #pragma pack(pop)
-
-// #pragma pack(push, 1)
-// struct ResendResponsePayload {
-//     uint64_t serverClientID;
-// add later
-//     uint8_t hmac[32];
-// };
-// #pragma pack(pop)
-
 #pragma pack(push, 1)
 struct ErrorMessagePayload {
     uint16_t errorCode;
     uint8_t padding[14];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(errorCode);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)

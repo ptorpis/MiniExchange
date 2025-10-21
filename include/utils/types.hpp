@@ -21,4 +21,3 @@ struct OutboundMessage {
 };
 
 using ApiKey = std::array<uint8_t, 16>;
-using HMACKey = std::array<uint8_t, 32>;

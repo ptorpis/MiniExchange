@@ -6,7 +6,6 @@ namespace statusCodes {
 enum class HelloAckStatus : uint8_t {
     NULLSTATUS = 0x00,
     ACCEPTED = 0x01,
-    INVALID_HMAC = 0x02,
     INVALID_API_KEY = 0x03,
     OUT_OF_ORDER = 0x04,
     ILL_FORMED = 0x05
@@ -15,7 +14,6 @@ enum class HelloAckStatus : uint8_t {
 enum class LogoutAckStatus : uint8_t {
     NULLSTATUS = 0x00,
     ACCEPTED = 0x01,
-    INVALID_HMAC = 0x02,
     OUT_OF_ORDER = 0x04
 };
 
@@ -80,8 +78,6 @@ constexpr const char* toStr(HelloAckStatus s) {
         return "NULLSTATUS";
     case HelloAckStatus::ACCEPTED:
         return "ACCEPTED";
-    case HelloAckStatus::INVALID_HMAC:
-        return "INVALID_HMAC";
     case HelloAckStatus::INVALID_API_KEY:
         return "INVALID_API_KEY";
     case HelloAckStatus::OUT_OF_ORDER:
@@ -99,8 +95,6 @@ constexpr const char* toStr(LogoutAckStatus s) {
         return "NULLSTATUS";
     case LogoutAckStatus::ACCEPTED:
         return "ACCEPTED";
-    case LogoutAckStatus::INVALID_HMAC:
-        return "INVALID_HMAC";
     case LogoutAckStatus::OUT_OF_ORDER:
         return "OUT_OF_ORDER";
     default:

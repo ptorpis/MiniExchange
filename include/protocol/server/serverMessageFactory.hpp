@@ -28,7 +28,6 @@ struct MessageFactory {
         msg.payload.serverClientID = session.serverClientID;
         msg.payload.status = +(status);
 
-        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
         return msg;
@@ -43,7 +42,6 @@ struct MessageFactory {
         msg.payload.serverClientID = session.serverClientID;
         msg.payload.status = +(status);
 
-        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
         return msg;
@@ -69,7 +67,6 @@ struct MessageFactory {
             ack.payload.acceptedPrice = req.price;
         }
 
-        std::fill(std::begin(ack.payload.hmac), std::end(ack.payload.hmac), 0x00);
         std::fill(std::begin(ack.payload.padding), std::end(ack.payload.padding), 0x00);
         return ack;
     }
@@ -92,8 +89,6 @@ struct MessageFactory {
             msg.payload.serverOrderID = trade.sellerOrderID;
         }
 
-        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
-
         return msg;
     }
 
@@ -107,7 +102,6 @@ struct MessageFactory {
         msg.payload.status = +(status);
 
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
-        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
 
         return msg;
     }
@@ -124,7 +118,6 @@ struct MessageFactory {
         msg.payload.status = +(status);
 
         std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
-        std::fill(std::begin(msg.payload.hmac), std::end(msg.payload.hmac), 0x00);
 
         return msg;
     }

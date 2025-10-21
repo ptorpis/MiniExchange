@@ -4,7 +4,6 @@
 #include "auth/sessionManager.hpp"
 #include "events/eventBus.hpp"
 #include "protocol/messages.hpp"
-#include "server/clients.hpp"
 #include "utils/utils.hpp"
 
 #include <cstring>
@@ -35,9 +34,7 @@ public:
                 session.sendBuffer.insert(std::end(session.sendBuffer),
                                           std::begin(buffer), std::end(buffer));
             })
-        : api_(MiniExchangeAPI(sm, evBus)), sendFn_(std::move(sendFn)),
-          clientManager_(ClientManager()), evBus_(evBus) {
-        clientManager_.addTestDefault();
+        : api_(MiniExchangeAPI(sm, evBus)), sendFn_(std::move(sendFn)), evBus_(evBus) {
         outBoundFDs_.reserve(16);
         lastScreenUpdate_ = std::chrono::steady_clock::now();
     }
@@ -59,16 +56,11 @@ public:
 private:
     MiniExchangeAPI api_;
     SendFn sendFn_; // custom send function, assigned at construction
-    ClientManager clientManager_;
     std::shared_ptr<EventBus> evBus_;
 
     OutBoundFDs outBoundFDs_;
 
     std::optional<MessageHeader> peekHeader_(Session& Session) const;
-    bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
-                     size_t dataLen, const uint8_t* expectedHMAC, size_t HMACLen);
-    std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
-                                      const uint8_t* data, size_t dataLen);
 
     std::chrono::steady_clock::time_point lastScreenUpdate_;
 };

@@ -13,12 +13,8 @@ using IncomingMessageVariant =
 #pragma pack(push, 1)
 struct HelloPayload {
     uint8_t apiKey[16];
-    uint8_t hmac[32];
 
-    template <typename F> void iterateElements(F&& func) {
-        func(apiKey);
-        func(hmac);
-    }
+    template <typename F> void iterateElements(F&& func) { func(apiKey); }
 
     std::array<uint8_t, 16> getApiKeyArray() const {
         std::array<uint8_t, 16> arr;
@@ -44,12 +40,10 @@ struct HeartBeatPayload {
 struct LogoutPayload {
     uint64_t serverClientID;
     uint8_t padding[8];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -65,7 +59,6 @@ struct NewOrderPayload {
     uint8_t timeInForce;
     Timestamp goodTillDate;
     uint8_t padding[9];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
@@ -77,7 +70,6 @@ struct NewOrderPayload {
         func(timeInForce);
         func(goodTillDate);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -87,13 +79,11 @@ struct CancelOrderPayload {
     uint64_t serverClientID;
     uint64_t serverOrderID;
     uint8_t padding[16];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverOrderID);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -104,14 +94,12 @@ struct ModifyOrderPayload {
     uint64_t serverOrderID;
     int64_t newQty;
     int64_t newPrice;
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverOrderID);
         func(newQty);
         func(newPrice);
-        func(hmac);
     }
 };
 #pragma pack(pop)

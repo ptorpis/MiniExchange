@@ -4,8 +4,6 @@
 #include "protocol/server/serverMessages.hpp"
 #include "protocol/traits.hpp"
 #include <iostream>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
 
 Session& MiniExchangeAPI::connectClient(int fd) {
     return sessionManager_.createSession(fd);
@@ -215,9 +213,6 @@ std::vector<uint8_t> MiniExchangeAPI::makeOrderAck_(Session& session, OrderReque
     auto ackMsg = server::MessageFactory::makeOrderAck(session, req, orderID, status);
     auto serialized =
         serializeMessage(MessageType::ORDER_ACK, ackMsg.payload, ackMsg.header);
-    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
-                             serialized.size() - constants::HMAC_SIZE);
-    std::copy(hmac.begin(), hmac.end(), serialized.end() - constants::HMAC_SIZE);
     return serialized;
 }
 
@@ -226,11 +221,6 @@ std::vector<uint8_t> MiniExchangeAPI::makeHelloAck_(Session& session,
     Message<server::HelloAckPayload> msg =
         server::MessageFactory::makeHelloAck(session, status);
     auto serialized = serializeMessage(MessageType::HELLO_ACK, msg.payload, msg.header);
-    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
-                             server::PayloadTraits<server::HelloAckPayload>::dataSize);
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() +
-                  server::PayloadTraits<server::HelloAckPayload>::dataSize);
     return serialized;
 }
 
@@ -239,9 +229,6 @@ MiniExchangeAPI::makeLogoutAck_(Session& session, statusCodes::LogoutAckStatus s
     Message<server::LogoutAckPayload> msg =
         server::MessageFactory::makeLoutAck(session, status);
     auto serialized = serializeMessage(MessageType::LOGOUT_ACK, msg.payload, msg.header);
-    size_t dataLen = serialized.size() - constants::HMAC_SIZE;
-    auto hmac = computeHMAC_(session.hmacKey, serialized.data(), dataLen);
-    std::copy(hmac.begin(), hmac.end(), serialized.data() + dataLen);
     return serialized;
 }
 
@@ -251,10 +238,6 @@ std::vector<uint8_t> MiniExchangeAPI::makeTradeMsg_(Session& session, TradeEvent
         server::MessageFactory::makeTradeMsg(session, trade, isBuyer);
     auto serialized = serializeMessage<server::TradePayload>(MessageType::TRADE,
                                                              msg.payload, msg.header);
-    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
-                             server::PayloadTraits<server::TradePayload>::dataSize);
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + server::PayloadTraits<server::TradePayload>::dataSize);
     return serialized;
 }
 
@@ -266,11 +249,6 @@ MiniExchangeAPI::makeCancelAck_(Session& session, const OrderID orderID,
 
     auto serialized = serializeMessage<server::CancelAckPayload>(MessageType::CANCEL_ACK,
                                                                  msg.payload, msg.header);
-    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
-                             server::PayloadTraits<server::CancelAckPayload>::dataSize);
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() +
-                  server::PayloadTraits<server::CancelAckPayload>::dataSize);
     return serialized;
 }
 
@@ -283,24 +261,10 @@ MiniExchangeAPI::makeModifyAck_(Session& session, OrderID oldOrderID, OrderID ne
 
     auto serialized = serializeMessage<server::ModifyAckPayload>(MessageType::MODIFY_ACK,
                                                                  msg.payload, msg.header);
-    auto hmac = computeHMAC_(session.hmacKey, serialized.data(),
-                             server::PayloadTraits<server::ModifyAckPayload>::dataSize);
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() +
-                  server::PayloadTraits<server::ModifyAckPayload>::dataSize);
     return serialized;
 }
 
 bool MiniExchangeAPI::isValidAPIKey_([[maybe_unused]] Session& session,
                                      [[maybe_unused]] const uint8_t key[16]) {
     return true;
-}
-
-std::vector<uint8_t> MiniExchangeAPI::computeHMAC_(const std::array<uint8_t, 32>& key,
-                                                   const uint8_t* data, size_t dataLen) {
-    unsigned int len = 32;
-
-    std::vector<uint8_t> hmac(len);
-    HMAC(EVP_sha256(), key.data(), key.size(), data, dataLen, hmac.data(), &len);
-    return hmac;
 }

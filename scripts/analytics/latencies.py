@@ -234,7 +234,6 @@ def plot_latency_histograms(
             ax2.set_xticks(ticks)
             ax2.set_xticklabels(labels, rotation=0, ha="center", fontsize=9)
         else:
-            # fallback to LogLocator if something odd happens
             ax1.xaxis.set_major_locator(LogLocator(base=10.0, numticks=12))
             ax2.xaxis.set_major_locator(LogLocator(base=10.0, numticks=12))
 

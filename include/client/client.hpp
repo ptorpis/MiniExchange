@@ -18,10 +18,8 @@ class Client {
 public:
     using SendFn = std::function<void(const std::span<const uint8_t>)>;
 
-    Client(std::array<uint8_t, constants::HMAC_SIZE> hmacKey,
-           std::array<uint8_t, 16> APIKey, SendFn sendFn = {})
+    Client(std::array<uint8_t, 16> APIKey, SendFn sendFn = {})
         : APIKey_(APIKey), session_(), sendFn_(std::move(sendFn)) {
-        session_.hmacKey = hmacKey;
         session_.reserve();
         if (!sendFn_) {
             sendFn_ = [this](const std::span<const uint8_t> buffer) {
@@ -58,8 +56,6 @@ public:
     void clearSendBuffer() { session_.sendBuffer.clear(); }
     void clearRecvBuffer() { session_.recvBuffer.clear(); }
 
-    std::vector<uint8_t> computeHMAC_(const std::array<uint8_t, 32>& key,
-                                      const uint8_t* data, size_t dataLen);
     void stop() {
         std::cout << "Client stopped\n";
         running_ = false;
@@ -78,9 +74,6 @@ public:
 
 private:
     std::array<uint8_t, 16> APIKey_;
-
-    bool verifyHMAC_(const std::array<uint8_t, 32>& key, const uint8_t* data,
-                     size_t dataLen, const uint8_t* expectedHMAC, size_t HMACLen);
 
     std::optional<MessageHeader> peekHeader_() const;
     void eraseBytesFromBuffer(std::vector<uint8_t>& buffer, size_t n_bytes);
@@ -103,9 +96,5 @@ private:
 template <typename Payload> void Client::sendMessage(Message<Payload> msg) {
     std::vector<uint8_t> serialized = serializeMessage<Payload>(
         client::PayloadTraits<Payload>::type, msg.payload, msg.header);
-    auto hmac = computeHMAC_(session_.hmacKey, serialized.data(),
-                             client::PayloadTraits<Payload>::dataSize);
-    std::copy(hmac.begin(), hmac.end(),
-              serialized.data() + client::PayloadTraits<Payload>::hmacOffset);
     sendFn_(serialized);
 }

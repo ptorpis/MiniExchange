@@ -97,9 +97,6 @@ set(CORE_SOURCES ${ALL_SRC})
 add_library(MiniExchangeCore STATIC ${CORE_SOURCES})
 target_include_directories(MiniExchangeCore PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
-find_package(OpenSSL REQUIRED)
-target_link_libraries(MiniExchangeCore PUBLIC OpenSSL::Crypto OpenSSL::SSL)
-
 # --- Client library ---
 add_library(MiniExchangeClient STATIC ${CLIENT_SRC})
 target_include_directories(MiniExchangeClient PUBLIC ${PROJECT_SOURCE_DIR}/include)

@@ -8,13 +8,11 @@ struct HelloAckPayload {
     uint64_t serverClientID;
     uint8_t status;
     uint8_t padding[7];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(status);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -24,13 +22,11 @@ struct LogoutAckPayload {
     uint64_t serverClientID;
     uint8_t status;
     uint8_t padding[7];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(status);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -39,12 +35,10 @@ struct LogoutAckPayload {
 struct SessionTimeoutPayload {
     uint64_t serverClientID;
     uint64_t serverTime;
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverTime);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -59,7 +53,6 @@ struct OrderAckPayload {
     int64_t acceptedQty;
     uint64_t serverTime;
     uint8_t padding[3];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
@@ -70,7 +63,6 @@ struct OrderAckPayload {
         func(acceptedQty);
         func(serverTime);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -81,14 +73,12 @@ struct CancelAckPayload {
     uint64_t serverOrderID;
     uint8_t status;
     uint8_t padding[15];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverOrderID);
         func(status);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -102,7 +92,6 @@ struct ModifyAckPayload {
     int64_t newPrice;
     uint8_t status;
     uint8_t padding[7];
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
@@ -110,7 +99,6 @@ struct ModifyAckPayload {
         func(newServerOrderID);
         func(status);
         func(padding);
-        func(hmac);
     }
 };
 #pragma pack(pop)
@@ -123,7 +111,6 @@ struct TradePayload {
     int64_t filledQty;
     int64_t filledPrice;
     uint64_t timestamp;
-    uint8_t hmac[32];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
@@ -132,7 +119,6 @@ struct TradePayload {
         func(filledQty);
         func(filledPrice);
         func(timestamp);
-        func(hmac);
     }
 };
 #pragma pack(pop)

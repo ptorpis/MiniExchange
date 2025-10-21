@@ -25,7 +25,6 @@ public:
         sess.clearBuffers();
 
         // temp, later remove and add database lookup after hello message
-        std::fill(sess.hmacKey.begin(), sess.hmacKey.end(), 0x11);
 
         heartbeats_.push_back({fd, std::chrono::steady_clock::now()});
         fdToHbIndex_[fd] = heartbeats_.size() - 1;

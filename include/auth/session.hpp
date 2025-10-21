@@ -20,20 +20,15 @@ struct Session {
     std::vector<uint8_t> recvBuffer;
     std::vector<uint8_t> sendBuffer;
 
-    std::array<uint8_t, 32> hmacKey{};
-
     uint64_t serverClientID{0};
 
-    explicit Session(int fd) : FD(fd), created(std::chrono::steady_clock::now()) {
-        hmacKey.fill(0x00);
-    }
+    explicit Session(int fd) : FD(fd), created(std::chrono::steady_clock::now()) {}
 
     void reset() {
         recvBuffer.clear();
         sendBuffer.clear();
         authenticated = false;
         serverSqn = 0;
-        hmacKey.fill(0);
         serverClientID = 0;
         exeID_ = 0;
     }
@@ -72,20 +67,13 @@ public:
     std::vector<uint8_t> recvBuffer;
     std::vector<uint8_t> sendBuffer;
 
-    std::array<uint8_t, 32> hmacKey{};
-
     uint64_t serverClientID{0};
-
-    explicit ClientSession() : lastHeartBeat(std::chrono::steady_clock::now()) {
-        hmacKey.fill(0x00);
-    }
 
     void reset() {
         recvBuffer.clear();
         sendBuffer.clear();
         authenticated = false;
         serverSqn = 0;
-        hmacKey.fill(0);
         serverClientID = 0;
         exeID = 0;
     }
