@@ -4,6 +4,7 @@
 #include "auth/sessionManager.hpp"
 #include "events/eventBus.hpp"
 #include "protocol/messages.hpp"
+#include "utils/stats.hpp"
 #include "utils/utils.hpp"
 
 #include <cstring>
@@ -63,4 +64,6 @@ private:
     std::optional<MessageHeader> peekHeader_(Session& Session) const;
 
     std::chrono::steady_clock::time_point lastScreenUpdate_;
+    int timingSampleCounter_{0};
+    int TIMING_SAMPLE_INTERVAL{10};
 };

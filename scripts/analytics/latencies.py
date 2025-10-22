@@ -11,7 +11,14 @@ LATENCY_LABELS = [
     "Deserialized Message -> Message (response) Buffered",
 ]
 
-MESSAGE_TYPES = {1: "HELLO", 2: "HELLO_ACK", 3: "HEARTBEAT", 10: "NEW_ORDER"}
+MESSAGE_TYPES = {
+    1: "HELLO",
+    2: "HELLO_ACK",
+    3: "HEARTBEAT",
+    10: "NEW_ORDER",
+    12: "CANCEL_ORDER",
+    14: "MODIFY_ORDER",
+}
 
 colors = {
     "recv -> deser": "#4C72B0",  # muted blue

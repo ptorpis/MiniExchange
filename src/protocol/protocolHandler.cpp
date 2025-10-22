@@ -36,6 +36,21 @@ void ProtocolHandler::onMessage(int fd) {
 
         size_t totalSize = 0;
 
+#ifdef ENABLE_TIMING
+        // Sampling logic - only record every Nth message
+        bool shouldSample = false;
+        if (--timingSampleCounter_ <= 0) {
+            shouldSample = true;
+            timingSampleCounter_ = TIMING_SAMPLE_INTERVAL; // Reset counter
+        }
+
+        TimingRecord timingRec;
+        if (shouldSample) {
+            timingRec.tReceived = TSCClock::now();
+            timingRec.messageType = +type;
+        }
+#endif
+
         switch (type) {
         case MessageType::HELLO: {
             totalSize = constants::HEADER_SIZE +
@@ -43,12 +58,6 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) {
                 return; // wait for more data
             }
-
-#ifdef ENABLE_TIMING
-            TimingRecord timingRec;
-            timingRec.tReceived = TSCClock::now();
-            timingRec.messageType = +type;
-#endif
 
             evBus_->publish<ReceiveMessageEvent>(
                 MsgEvent{TSCClock::now(),
@@ -64,7 +73,9 @@ void ProtocolHandler::onMessage(int fd) {
             }
 
 #ifdef ENABLE_TIMING
-            timingRec.tDeserialized = TSCClock::now();
+            if (shouldSample) {
+                timingRec.tDeserialized = TSCClock::now();
+            }
 #endif
 
             if (!session) {
@@ -72,9 +83,12 @@ void ProtocolHandler::onMessage(int fd) {
             }
             sendFn_(*session, api_.handleHello(*session, msgOpt.value()));
             outBoundFDs_.push_back(session->FD);
+
 #ifdef ENABLE_TIMING
-            timingRec.tBuffered = TSCClock::now();
-            utils::recordTiming(timingRec);
+            if (shouldSample) {
+                timingRec.tBuffered = TSCClock::now();
+                utils::recordTiming(timingRec);
+            }
 #endif
 
             break;
@@ -85,12 +99,6 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
-
-#ifdef ENABLE_TIMING
-            TimingRecord timingRec;
-            timingRec.tReceived = TSCClock::now();
-            timingRec.messageType = +type;
-#endif
 
             evBus_->publish<ReceiveMessageEvent>(
                 MsgEvent{TSCClock::now(),
@@ -103,14 +111,19 @@ void ProtocolHandler::onMessage(int fd) {
             if (auto msgOpt =
                     deserializeMessage<client::LogoutPayload>(session->recvBuffer)) {
 #ifdef ENABLE_TIMING
-                timingRec.tDeserialized = TSCClock::now();
+                if (shouldSample) {
+                    timingRec.tDeserialized = TSCClock::now();
+                }
 #endif
                 sendFn_(*session, api_.handleLogout(*session, msgOpt.value()));
                 outBoundFDs_.push_back(session->FD);
             }
+
 #ifdef ENABLE_TIMING
-            timingRec.tBuffered = TSCClock::now();
-            utils::recordTiming(timingRec);
+            if (shouldSample) {
+                timingRec.tBuffered = TSCClock::now();
+                utils::recordTiming(timingRec);
+            }
 #endif
 
             break;
@@ -122,11 +135,6 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
-#ifdef ENABLE_TIMING
-            TimingRecord timingRec;
-            timingRec.tReceived = TSCClock::now();
-            timingRec.messageType = +type;
-#endif
 
             evBus_->publish<ReceiveMessageEvent>(
                 MsgEvent{TSCClock::now(),
@@ -139,7 +147,9 @@ void ProtocolHandler::onMessage(int fd) {
             if (auto msgOpt =
                     deserializeMessage<client::NewOrderPayload>(session->recvBuffer)) {
 #ifdef ENABLE_TIMING
-                timingRec.tDeserialized = TSCClock::now();
+                if (shouldSample) {
+                    timingRec.tDeserialized = TSCClock::now();
+                }
 #endif
                 if (!session) {
                     return;
@@ -151,9 +161,12 @@ void ProtocolHandler::onMessage(int fd) {
                     outBoundFDs_.push_back(response.fd);
                 }
             }
+
 #ifdef ENABLE_TIMING
-            timingRec.tBuffered = TSCClock::now();
-            utils::recordTiming(timingRec);
+            if (shouldSample) {
+                timingRec.tBuffered = TSCClock::now();
+                utils::recordTiming(timingRec);
+            }
 #endif
             break;
         }
@@ -164,11 +177,6 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
-#ifdef ENABLE_TIMING
-            TimingRecord timingRec;
-            timingRec.tReceived = TSCClock::now();
-            timingRec.messageType = +type;
-#endif
 
             evBus_->publish<ReceiveMessageEvent>(
                 MsgEvent{TSCClock::now(),
@@ -181,7 +189,9 @@ void ProtocolHandler::onMessage(int fd) {
             if (auto msgOpt =
                     deserializeMessage<client::CancelOrderPayload>(session->recvBuffer)) {
 #ifdef ENABLE_TIMING
-                timingRec.tDeserialized = TSCClock::now();
+                if (shouldSample) {
+                    timingRec.tDeserialized = TSCClock::now();
+                }
 #endif
 
                 if (!session) {
@@ -190,9 +200,12 @@ void ProtocolHandler::onMessage(int fd) {
                 sendFn_(*session, api_.handleCancel(*session, msgOpt.value()));
                 outBoundFDs_.push_back(session->FD);
             }
+
 #ifdef ENABLE_TIMING
-            timingRec.tBuffered = TSCClock::now();
-            utils::recordTiming(timingRec);
+            if (shouldSample) {
+                timingRec.tBuffered = TSCClock::now();
+                utils::recordTiming(timingRec);
+            }
 #endif
 
             break;
@@ -205,11 +218,6 @@ void ProtocolHandler::onMessage(int fd) {
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
-#ifdef ENABLE_TIMING
-            TimingRecord timingRec;
-            timingRec.tReceived = TSCClock::now();
-            timingRec.messageType = +type;
-#endif
 
             evBus_->publish<ReceiveMessageEvent>(
                 MsgEvent{TSCClock::now(),
@@ -222,7 +230,9 @@ void ProtocolHandler::onMessage(int fd) {
             if (auto msgOpt =
                     deserializeMessage<client::ModifyOrderPayload>(session->recvBuffer)) {
 #ifdef ENABLE_TIMING
-                timingRec.tDeserialized = TSCClock::now();
+                if (shouldSample) {
+                    timingRec.tDeserialized = TSCClock::now();
+                }
 #endif
                 if (!session) {
                     return;
@@ -230,27 +240,26 @@ void ProtocolHandler::onMessage(int fd) {
 
                 auto responses = api_.handleModify(*session, msgOpt.value());
                 for (auto& response : responses) {
-
                     sendFn_(*(api_.getSession(response.fd)), response.data);
                     outBoundFDs_.push_back(response.fd);
                 }
             }
+
 #ifdef ENABLE_TIMING
-            timingRec.tBuffered = TSCClock::now();
-            utils::recordTiming(timingRec);
+            if (shouldSample) {
+                timingRec.tBuffered = TSCClock::now();
+                utils::recordTiming(timingRec);
+            }
 #endif
             break;
         }
+
         case MessageType::HEARTBEAT: {
             totalSize = client::PayloadTraits<client::HeartBeatPayload>::msgSize;
             if (session->recvBuffer.size() < totalSize) {
                 return;
             }
-#ifdef ENABLE_TIMING
-            TimingRecord timingRec;
-            timingRec.tReceived = TSCClock::now();
-            timingRec.messageType = +type;
-#endif
+
             if (!session) return;
             if (session->recvBuffer.size() < totalSize) return;
 
@@ -259,13 +268,17 @@ void ProtocolHandler::onMessage(int fd) {
                          {fd, session->serverClientID, +type, header.clientMsgSqn}});
 
             api_.updateHb(session->FD);
+
 #ifdef ENABLE_TIMING
-            timingRec.tDeserialized = TSCClock::now();
-            timingRec.tBuffered = TSCClock::now();
-            utils::recordTiming(timingRec);
+            if (shouldSample) {
+                timingRec.tDeserialized = TSCClock::now();
+                timingRec.tBuffered = TSCClock::now();
+                utils::recordTiming(timingRec);
+            }
 #endif
             break;
         }
+
         default: {
             session->recvBuffer.clear();
             evBus_->publish<ReceiveMessageEvent>(
