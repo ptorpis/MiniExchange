@@ -17,11 +17,11 @@ int main() {
 
     std::string serverIP = "127.0.0.1";
     uint16_t port = 12345;
-    size_t nClients = 500;
+    size_t nClients = 100;
 
     ClientRunner runner(serverIP, port, nClients);
 
-    std::thread runnerThread([&runner]() { runner.start(); });
+    std::thread runnerThread([&runner]() { runner.start(20); });
 
     while (gRunning) {
         std::this_thread::sleep_for(std::chrono::seconds(1));

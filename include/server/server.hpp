@@ -51,5 +51,5 @@ private:
     std::chrono::steady_clock::time_point lastScreenUpdate_;
 
     static const int MAX_EVENTS{128};
-    const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{10};
+    const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{1000};
 };

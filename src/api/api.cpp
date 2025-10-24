@@ -136,6 +136,9 @@ MiniExchangeAPI::handleCancel(Session& session,
         response = makeCancelAck_(session, msg.payload.serverOrderID,
                                   statusCodes::CancelAckStatus::NOT_FOUND);
     }
+
+    session.clientSqn = msg.header.clientMsgSqn;
+
     return response;
 }
 
@@ -170,6 +173,8 @@ MiniExchangeAPI::handleModify(Session& session,
     ModifyResult modResult =
         engine_.modifyOrder(msg.payload.serverClientID, msg.payload.serverOrderID,
                             msg.payload.newQty, msg.payload.newPrice);
+
+    session.clientSqn = msg.header.clientMsgSqn;
 
     if (modResult.event.status == statusCodes::ModifyAckStatus::ACCEPTED) {
         responses.push_back(

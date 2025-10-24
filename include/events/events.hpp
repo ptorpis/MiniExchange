@@ -49,8 +49,11 @@ struct TradeEvent {
 };
 
 struct OrderCancelledEvent {
+    ClientID clientID;
     OrderID orderID;
     template <typename F> void iterateElements(F&& func) const {
+
+        func("clientID", clientID);
         func("orderID", orderID);
     }
 };
@@ -101,10 +104,14 @@ struct ReceiveMessageEvent {
 };
 
 struct SendMessageEvent {
+    int fd;
+    ClientID clientID;
     uint8_t type;
     uint32_t ref;
 
     template <typename F> void iterateElements(F&& func) const {
+        func("fd", fd);
+        func("clientID", clientID);
         func("type", type);
         func("ref", ref);
     }

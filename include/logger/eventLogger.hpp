@@ -39,12 +39,14 @@ private:
 
     void record(const ServerEvent<EventT>& ev) {
         size_t i = index_.fetch_add(1, std::memory_order_relaxed);
-        size_t pos = i % MAX_EVENTS;
 
-        if (i >= lastFlushed_.load(std::memory_order_relaxed) + MAX_EVENTS) {
+        size_t lastFlushedIndex = lastFlushed_.load(std::memory_order_acquire);
+        if (i >= lastFlushedIndex + MAX_EVENTS) {
             dropped_.fetch_add(1, std::memory_order_relaxed);
+            return; // Don't write
         }
 
+        size_t pos = i % MAX_EVENTS;
         buffer_[pos] = ev;
     }
 
@@ -75,7 +77,9 @@ private:
                 }
 
                 lastIndex = currentIndex;
-                lastFlushed_.store(currentIndex, std::memory_order_relaxed);
+
+                lastFlushed_.store(currentIndex, std::memory_order_release);
+
                 fflush(f);
             }
 
@@ -85,7 +89,7 @@ private:
                         filename_.c_str());
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
         fclose(f);

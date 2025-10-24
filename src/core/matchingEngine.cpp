@@ -49,7 +49,7 @@ bool MatchingEngine::cancelOrder(const ClientID clientID, const OrderID orderID)
     if (removed) {
         orderMap_.erase(it);
         evBus_->publish<OrderCancelledEvent>(
-            ServerEvent<OrderCancelledEvent>{TSCClock::now(), orderID});
+            ServerEvent<OrderCancelledEvent>{TSCClock::now(), clientID, orderID});
     }
 
     return removed;

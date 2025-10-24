@@ -141,7 +141,8 @@ void Server::handleWrite(int fd) {
         if (n > 0) {
 
             evBus_->publish<SendMessageEvent>(ServerEvent<SendMessageEvent>{
-                TSCClock::now(), {sess->sendBuffer.at(0), sess->serverSqn}});
+                TSCClock::now(),
+                {fd, sess->serverClientID, sess->sendBuffer.at(0), sess->clientSqn}});
 
             sess->sendBuffer.erase(sess->sendBuffer.begin(),
                                    sess->sendBuffer.begin() + n);
@@ -168,7 +169,7 @@ void Server::run() {
     std::vector<epoll_event> events(MAX_EVENTS);
 
     running_ = true;
-    auto lastHeartbeatCheck = std::chrono::steady_clock::now();
+    // auto lastHeartbeatCheck = std::chrono::steady_clock::now();
 
     std::cout << "server running" << std::endl;
     while (running_) {
@@ -197,11 +198,11 @@ void Server::run() {
             }
         }
 
-        auto now = std::chrono::steady_clock::now();
-        if (now - lastHeartbeatCheck >= std::chrono::seconds(2)) {
-            checkHeartbeats_();
-            lastHeartbeatCheck = now;
-        }
+        // auto now = std::chrono::steady_clock::now();
+        // if (now - lastHeartbeatCheck >= std::chrono::seconds(2)) {
+        //     checkHeartbeats_();
+        //     lastHeartbeatCheck = now;
+        // }
 
         // if (now - lastScreenUpdate_ > std::chrono::milliseconds(30)) {
         //     auto bids = handler_.getBidsSnapshot();

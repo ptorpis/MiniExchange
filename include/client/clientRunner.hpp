@@ -180,9 +180,10 @@ private:
         for (size_t i = 0; i < clients_.size(); ++i) {
             if (!clients_[i].connected) continue;
 
-            eventQueue_.push({now + rand_.jitter(100), i, EventType::TradingAction});
-            eventQueue_.push(
-                {now + HEARTBEAT_INTERVAL + rand_.jitter(10), i, EventType::Heartbeat});
+            eventQueue_.push({now + milliseconds(1000), i, EventType::TradingAction});
+            // eventQueue_.push(
+            //     {now + HEARTBEAT_INTERVAL + rand_.jitter(10), i,
+            //     EventType::Heartbeat});
         }
     }
 

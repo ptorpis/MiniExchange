@@ -24,7 +24,7 @@ public:
         if (running_) return;
         running_ = true;
         recvThread_ = std::thread(&PyClient::receiveLoop_, this);
-        hbThread_ = std::thread(&PyClient::heartbeatLoop_, this);
+        // hbThread_ = std::thread(&PyClient::heartbeatLoop_, this);
     }
 
     void stop() noexcept {
