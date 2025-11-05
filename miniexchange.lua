@@ -1,6 +1,6 @@
 -- miniexchange.lua
 -- MiniExchange Protocol dissector (big-endian, reassembly-capable, heuristic TCP)
--- Place in ~/.local/share/wireshark/plugins/miniexchange.lua
+-- Place in wireshark plugins directory
 
 local proto_name = "MiniExchange Protocol"
 local myproto = Proto("miniexchange", proto_name)
