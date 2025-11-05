@@ -114,16 +114,14 @@ enum class HeaderFlags : uint8_t { PROTOCOL_VERSION = 0x01 };
 struct MessageHeader {
     uint8_t messageType;
     uint8_t protocolVersionFlag;
-    uint8_t reservedFlags[2];
     uint16_t payLoadLength;
     uint32_t clientMsgSqn;
     uint32_t serverMsgSqn;
-    uint8_t padding[2];
+    uint8_t padding[4];
 
     template <typename F> void iterateElements(F&& func) {
         func(messageType);
         func(protocolVersionFlag);
-        func(reservedFlags);
         func(payLoadLength);
         func(clientMsgSqn);
         func(serverMsgSqn);

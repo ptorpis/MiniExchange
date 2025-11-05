@@ -262,7 +262,6 @@ void Client::sendOrder(Qty qty = 100, Price price = 200, bool isBuy = true,
     msg.payload.price = price;
     msg.payload.timeInForce = +(TimeInForce::GTC);
     msg.payload.goodTillDate = std::numeric_limits<Timestamp>::max();
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
     sendMessage(msg);
 }

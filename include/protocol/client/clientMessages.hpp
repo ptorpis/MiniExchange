@@ -27,24 +27,16 @@ struct HelloPayload {
 #pragma pack(push, 1)
 struct HeartBeatPayload {
     uint64_t serverClientID;
-    uint8_t padding[8];
 
-    template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(padding);
-    }
+    template <typename F> void iterateElements(F&& func) { func(serverClientID); }
 };
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 struct LogoutPayload {
     uint64_t serverClientID;
-    uint8_t padding[8];
 
-    template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(padding);
-    }
+    template <typename F> void iterateElements(F&& func) { func(serverClientID); }
 };
 #pragma pack(pop)
 
@@ -54,22 +46,22 @@ struct NewOrderPayload {
     uint32_t instrumentID;
     uint8_t orderSide;
     uint8_t orderType;
+    uint8_t timeInForce;
+    uint8_t padding{0};
     int64_t quantity;
     int64_t price;
-    uint8_t timeInForce;
     Timestamp goodTillDate;
-    uint8_t padding[9];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(instrumentID);
         func(orderSide);
         func(orderType);
+        func(timeInForce);
+        func(padding);
         func(quantity);
         func(price);
-        func(timeInForce);
         func(goodTillDate);
-        func(padding);
     }
 };
 #pragma pack(pop)
@@ -78,12 +70,10 @@ struct NewOrderPayload {
 struct CancelOrderPayload {
     uint64_t serverClientID;
     uint64_t serverOrderID;
-    uint8_t padding[16];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverOrderID);
-        func(padding);
     }
 };
 #pragma pack(pop)

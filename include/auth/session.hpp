@@ -34,8 +34,8 @@ struct Session {
     }
 
     void reserveBuffer() {
-        recvBuffer.reserve(16 * 1024);
-        sendBuffer.reserve(16 * 1024);
+        recvBuffer.reserve(4 * 1024);
+        sendBuffer.reserve(4 * 1024);
     }
 
     void clearBuffers() {

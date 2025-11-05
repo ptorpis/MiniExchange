@@ -67,7 +67,6 @@ std::vector<uint8_t> serializeMessage(MessageType msgType, const Payload& payloa
 
     writeUint8Advance(ptr, static_cast<uint8_t>(msgType));
     writeUint8Advance(ptr, header.protocolVersionFlag);
-    writeBytesAdvance(ptr, header.reservedFlags, sizeof(header.reservedFlags));
     writeIntegerAdvance(ptr, header.payLoadLength);
     writeIntegerAdvance(ptr, header.clientMsgSqn);
     writeIntegerAdvance(ptr, header.serverMsgSqn);
@@ -100,7 +99,6 @@ std::optional<Message<Payload>> deserializeMessage(std::span<const uint8_t> buff
 
     msg.header.messageType = readUint8Advance(ptr);
     msg.header.protocolVersionFlag = readUint8Advance(ptr);
-    readBytesAdvance(ptr, msg.header.reservedFlags, sizeof(msg.header.reservedFlags));
     msg.header.payLoadLength = readIntegerAdvance<uint16_t>(ptr);
     msg.header.clientMsgSqn = readIntegerAdvance<uint32_t>(ptr);
     msg.header.serverMsgSqn = readIntegerAdvance<uint32_t>(ptr);

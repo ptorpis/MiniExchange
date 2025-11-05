@@ -113,7 +113,8 @@ private:
                   << " | " << "Total: " << std::setw(8) << totalActions << " "
                   << "(O:" << stats_.newOrdersThisSecond.load()
                   << " C:" << stats_.cancelsThisSecond.load()
-                  << " M:" << stats_.modifiesThisSecond.load() << ")" << std::flush;
+                  << " M:" << stats_.modifiesThisSecond.load() << ")"
+                  << " R:" << stats_.receivedThisSecond.load() << ")" << std::flush;
 
         stats_.resetPerSecondCounters();
     }
@@ -357,6 +358,8 @@ private:
         if (n > 0) {
             state.c.appendRecvBuffer({tempBuf, static_cast<size_t>(n)});
             state.c.processIncoming();
+            stats_.received++;
+            stats_.receivedThisSecond++;
         } else if (n == 0) {
             std::cerr << "Server closed connection\n";
             disconnectClient(state);

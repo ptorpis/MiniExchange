@@ -19,8 +19,6 @@
 
 using OrderQueue = std::deque<std::unique_ptr<Order>>;
 
-static const std::string COMPONENT = "ENGINE";
-
 class MatchingEngine {
 public:
     MatchingEngine(std::shared_ptr<EventBus> evBus = nullptr,

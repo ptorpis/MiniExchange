@@ -46,22 +46,22 @@ struct SessionTimeoutPayload {
 #pragma pack(push, 1)
 struct OrderAckPayload {
     uint64_t serverClientID;
-    uint32_t instrumentID;
     uint64_t serverOrderID;
-    uint8_t status;
     int64_t acceptedPrice;
     int64_t acceptedQty;
     uint64_t serverTime;
+    uint32_t instrumentID;
+    uint8_t status;
     uint8_t padding[3];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
-        func(instrumentID);
         func(serverOrderID);
-        func(status);
         func(acceptedPrice);
         func(acceptedQty);
         func(serverTime);
+        func(instrumentID);
+        func(status);
         func(padding);
     }
 };
@@ -72,7 +72,7 @@ struct CancelAckPayload {
     uint64_t serverClientID;
     uint64_t serverOrderID;
     uint8_t status;
-    uint8_t padding[15];
+    uint8_t padding[7];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);

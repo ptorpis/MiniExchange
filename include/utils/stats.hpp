@@ -11,10 +11,12 @@ struct ClientStats {
     std::atomic<uint64_t> cancels{0};
     std::atomic<uint64_t> modifies{0};
     std::atomic<uint64_t> heartbeats{0};
+    std::atomic<uint64_t> received{0};
 
     std::atomic<uint64_t> newOrdersThisSecond{0};
     std::atomic<uint64_t> cancelsThisSecond{0};
     std::atomic<uint64_t> modifiesThisSecond{0};
+    std::atomic<uint64_t> receivedThisSecond{0};
 
     uint64_t getTotalActions() const {
         return newOrders.load() + cancels.load() + modifies.load();
@@ -29,6 +31,7 @@ struct ClientStats {
         newOrdersThisSecond.store(0);
         cancelsThisSecond.store(0);
         modifiesThisSecond.store(0);
+        receivedThisSecond.store(0);
     }
 
     void printSummary() const {
@@ -40,6 +43,7 @@ struct ClientStats {
         std::cout << "|       Cancels: " << std::setw(19) << cancels.load() << " |\n";
         std::cout << "|      Modifies: " << std::setw(19) << modifies.load() << " |\n";
         std::cout << "|    Heartbeats: " << std::setw(19) << heartbeats.load() << " |\n";
+        std::cout << "|Total Received: " << std::setw(19) << received.load() << " |\n";
         std::cout << "+------------------------------------+\n";
     }
 };
