@@ -55,7 +55,7 @@ Found under namespace `statusCodes`.
 | ----------: | --------------- | --------------- | ----------------- | ----------------- | ----------------- |
 |        0x00 | NULLSTATUS      | NULLSTATUS      | NULLSTATUS        | NULLSTATUS        | NULLSTATUS        |
 |        0x01 | ACCEPTED        | ACCEPTED        | ACCEPTED          | ACCEPTED          | ACCEPTED          |
-|        0x02 | INVALID_HMAC    | INVALID_HMAC    | INVALID           | INVALID           | INVALID           |
+|        0x02 | -    | -   | INVALID           | INVALID           | INVALID           |
 |        0x03 | INVALID_API_KEY | -               | OUT_OF_ORDER      | NOT_FOUND         | NOT_FOUND         |
 |        0x04 | OUT_OF_ORDER    | OUT_OF_ORDER    | NOT_AUTHENTICATED | NOT_AUTHENTICATED | NOT_AUTHENTICATED |
 |        0x05 | ILL_FORMED      | -               | -                 | OUT_OF_ORDER      | OUT_OF_ORDER      |
