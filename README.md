@@ -13,6 +13,7 @@ python3 -m scripts.build_helper -i
 to get help building the executables.
 
 Requires: 
+- cmake
 - a Python package manager (textual, numpy, pandas, matplotlib)
 - Pybind11
 - gcc/clang (only tested with gcc 13.0)
