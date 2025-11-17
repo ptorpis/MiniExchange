@@ -10,3 +10,4 @@ output/
 config/server_run_cfg.json
 config/build_config.json
 *.pcap
+.cache/

@@ -1,4 +1,5 @@
 #include "core/matchingEngine.hpp"
+#include "core/order.hpp"
 #include "utils/orderBookRenderer.hpp"
 #include <gtest/gtest.h>
 

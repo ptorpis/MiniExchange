@@ -2,12 +2,12 @@
 #include "protocol/client/clientMessageFactory.hpp"
 #include "protocol/client/clientMessages.hpp"
 #include "protocol/server/serverMessages.hpp"
+#include "protocol/statusCodes.hpp"
 #include "protocol/traits.hpp"
 #include "utils/utils.hpp"
 #include <arpa/inet.h>
 #include <cassert>
 #include <cstring>
-#include <iostream>
 #include <utility>
 
 void Client::eraseBytesFromBuffer(std::vector<uint8_t>& buffer, size_t n_bytes) {
@@ -25,7 +25,6 @@ void Client::sendLogout() {
     Message<client::LogoutPayload> msg;
     msg.header = client::makeClientHeader<client::LogoutPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
     sendMessage(msg);
 }
 
@@ -35,7 +34,6 @@ void Client::sendCancel(OrderID orderID) {
     msg.payload.serverClientID = session_.serverClientID;
     msg.payload.serverOrderID = orderID;
 
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
     sendMessage(msg);
 }
 
@@ -270,7 +268,6 @@ void Client::sendHeartbeat() {
     Message<client::HeartBeatPayload> msg;
     msg.header = client::makeClientHeader<client::HeartBeatPayload>(session_);
     msg.payload.serverClientID = session_.serverClientID;
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
 
     auto serialized = serializeMessage<client::HeartBeatPayload>(MessageType::HEARTBEAT,
                                                                  msg.payload, msg.header);

@@ -1,9 +1,5 @@
 #pragma once
 
-#include "auth/session.hpp"
-#include "core/order.hpp"
-#include "events/events.hpp"
-#include "protocol/statusCodes.hpp"
 #include "utils/utils.hpp"
 
 #include <cstddef>
@@ -11,7 +7,6 @@
 #include <cstring>
 #include <iostream>
 #include <string_view>
-#include <utility>
 
 namespace constants {
 inline constexpr size_t HEADER_SIZE = 16;

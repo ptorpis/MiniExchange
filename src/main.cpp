@@ -1,10 +1,6 @@
-#include "client/client.hpp"
 #include "events/eventBus.hpp"
 #include "logger/addLogger.hpp"
-#include "protocol/client/clientMessageFactory.hpp"
-#include "protocol/messages.hpp"
 #include "protocol/protocolHandler.hpp"
-#include "protocol/traits.hpp"
 #include "server/server.hpp"
 #include "utils/timing.hpp"
 

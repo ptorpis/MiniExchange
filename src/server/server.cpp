@@ -1,7 +1,6 @@
 #include "server/server.hpp"
 #include "utils/orderBookRenderer.hpp"
 #include "utils/timing.hpp"
-#include "utils/utils.hpp"
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -198,18 +197,18 @@ void Server::run() {
             }
         }
 
-        // auto now = std::chrono::steady_clock::now();
+        auto now = std::chrono::steady_clock::now();
         // if (now - lastHeartbeatCheck >= std::chrono::seconds(2)) {
         //     checkHeartbeats_();
         //     lastHeartbeatCheck = now;
         // }
 
-        // if (now - lastScreenUpdate_ > std::chrono::milliseconds(30)) {
-        //     auto bids = handler_.getBidsSnapshot();
-        //     auto asks = handler_.getAsksSnapshot();
-        //     utils::OrderBookRenderer::render(bids, asks);
-        //     lastScreenUpdate_ = now;
-        // }
+        if (now - lastScreenUpdate_ > std::chrono::milliseconds(30)) {
+            auto bids = handler_.getBidsSnapshot();
+            auto asks = handler_.getAsksSnapshot();
+            utils::OrderBookRenderer::render(bids, asks);
+            lastScreenUpdate_ = now;
+        }
     }
 }
 
@@ -221,7 +220,7 @@ void Server::handleDisconnect(int fd) {
 
     removeConnection(fd);
     // DISCONNECT EVENT
-    evBus_->publish<DisconnectEvent>(ServerEvent<DisconnectEvent>{TSCClock::now(), fd});
+    evBus_->publish<DisconnectEvent>(ServerEvent<DisconnectEvent>{TSCClock::now(), {fd}});
 }
 
 int Server::createListenSocket(uint16_t port) {

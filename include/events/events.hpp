@@ -1,8 +1,10 @@
 #pragma once
-#include "protocol/messages.hpp"
 #include "protocol/statusCodes.hpp"
 #include "utils/types.hpp"
+#include <array>
+#include <cstdint>
 #include <optional>
+#include <string>
 
 struct NewConnectionEvent {
     int fd;

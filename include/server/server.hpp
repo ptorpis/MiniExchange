@@ -1,17 +1,16 @@
 #pragma once
 
+#include "auth/sessionManager.hpp"
 #include "events/eventBus.hpp"
 #include "protocol/protocolHandler.hpp"
 #include "server/connection.hpp"
 
 #include <chrono>
 #include <cstring>
-#include <iostream>
 #include <netinet/in.h>
 #include <sys/epoll.h>
 #include <unistd.h>
 #include <unordered_map>
-#include <vector>
 
 class Server {
 public:
@@ -52,4 +51,40 @@ private:
 
     static const int MAX_EVENTS{128};
     const std::chrono::seconds HEARTBEAT_TIMEOUT_SECONDS{1000};
+};
+
+class GatewaySimulator {
+public:
+    GatewaySimulator(SessionManager& sm, ProtocolHandler& handler)
+        : sessionManager_(sm), handler_(handler) {}
+
+    void start();
+    void stop();
+
+    Connection& addConnection();
+    void removeConnection();
+    Connection* getConnection();
+
+private:
+    bool running_{false};
+
+    SessionManager& sessionManager_;
+    ProtocolHandler& handler_;
+};
+
+template <typename ServerType> class Gateway {
+    /*
+     * Can either be an in-memory server simulator for offline running, or a gateway with
+     * socket handling
+     *
+     * Wrapper class
+     * */
+
+public:
+    Gateway(ServerType server) : serverT_(server) {}
+
+    void start();
+
+private:
+    ServerType serverT_;
 };

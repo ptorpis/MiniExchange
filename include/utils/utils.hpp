@@ -1,10 +1,12 @@
 #pragma once
 
-#include "utils/types.hpp"
+#include "types.hpp"
+#include <chrono>
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
-#include <utility>
+#include <span>
+#include <type_traits>
 
 template <typename T> constexpr auto operator+(T a) noexcept {
     return static_cast<std::underlying_type_t<T>>(a);
@@ -22,7 +24,7 @@ inline void printHex(std::span<const uint8_t> data) {
     std::cout << std::dec << "\n\n";
 }
 
-inline void printHex(const void* data, size_t size) {
+inline void printHex(const void* data, std::size_t size) {
     auto ptr = static_cast<const uint8_t*>(data);
     printHex(std::span<const uint8_t>(ptr, size));
 }
