@@ -84,6 +84,7 @@ public:
     Gateway(ServerType server) : serverT_(server) {}
 
     void start();
+    void stop();
 
 private:
     ServerType serverT_;

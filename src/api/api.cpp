@@ -2,8 +2,6 @@
 #include "protocol/serialize.hpp"
 #include "protocol/server/serverMessageFactory.hpp"
 #include "protocol/server/serverMessages.hpp"
-#include "protocol/traits.hpp"
-#include <iostream>
 
 Session& MiniExchangeAPI::connectClient(int fd) {
     return sessionManager_.createSession(fd);

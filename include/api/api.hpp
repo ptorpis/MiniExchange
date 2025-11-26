@@ -3,7 +3,6 @@
 #include "auth/sessionManager.hpp"
 #include "core/matchingEngine.hpp"
 #include "core/order.hpp"
-#include "core/service.hpp"
 #include "events/eventBus.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/statusCodes.hpp"

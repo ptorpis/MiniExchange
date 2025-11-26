@@ -12,7 +12,7 @@
 - `uint8_t[n]`: Array of `n` bytes
 
 
-## Header (16 bytes)
+## Header
 
 All messages start with this 16 byte header:
 
@@ -59,3 +59,30 @@ Found under namespace `statusCodes`.
 |        0x03 | INVALID_API_KEY | -               | OUT_OF_ORDER      | NOT_FOUND         | NOT_FOUND         |
 |        0x04 | OUT_OF_ORDER    | OUT_OF_ORDER    | NOT_AUTHENTICATED | NOT_AUTHENTICATED | NOT_AUTHENTICATED |
 |        0x05 | ILL_FORMED      | -               | -                 | OUT_OF_ORDER      | OUT_OF_ORDER      |
+
+
+## Rules of the Protocol
+
+All messages start with the same 16 byte header. The layout of the message header can be found in [header](#header). The most important fields are the type, which is always the first byte, and the 2 sequences numbers, for the client and the server, respectively. When a message is sent, the sequence number should be incremented by one. When the message is being sent by the client, only the client sequence number should be incremented, similarly, when the server is sending the message, only the sever sequence number should be incremented.
+
+The first sequence is always 1. This is because the `SessionManager` is initialized with the counter set to 0 and at each client session creation, this counter is incremented, and there is no distinction is made for the first client, so the IDs will start from 1.
+
+Both sever and client sequence numbers are 32 bit unsigned integers, when the sequence number hits the limit, that it can hold, it should wrap around to 0. The sequence number validation will use modulo wrapping to determine if the sequence number included in the message is correct.
+
+Correct sequencing means that the number is incremented by exactly 1. If it is the same as the last one or incremented by more than one, the message is considered invalid, and will be acked with the status `OUT_OF_ORDER`.
+
+### HELLO -- HELLO_ACK
+
+`HELLO` messages are used as a login message by the protocol and is sent by the client. It includes the API key (as of version v1.0, the API key validation is stubbed out, and as convention, the field is usually `0x22`*16). When the server receives this message, it creates and initializes a new session for that client.
+
+`HELLO_ACK` this message is sent by the server as a response for the `HELLO`.
+
+The ack message contains the client ID that got assigned for the client, which is an 8 byte unsigned integer. This is the ID that the client should include in their messages for future requests.
+
+The client ID is assigned based on a sequential counter found in the `SessionManager`. Note that this is not a secure way to assign IDs, and should only be used in local testing.
+
+Only one `HELLO` message is accepted and responded to by the server, any subsequent `HELLO` messages from clients who are already authenticated are dropped (no response is generated)
+
+### LOGOUT -- LOGOUT_ACK
+
+The `LOGOUT` is sent by the client when they want to terminate their session with the exchange. 

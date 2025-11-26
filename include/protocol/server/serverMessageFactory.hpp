@@ -1,13 +1,19 @@
 #pragma once
 
+#include "auth/session.hpp"
+#include "core/order.hpp"
+#include "events/events.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/server/serverMessages.hpp"
+#include "protocol/statusCodes.hpp"
+#include "protocol/traits.hpp"
+#include "utils/types.hpp"
 
 namespace server {
 
 template <typename Payload> inline MessageHeader makeHeader(Session& session) {
     MessageHeader header{};
-    header.messageType = +(PayloadTraits<Payload>::type);
+    header.messageType = +(server::PayloadTraits<Payload>::type);
     header.protocolVersionFlag = +(constants::HeaderFlags::PROTOCOL_VERSION);
     header.payLoadLength = static_cast<uint16_t>(PayloadTraits<Payload>::size);
     header.clientMsgSqn = session.clientSqn;
