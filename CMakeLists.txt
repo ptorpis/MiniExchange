@@ -90,7 +90,6 @@ list(REMOVE_ITEM ALL_SRC
     "${CMAKE_SOURCE_DIR}/src/main.cpp"
     "${CMAKE_SOURCE_DIR}/src/py/pyClient.cpp"
     "${CMAKE_SOURCE_DIR}/src/runner/clientRunnerMain.cpp"
-    "${CMAKE_SOURCE_DIR}/src/offlineMain.cpp"
 )
 set(CORE_SOURCES ${ALL_SRC})
 
@@ -126,5 +125,3 @@ set_target_properties(miniexchange_client PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/py"
 )
 
-add_executable(offlineMain "${CMAKE_SOURCE_DIR}/offlineMain.cpp")
-target_link_libraries(offlineMain PRIVATE MiniExchangeCore)
