@@ -75,7 +75,12 @@ At this point the order should appear on the order book of (in the terminal that
 
 ### Screenshot of the output at this point
 
-[!Alt text](docs/2025-12-09_13-10-32.png)
+![Screenshot found in docs/hello-world-example.png](docs/hello-world-example.png)
+
+> [!NOTE]
+> Self trading is disallowed, no orders placed by the same clients will match with themselves
+
+Launch a new terminal and a new client to try out placing an opposite limit order (same price and quantity) and watch them get matched, and the trade notifications being sent to both parties.
 
 ## Requirements
 Requires: 
