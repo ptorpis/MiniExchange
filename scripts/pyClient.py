@@ -299,6 +299,7 @@ class MiniExchangeClient(App):
                 log.write(
                     "  mod | modify <order_id> <new qty> <new price> - Modify order"
                 )
+                log.write("  orders - display all of the currently active orders")
                 log.write("  quit - Exit application")
 
             else:
