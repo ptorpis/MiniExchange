@@ -24,7 +24,7 @@ std::vector<uint8_t> MiniExchangeAPI::handleHello(Session& session,
     std::vector<uint8_t> ack;
     ack.reserve(sizeof(MessageHeader) + sizeof(server::HelloAckPayload));
 
-    if (session.clientSqn >= msg.header.clientMsgSqn) {
+    if (!utils::isCorrectIncrement(msg.header.clientMsgSqn, session.clientSqn)) {
         ack = makeHelloAck_(session, statusCodes::HelloAckStatus::OUT_OF_ORDER);
         return ack;
     }
@@ -46,7 +46,7 @@ std::vector<uint8_t> MiniExchangeAPI::handleLogout(Session& session,
     std::vector<uint8_t> ack;
     ack.reserve(sizeof(MessageHeader) + sizeof(server::LogoutAckPayload));
 
-    if (session.clientSqn >= msg.header.clientMsgSqn) {
+    if (!utils::isCorrectIncrement(msg.header.clientMsgSqn, session.clientSqn)) {
         ack = makeLogoutAck_(session, statusCodes::LogoutAckStatus::OUT_OF_ORDER);
         return ack;
     }
@@ -77,7 +77,7 @@ MiniExchangeAPI::handleNewOrder(Session& session, Message<client::NewOrderPayloa
         return responses;
     }
 
-    if (session.clientSqn >= msg.header.clientMsgSqn) {
+    if (!utils::isCorrectIncrement(msg.header.clientMsgSqn, session.clientSqn)) {
         responses.push_back(
             {session.FD, makeOrderAck_(session, req, std::nullopt,
                                        statusCodes::OrderAckStatus::OUT_OF_ORDER)});
@@ -113,7 +113,7 @@ std::vector<uint8_t>
 MiniExchangeAPI::handleCancel(Session& session,
                               Message<client::CancelOrderPayload>& msg) {
     std::vector<uint8_t> response;
-    if (msg.payload.serverClientID != session.serverClientID) {
+    if (!utils::isCorrectIncrement(msg.header.clientMsgSqn, session.clientSqn)) {
         response = makeCancelAck_(session, msg.payload.serverOrderID,
                                   statusCodes::CancelAckStatus::INVALID);
         return response;
@@ -161,7 +161,7 @@ MiniExchangeAPI::handleModify(Session& session,
                             statusCodes::ModifyAckStatus::NOT_AUTHENTICATED)});
     }
 
-    if (session.clientSqn >= msg.header.clientMsgSqn) {
+    if (!utils::isCorrectIncrement(msg.header.clientMsgSqn, session.clientSqn)) {
         responses.push_back(
             {session.FD, makeModifyAck_(session, msg.payload.serverOrderID, 0,
                                         msg.payload.newQty, msg.payload.newPrice,

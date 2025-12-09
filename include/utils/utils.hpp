@@ -48,4 +48,9 @@ inline Timestamp getTimestampNs() {
         .count();
 }
 
+// evaluates to TRUE if the number was incremented by exactly one, otherwise returns false
+bool isCorrectIncrement(const uint32_t curr, const uint32_t next) {
+    return curr - next == 1;
+}
+
 } // namespace utils
