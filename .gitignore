@@ -12,3 +12,4 @@ config/build_config.json
 *.pcap
 .cache/
 compile_commands.json
+Testing/
