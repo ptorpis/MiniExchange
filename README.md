@@ -20,7 +20,7 @@ Use either cmake manually (not recommended) or run the helper script to help con
 
 Run (from project root):
 ```bash
-python3 scripts/build_helper -i
+python3 scripts/build_helper.py -i
 ```
 
 >[!NOTE]
@@ -37,7 +37,7 @@ ctest --test-dir build-release # replace "release" if using another build type
 Before running the exchange, configure with a configuration script, again, use the `-i` flag for interactive mode:
 
 ```bash
-python3 scripts/configure -i
+python3 scripts/configure.py -i
 ```
 1. First, enter a build-type or accept the default. The script will look in the build configuration and use the type found there for the default.
 2. Select the port that the exchange should use (use default unless the source changed)
@@ -59,7 +59,9 @@ python3 scripts/pyClient.py
 
 This will launch the terminal user interface. Type `help` and press enter to display all of the available commands.
 
-All clients that connect to the exchange have to be authenticated to start trading. A complete auth system is not implemented, so all a client needs to do currently is send a `HELLO` message.
+All clients that connect to the exchange have to be authenticated to start trading. A complete auth system is not implemented, so all a client needs to do currently is send a `HELLO` message. New order requests sent before the first `HELLO` will be sent but ignored by the server.
+
+To send a request, type the command into the promt area at the bottom of the terminal interface and press Enter to send.
 
 To send the first order:
 
