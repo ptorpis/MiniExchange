@@ -41,23 +41,23 @@ private:
     MatchResult matchOrder_(std::unique_ptr<Order> order);
 
     struct BuySide {
-        static auto& book(MatchingEngine& eng) { return eng.asks_; }
+        constexpr static auto& book(MatchingEngine& eng) { return eng.asks_; }
         static bool pricePasses(Price orderPrice, Price bestPrice) {
             return orderPrice >= bestPrice;
         }
-        static bool isBuyer() { return true; }
+        constexpr static bool isBuyer() { return true; }
     };
 
     struct SellSide {
-        static auto& book(MatchingEngine& eng) { return eng.bids_; }
+        constexpr static auto& book(MatchingEngine& eng) { return eng.bids_; }
         static bool pricePasses(Price orderPrice, Price bestPrice) {
             return orderPrice <= bestPrice;
         }
-        static bool isBuyer() { return false; }
+        constexpr static bool isBuyer() { return false; }
     };
 
     struct LimitOrderPolicy {
-        static constexpr bool needsPriceCheck = true;
+        constexpr static bool needsPriceCheck = true;
         static OrderStatus finalize(std::unique_ptr<Order> order, Qty remaining,
                                     Qty original, [[maybe_unused]] MatchingEngine& eng) {
             OrderStatus status = OrderStatus::NEW;
@@ -78,7 +78,7 @@ private:
     };
 
     struct MarketOrderPolicy {
-        static constexpr bool needsPriceCheck = false;
+        constexpr static bool needsPriceCheck = false;
         static OrderStatus finalize(std::unique_ptr<Order> order, Qty remaining,
                                     Qty original, MatchingEngine&) {
             OrderStatus status = OrderStatus::NEW;
