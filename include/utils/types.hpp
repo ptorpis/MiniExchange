@@ -1,13 +1,171 @@
 #pragma once
 #include <cstdint>
 #include <ostream>
+#include <type_traits>
 #include <vector>
 
-using Price = std::int64_t;
-using Qty = std::int64_t;
+#include "utils/utils.hpp"
 
-using OrderID = std::uint64_t;
-using ClientID = std::uint64_t;
+/**
+ * @brief CRTP base class providing strong typing for primitive types.
+ *
+ * StrongType wraps a primitive type (int, float, etc.) to create distinct types that
+ * prevent implicit conversions and accidental mixing of semantically different values.
+ * Uses the Curiously Recurring Template Pattern (CRTP) to preserve the derived type
+ * through operations.
+ *
+ * @tparam Derived The derived type (e.g., PriceTag, QtyTag) - CRTP pattern
+ * @tparam Type The underlying primitive type to wrap (must be trivial)
+ *
+ * Features:
+ * - Prevents mixing semantically different types (e.g., Price + Qty won't compile)
+ * - Zero runtime overhead - all operations are constexpr and inline
+ * - Arithmetic operators return the derived type, preserving strong typing
+ * - Comparison operators support both strong types and raw values
+ * - Stream output support via operator
+ * - Hash support for use in unordered containers
+ *
+ * Example usage:
+ * @code
+ *   // Define tag types using CRTP
+ *   struct PriceTag : StrongType<PriceTag, std::int64_t> {
+ *       using StrongType::StrongType;
+ *   };
+ *   struct QtyTag : StrongType<QtyTag, std::int64_t> {
+ *       using StrongType::StrongType;
+ *   };
+ *
+ *   using Price = PriceTag;
+ *   using Qty = QtyTag;
+ *
+ *   // Usage
+ *   Price price{15000};
+ *   Qty qty{100};
+ *
+ *   Price total = price + price;    // OK: Price + Price = Price
+ *
+ *   auto err = price + qty;          // ERROR: Can't mix Price and Qty
+ *
+ *   if (qty > 0) { ... }       // OK: Compare with raw value
+ *
+ *   std::int64_t raw = price.value(); // Extract raw value when needed
+ * @endcode
+ *
+ * @note Derived types must use CRTP: `struct MyType : StrongType<MyType, int>`
+ * @note The underlying type must be trivial (verified by static_assert)
+ */
+template <typename Type, typename CRTP> struct StrongType {
+    static_assert(std::is_trivial_v<Type>, "The member should be of trivial type");
+
+    [[nodiscard]] constexpr auto value() const noexcept { return data_m; }
+
+    explicit constexpr StrongType(Type value) noexcept : data_m(value) {}
+    constexpr StrongType() noexcept : data_m{} {}
+
+    constexpr auto operator<=>(const StrongType&) const noexcept = default;
+    constexpr auto operator<=>(Type other) const noexcept { return data_m <=> other; }
+    constexpr bool operator==(Type other) const noexcept { return data_m == other; }
+    constexpr bool operator!() const noexcept { return data_m == 0; }
+    constexpr bool operator==(const StrongType& other) const noexcept {
+        return other.data_m == data_m;
+    }
+    constexpr bool operator!=(const StrongType& other) const noexcept {
+        return other.data_m != data_m;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const StrongType& st) {
+        return os << st.data_m;
+    }
+
+    constexpr CRTP operator+(const CRTP& other) const noexcept {
+        return CRTP{data_m + other.data_m};
+    }
+
+    constexpr CRTP operator-(const CRTP& other) const noexcept {
+        return CRTP{data_m - other.data_m};
+    }
+
+    constexpr CRTP operator*(const CRTP& other) const noexcept {
+        return CRTP{data_m * other.data_m};
+    }
+
+    constexpr CRTP operator/(const CRTP& other) const noexcept {
+        return CRTP{data_m / other.data_m};
+    }
+
+    constexpr CRTP& operator+=(const CRTP& other) noexcept {
+        data_m += other.data_m;
+        return static_cast<CRTP&>(*this);
+    }
+
+    constexpr CRTP& operator-=(const CRTP& other) noexcept {
+        data_m -= other.data_m;
+        return static_cast<CRTP&>(*this);
+    }
+
+    struct Hash {
+        constexpr std::size_t operator()(const CRTP& key) const noexcept {
+            return std::hash<Type>{}(key.data_m);
+        }
+    };
+
+    constexpr CRTP& operator++() noexcept {
+        ++data_m;
+        return static_cast<CRTP&>(*this);
+    }
+
+    constexpr CRTP operator++(int) noexcept {
+        CRTP temp = static_cast<CRTP&>(*this);
+        ++data_m;
+        return temp;
+    }
+
+    constexpr CRTP& operator--() noexcept {
+        --data_m;
+        return static_cast<CRTP&>(*this);
+    }
+
+    constexpr CRTP operator--(int) noexcept {
+        CRTP temp = static_cast<CRTP&>(*this);
+        --data_m;
+        return temp;
+    }
+
+protected:
+    Type data_m;
+};
+
+// define tags like this then alias the desired name
+struct PriceTag : StrongType<std::int64_t, PriceTag> {
+    using StrongType::StrongType;
+};
+struct QtyTag : StrongType<std::int64_t, QtyTag> {
+    using StrongType::StrongType;
+};
+
+struct OrderIDTag : StrongType<std::uint64_t, OrderIDTag> {
+    using StrongType::StrongType;
+};
+
+struct ClientIDTag : StrongType<std::uint64_t, ClientIDTag> {
+    using StrongType::StrongType;
+};
+struct ServerSqn32Tag : StrongType<std::uint32_t, ServerSqn32Tag> {
+    using StrongType::StrongType;
+};
+struct ClientSqn32Tag : StrongType<std::uint32_t, ClientSqn32Tag> {
+    using StrongType::StrongType;
+};
+
+using Price = PriceTag;
+using Qty = QtyTag;
+using OrderID = OrderIDTag;
+using ClientID = ClientIDTag;
+
+// make sure that the server and client sequence numbers are never mixed
+using ServerSqn32 = ServerSqn32Tag;
+using ClientSqn32 = ClientSqn32Tag;
+
 using Timestamp = std::uint64_t;
 using TradeID = std::uint64_t;
 
@@ -75,6 +233,56 @@ inline std::ostream& operator<<(std::ostream& os, ModifyStatus status) {
     default:
         return os << "UNKNOWN";
     }
+}
+
+enum class MessageType : std::uint8_t {
+    HELLO = 0x01,
+    HELLO_ACK = 0x02,
+    LOGOUT = 0x03,
+    LOGOUT_ACK = 0x04,
+    NEW_ORDER = 0x0A,
+    ORDER_ACK = 0x0B,
+    CANCEL_ORDER = 0x0C,
+    CANCEL_ACK = 0x0D,
+    MODIFY_ORDER = 0x0E,
+    MODIFY_ACK = 0x0F,
+    TRADE = 0x10,
+};
+
+inline std::ostream& operator<<(std::ostream& os, MessageType type) {
+    using enum MessageType;
+
+    std::string_view name = [type]() -> std::string_view {
+        switch (type) {
+        case HELLO:
+            return "HELLO";
+        case HELLO_ACK:
+            return "HELLO_ACK";
+        case LOGOUT:
+            return "LOGOUT";
+        case LOGOUT_ACK:
+            return "LOGOUT_ACK";
+        case NEW_ORDER:
+            return "NEW_ORDER";
+        case ORDER_ACK:
+            return "ORDER_ACK";
+        case CANCEL_ORDER:
+            return "CANCEL_ORDER";
+        case CANCEL_ACK:
+            return "CANCEL_ACK";
+        case MODIFY_ORDER:
+            return "MODIFY_ORDER";
+        case MODIFY_ACK:
+            return "MODIFY_ACK";
+        case TRADE:
+            return "TRADE";
+        default:
+            return "UNKNOWN";
+        }
+    }();
+
+    return os << name << " (0x" << std::hex << std::uppercase << static_cast<int>(+type)
+              << std::dec << ")";
 }
 
 struct TradeEvent {

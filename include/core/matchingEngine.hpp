@@ -32,7 +32,7 @@ private:
     InstrumentID instrumentID_;
     std::map<Price, OrderQueue, std::less<Price>> asks_;
     std::map<Price, OrderQueue, std::greater<Price>> bids_;
-    std::unordered_map<OrderID, Order*> orderMap_;
+    std::unordered_map<OrderID, Order*, OrderID::Hash> orderMap_;
 
     using MatchFunction = MatchResult (MatchingEngine::*)(std::unique_ptr<Order>);
     MatchFunction dispatchTable_[2][2];

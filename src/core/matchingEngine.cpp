@@ -46,7 +46,7 @@ void MatchingEngine::reset() {
 
 [[nodiscard]] bool MatchingEngine::cancelOrder(const ClientID clientID,
                                                const OrderID orderID) {
-    std::unordered_map<OrderID, Order*>::iterator it = orderMap_.find(orderID);
+    auto it = orderMap_.find(orderID);
     if (it == orderMap_.end()) {
         return false;
     }
@@ -70,7 +70,7 @@ void MatchingEngine::reset() {
     if (it == orderMap_.end()) {
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
-                .newOrderID = 0,
+                .newOrderID = OrderID{0},
                 .newQty = newQty,
                 .newPrice = newPrice,
                 .status = ModifyStatus::NOT_FOUND,
@@ -82,7 +82,7 @@ void MatchingEngine::reset() {
     if (order->clientID != clientID) {
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
-                .newOrderID = 0,
+                .newOrderID = OrderID{0},
                 .newQty = newQty,
                 .newPrice = newPrice,
                 .status = ModifyStatus::INVALID,
@@ -93,7 +93,7 @@ void MatchingEngine::reset() {
     if (newQty <= 0 || newPrice <= 0) {
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
-                .newOrderID = 0,
+                .newOrderID = OrderID{0},
                 .newQty = newQty,
                 .newPrice = newPrice,
                 .status = ModifyStatus::INVALID,
@@ -133,7 +133,7 @@ void MatchingEngine::reset() {
     if (!cancelOrder(clientID, orderID)) {
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
-                .newOrderID = 0,
+                .newOrderID = OrderID{0},
                 .newQty = newQty,
                 .newPrice = newPrice,
                 .status = ModifyStatus::NOT_FOUND,

@@ -1,12 +1,11 @@
 #pragma once
 
+#include "protocol/protocolTypes.hpp"
 #include "utils/types.hpp"
-#include <cstdint>
-#include <vector>
 
 class Session {
 public:
-    Session(int fd = -1, ClientID serverClientID = 0)
+    Session(int fd = -1, ClientID serverClientID = ClientID{0})
         : recvBuffer(), sendBuffer(), fd(fd), serverClientID_(serverClientID),
           serverSqn_(0), clientSqn_(0), authenticated_(false) {}
 
@@ -14,9 +13,9 @@ public:
         recvBuffer.clear();
         sendBuffer.clear();
         fd = -1;
-        serverClientID_ = 0;
-        serverSqn_ = 0;
-        clientSqn_ = 0;
+        serverClientID_ = ClientID{0};
+        serverSqn_ = ServerSqn32{0};
+        clientSqn_ = ClientSqn32{0};
         authenticated_ = false;
         executionCounter_ = 0;
     }
@@ -27,24 +26,24 @@ public:
     }
 
     TradeID getNextExeID() { return ++executionCounter_; }
-    std::uint32_t getNextServerSqn() { return ++serverSqn_; }
-    std::uint32_t getNextClientSqn() { return ++clientSqn_; }
+    ServerSqn32 getNextServerSqn() { return ++serverSqn_; }
+    ClientSqn32 getNextClientSqn() { return ++clientSqn_; }
 
-    std::vector<std::uint8_t> recvBuffer;
-    std::vector<std::uint8_t> sendBuffer;
+    MessageBuffer recvBuffer;
+    MessageBuffer sendBuffer;
 
     int fd;
 
     constexpr ClientID getClientID() const { return serverClientID_; }
-    constexpr std::uint32_t getServerSqn() const { return serverSqn_; }
-    constexpr std::uint32_t getClientSqn() const { return clientSqn_; }
+    constexpr ServerSqn32 getServerSqn() const { return serverSqn_; }
+    constexpr ClientSqn32 getClientSqn() const { return clientSqn_; }
     constexpr TradeID getTradeID() const { return executionCounter_; }
     constexpr bool isAuthenticated() const { return authenticated_; }
 
 private:
-    std::uint64_t serverClientID_;
-    std::uint32_t serverSqn_;
-    std::uint32_t clientSqn_;
+    ClientID serverClientID_;
+    ServerSqn32 serverSqn_;
+    ClientSqn32 clientSqn_;
     bool authenticated_;
     TradeID executionCounter_;
 };
