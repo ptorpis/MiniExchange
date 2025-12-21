@@ -103,12 +103,6 @@ template <typename Type, typename CRTP> struct StrongType {
         return static_cast<CRTP&>(*this);
     }
 
-    struct Hash {
-        constexpr std::size_t operator()(const CRTP& key) const noexcept {
-            return std::hash<Type>{}(key.data_m);
-        }
-    };
-
     constexpr CRTP& operator++() noexcept {
         ++data_m;
         return static_cast<CRTP&>(*this);
@@ -130,6 +124,8 @@ template <typename Type, typename CRTP> struct StrongType {
         --data_m;
         return temp;
     }
+
+    constexpr Type to_integer() const { return data_m; }
 
 protected:
     Type data_m;
@@ -156,6 +152,32 @@ struct ServerSqn32Tag : StrongType<std::uint32_t, ServerSqn32Tag> {
 struct ClientSqn32Tag : StrongType<std::uint32_t, ClientSqn32Tag> {
     using StrongType::StrongType;
 };
+
+namespace std {
+template <> struct hash<ClientIDTag> {
+    hash() = default;
+    hash(const hash&) = default;
+    hash(hash&&) = default;
+    hash& operator=(const hash&) = default;
+    hash& operator=(hash&&) = default;
+
+    std::size_t operator()(const ClientIDTag& key) const noexcept {
+        return std::hash<std::uint64_t>{}(key.value());
+    }
+};
+
+template <> struct hash<OrderIDTag> {
+    hash() = default;
+    hash(const hash&) = default;
+    hash(hash&&) = default;
+    hash& operator=(const hash&) = default;
+    hash& operator=(hash&&) = default;
+
+    std::size_t operator()(const OrderIDTag& key) const noexcept {
+        return std::hash<std::uint64_t>{}(key.value());
+    }
+};
+} // namespace std
 
 using Price = PriceTag;
 using Qty = QtyTag;

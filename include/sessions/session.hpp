@@ -40,6 +40,8 @@ public:
     constexpr TradeID getTradeID() const { return executionCounter_; }
     constexpr bool isAuthenticated() const { return authenticated_; }
 
+    void authenticate() { authenticated_ = true; }
+
 private:
     ClientID serverClientID_;
     ServerSqn32 serverSqn_;

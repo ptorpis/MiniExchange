@@ -28,11 +28,13 @@ public:
     std::optional<Price> getBestAsk() const;
     std::optional<Price> getBestBid() const;
 
+    [[nodiscard]] InstrumentID getInstrumentID() const noexcept { return instrumentID_; }
+
 private:
     InstrumentID instrumentID_;
     std::map<Price, OrderQueue, std::less<Price>> asks_;
     std::map<Price, OrderQueue, std::greater<Price>> bids_;
-    std::unordered_map<OrderID, Order*, OrderID::Hash> orderMap_;
+    std::unordered_map<OrderID, Order*> orderMap_;
 
     using MatchFunction = MatchResult (MatchingEngine::*)(std::unique_ptr<Order>);
     MatchFunction dispatchTable_[2][2];
@@ -104,10 +106,8 @@ private:
     bool removeFromBook_(const OrderID orderID, const Price price, Book& book);
 
     TradeID tradeID_{0};
-    OrderID orderIDSqn_{0};
 
     TradeID getNextTradeID_() { return ++tradeID_; }
-    OrderID getNextOrderID_() { return ++orderIDSqn_; }
 };
 
 template <typename SidePolicy, typename OrderTypePolicy>

@@ -41,6 +41,12 @@ public:
         sessions_.erase(sessIt);
     }
 
+    void authenticateClient(int fd) {
+        if (auto it = sessions_.find(fd); it != sessions_.end()) {
+            it->second.authenticate();
+        }
+    }
+
     std::unordered_map<int, Session>& getSessions() { return sessions_; }
 
 private:

@@ -1,4 +1,5 @@
 #pragma once
+#include "utils/types.hpp"
 #include <cstdint>
 
 namespace server {
@@ -14,6 +15,11 @@ struct HelloAckPayload {
         func(status);
         func(padding);
     }
+
+    struct traits {
+        static constexpr std::size_t payloadSize = 16;
+        static constexpr MessageType type = MessageType::HELLO_ACK;
+    };
 };
 #pragma pack(pop)
 
@@ -28,6 +34,11 @@ struct LogoutAckPayload {
         func(status);
         func(padding);
     }
+
+    struct traits {
+        static constexpr std::size_t payloadSize = 16;
+        static constexpr MessageType type = MessageType::LOGOUT_ACK;
+    };
 };
 #pragma pack(pop)
 
@@ -52,6 +63,11 @@ struct OrderAckPayload {
         func(status);
         func(padding);
     }
+
+    struct traits {
+        static constexpr std::size_t payloadSize = 48;
+        static constexpr MessageType type = MessageType::ORDER_ACK;
+    };
 };
 #pragma pack(pop)
 
@@ -68,6 +84,11 @@ struct CancelAckPayload {
         func(status);
         func(padding);
     }
+
+    struct traits {
+        static constexpr std::size_t payloadSize = 24;
+        static constexpr MessageType type = MessageType::CANCEL_ACK;
+    };
 };
 #pragma pack(pop)
 
@@ -88,6 +109,11 @@ struct ModifyAckPayload {
         func(status);
         func(padding);
     }
+
+    struct traits {
+        static constexpr std::size_t payloadSize = 48;
+        static constexpr MessageType type = MessageType::MODIFY_ACK;
+    };
 };
 #pragma pack(pop)
 
@@ -108,7 +134,26 @@ struct TradePayload {
         func(filledPrice);
         func(timestamp);
     }
+
+    struct traits {
+        static constexpr std::size_t payloadSize = 48;
+        static constexpr MessageType type = MessageType::TRADE;
+    };
 };
 #pragma pack(pop)
+
+static_assert(HelloAckPayload::traits::payloadSize == sizeof(HelloAckPayload));
+static_assert(LogoutAckPayload::traits::payloadSize == sizeof(LogoutAckPayload));
+static_assert(OrderAckPayload::traits::payloadSize == sizeof(OrderAckPayload));
+static_assert(CancelAckPayload::traits::payloadSize == sizeof(CancelAckPayload));
+static_assert(ModifyAckPayload::traits::payloadSize == sizeof(ModifyAckPayload));
+static_assert(TradePayload::traits::payloadSize == sizeof(TradePayload));
+
+static_assert(HelloAckPayload::traits::type == ::MessageType::HELLO_ACK);
+static_assert(LogoutAckPayload::traits::type == ::MessageType::LOGOUT_ACK);
+static_assert(OrderAckPayload::traits::type == MessageType::ORDER_ACK);
+static_assert(CancelAckPayload::traits::type == MessageType::CANCEL_ACK);
+static_assert(ModifyAckPayload::traits::type == MessageType::MODIFY_ACK);
+static_assert(TradePayload::traits::type == MessageType::TRADE);
 
 } // namespace server

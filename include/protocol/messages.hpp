@@ -8,6 +8,14 @@ inline static constexpr std::size_t HEADER_SIZE = 16;
 enum class HeaderFlags : std::uint8_t { PROTOCOL_VERSION = 0x01 };
 } // namespace constants
 
+namespace client {
+template <typename T> struct PayloadTraits;
+}
+
+namespace client {
+template <typename T> struct PayloadTraits;
+}
+
 #pragma pack(push, 1)
 struct MessageHeader {
     std::uint8_t messageType;

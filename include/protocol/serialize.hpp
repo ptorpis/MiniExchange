@@ -43,6 +43,10 @@ inline std::byte readByteAdvance(std::span<const std::byte>& view) {
     return value;
 }
 
+inline uint8_t readUint8Advance(std::span<const std::byte>& view) {
+    return std::to_integer<uint8_t>(readByteAdvance(view));
+}
+
 inline void writeByteAdvance(std::byte*& ptr, std::byte val) {
     *ptr = val;
     ++ptr;
