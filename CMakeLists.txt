@@ -29,6 +29,10 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wimplicit-fallthrough
         -Wnull-dereference
         -Wold-style-cast
+        -Wduplicated-cond
+        -Wduplicated-branches
+        -Wlogical-op
+        -Wuseless-cast
     )
 
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
@@ -51,6 +55,7 @@ endif()
 
 add_library(MiniExchangeCore
     src/core/matchingEngine.cpp
+    src/protocol/protocolHandler.cpp
 )
 
 target_include_directories(MiniExchangeCore PUBLIC ${CMAKE_SOURCE_DIR}/include)

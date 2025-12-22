@@ -47,6 +47,12 @@ public:
         }
     }
 
+    void logoutClient(int fd) {
+        if (auto it = sessions_.find(fd); it != sessions_.end()) {
+            it->second.logout();
+        }
+    }
+
     std::unordered_map<int, Session>& getSessions() { return sessions_; }
 
 private:

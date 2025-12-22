@@ -28,10 +28,10 @@
  * Example usage:
  * @code
  *   // Define tag types using CRTP
- *   struct PriceTag : StrongType<PriceTag, std::int64_t> {
+ *   struct PriceTag : StrongType<std::uint64_t, PriceTag> {
  *       using StrongType::StrongType;
  *   };
- *   struct QtyTag : StrongType<QtyTag, std::int64_t> {
+ *   struct QtyTag : StrongType<std::uint64_t, QtyTag> {
  *       using StrongType::StrongType;
  *   };
  *
@@ -48,7 +48,7 @@
  *
  *   if (qty > 0) { ... }       // OK: Compare with raw value
  *
- *   std::int64_t raw = price.value(); // Extract raw value when needed
+ *   std::uint64_t raw = price.value(); // Extract raw value when needed
  * @endcode
  *
  * @note Derived types must use CRTP: `struct MyType : StrongType<MyType, int>`
@@ -125,17 +125,15 @@ template <typename Type, typename CRTP> struct StrongType {
         return temp;
     }
 
-    constexpr Type to_integer() const { return data_m; }
-
 protected:
     Type data_m;
 };
 
 // define tags like this then alias the desired name
-struct PriceTag : StrongType<std::int64_t, PriceTag> {
+struct PriceTag : StrongType<std::uint64_t, PriceTag> {
     using StrongType::StrongType;
 };
-struct QtyTag : StrongType<std::int64_t, QtyTag> {
+struct QtyTag : StrongType<std::uint64_t, QtyTag> {
     using StrongType::StrongType;
 };
 
@@ -150,6 +148,12 @@ struct ServerSqn32Tag : StrongType<std::uint32_t, ServerSqn32Tag> {
     using StrongType::StrongType;
 };
 struct ClientSqn32Tag : StrongType<std::uint32_t, ClientSqn32Tag> {
+    using StrongType::StrongType;
+};
+struct InstrumentIDTag : StrongType<std::uint32_t, InstrumentIDTag> {
+    using StrongType::StrongType;
+};
+struct TradeIDTag : StrongType<std::uint64_t, TradeIDTag> {
     using StrongType::StrongType;
 };
 
@@ -189,9 +193,9 @@ using ServerSqn32 = ServerSqn32Tag;
 using ClientSqn32 = ClientSqn32Tag;
 
 using Timestamp = std::uint64_t;
-using TradeID = std::uint64_t;
+using TradeID = TradeIDTag;
 
-using InstrumentID = std::uint32_t;
+using InstrumentID = InstrumentIDTag;
 
 enum class OrderType : std::uint8_t { LIMIT, MARKET };
 enum class OrderSide : std::uint8_t { BUY, SELL };
@@ -331,9 +335,10 @@ struct MatchResult {
     OrderID orderID;
     Timestamp timestamp;
     Qty remainingQty;
+    Price acceptedPrice;
     OrderStatus status;
-    std::vector<TradeEvent> tradeVec;
     InstrumentID instrumentID;
+    std::vector<TradeEvent> tradeVec;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const MatchResult& m) {

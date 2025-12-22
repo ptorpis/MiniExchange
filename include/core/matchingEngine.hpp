@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <unordered_map>
+#include <utility>
 
 #include "core/order.hpp"
 #include "utils/timing.hpp"
@@ -15,7 +16,8 @@ using OrderQueue = std::deque<std::unique_ptr<Order>>;
 
 class MatchingEngine {
 public:
-    MatchingEngine(InstrumentID instrumentID = 1) : instrumentID_(instrumentID) {}
+    MatchingEngine(InstrumentID instrumentID = InstrumentID{1})
+        : instrumentID_(instrumentID) {}
 
     MatchResult processOrder(std::unique_ptr<Order> order);
     bool cancelOrder(const ClientID clientID, const OrderID orderID);
@@ -106,8 +108,10 @@ private:
     bool removeFromBook_(const OrderID orderID, const Price price, Book& book);
 
     TradeID tradeID_{0};
+    OrderID orderID_{0};
 
     TradeID getNextTradeID_() { return ++tradeID_; }
+    OrderID getNextOrderID_() { return ++orderID_; }
 };
 
 template <typename SidePolicy, typename OrderTypePolicy>
@@ -118,10 +122,11 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     const Qty originalQty = remainingQty;
 
     auto& book = SidePolicy::book(*this);
+    Price bestPrice{};
 
     while (remainingQty && book.empty()) {
         auto it = book.begin();
-        Price bestPrice = it->first;
+        bestPrice = it->first;
 
         if constexpr (OrderTypePolicy::needsPriceCheck) {
             if (!SidePolicy::pricePasses(order->price, bestPrice)) {
@@ -187,7 +192,15 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     OrderStatus status =
         OrderTypePolicy::finalize(std::move(order), remainingQty, originalQty, *this);
 
-    MatchResult result(orderID, timestamp, remainingQty, status, tradeVec);
+    MatchResult result{
+        .orderID = orderID,
+        .timestamp = timestamp,
+        .remainingQty = remainingQty,
+        .acceptedPrice = bestPrice,
+        .status = status,
+        .instrumentID = instrumentID_,
+        .tradeVec = tradeVec,
+    };
 
     return result;
 }

@@ -5,8 +5,8 @@
 
 namespace client {
 struct HelloPayload {
-    std::uint8_t padding[8];
-    template <typename F> void iterateElements(F&& func) { func(padding); }
+    std::uint8_t padding[8]{};
+    template <typename F> void iterateElements([[maybe_unused]] F&& func) {}
 
     struct traits {
         static constexpr std::size_t payloadSize = 8;
@@ -32,8 +32,8 @@ struct NewOrderPayload {
     std::uint8_t orderType;
     std::uint8_t timeInForce;
     std::uint8_t padding{0};
-    std::int64_t qty;
-    std::int64_t price;
+    std::uint64_t qty;
+    std::uint64_t price;
     Timestamp goodTillDate;
 
     template <typename F> void iterateElements(F&& func) {
@@ -66,7 +66,6 @@ struct CancelOrderPayload {
         func(serverClientID);
         func(serverOrderID);
         func(instrumentID);
-        func(padding);
     }
 
     struct traits {
@@ -80,8 +79,8 @@ struct CancelOrderPayload {
 struct ModifyOrderPayload {
     ClientID serverClientID;
     OrderID serverOrderID;
-    std::int64_t newQty;
-    std::int64_t newPrice;
+    std::uint64_t newQty;
+    std::uint64_t newPrice;
     InstrumentID instrumentID;
     std::uint8_t padding[4];
 
@@ -91,7 +90,6 @@ struct ModifyOrderPayload {
         func(newQty);
         func(newPrice);
         func(instrumentID);
-        func(padding);
     }
 
     struct traits {

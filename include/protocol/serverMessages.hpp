@@ -13,7 +13,6 @@ struct HelloAckPayload {
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(status);
-        func(padding);
     }
 
     struct traits {
@@ -25,14 +24,13 @@ struct HelloAckPayload {
 
 #pragma pack(push, 1)
 struct LogoutAckPayload {
-    uint64_t serverClientID;
-    uint8_t status;
-    uint8_t padding[7];
+    std::uint64_t serverClientID;
+    std::uint8_t status;
+    std::uint8_t padding[7];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(status);
-        func(padding);
     }
 
     struct traits {
@@ -44,24 +42,23 @@ struct LogoutAckPayload {
 
 #pragma pack(push, 1)
 struct OrderAckPayload {
-    uint64_t serverClientID;
-    uint64_t serverOrderID;
-    int64_t acceptedPrice;
-    int64_t acceptedQty;
-    uint64_t serverTime;
-    uint32_t instrumentID;
-    uint8_t status;
-    uint8_t padding[3];
+    std::uint64_t serverClientID;
+    std::uint64_t serverOrderID;
+    std::uint64_t acceptedPrice;
+    std::uint64_t remainingQty;
+    std::uint64_t serverTime;
+    std::uint32_t instrumentID;
+    std::uint8_t status;
+    std::uint8_t padding[3];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverOrderID);
         func(acceptedPrice);
-        func(acceptedQty);
+        func(remainingQty);
         func(serverTime);
         func(instrumentID);
         func(status);
-        func(padding);
     }
 
     struct traits {
@@ -73,16 +70,15 @@ struct OrderAckPayload {
 
 #pragma pack(push, 1)
 struct CancelAckPayload {
-    uint64_t serverClientID;
-    uint64_t serverOrderID;
-    uint8_t status;
-    uint8_t padding[7];
+    std::uint64_t serverClientID;
+    std::uint64_t serverOrderID;
+    std::uint8_t status;
+    std::uint8_t padding[7];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(serverOrderID);
         func(status);
-        func(padding);
     }
 
     struct traits {
@@ -94,20 +90,21 @@ struct CancelAckPayload {
 
 #pragma pack(push, 1)
 struct ModifyAckPayload {
-    uint64_t serverClientID;
-    uint64_t oldServerOrderID;
-    uint64_t newServerOrderID;
-    int64_t newQty;
-    int64_t newPrice;
-    uint8_t status;
-    uint8_t padding[7];
+    std::uint64_t serverClientID;
+    std::uint64_t oldServerOrderID;
+    std::uint64_t newServerOrderID;
+    std::uint64_t newQty;
+    std::uint64_t newPrice;
+    std::uint8_t status;
+    std::uint8_t padding[7];
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
         func(oldServerOrderID);
         func(newServerOrderID);
+        func(newQty);
+        func(newPrice);
         func(status);
-        func(padding);
     }
 
     struct traits {
@@ -119,12 +116,12 @@ struct ModifyAckPayload {
 
 #pragma pack(push, 1)
 struct TradePayload {
-    uint64_t serverClientID;
-    uint64_t serverOrderID;
-    uint64_t tradeID;
-    int64_t filledQty;
-    int64_t filledPrice;
-    uint64_t timestamp;
+    std::uint64_t serverClientID;
+    std::uint64_t serverOrderID;
+    std::uint64_t tradeID;
+    std::uint64_t filledQty;
+    std::uint64_t filledPrice;
+    std::uint64_t timestamp;
 
     template <typename F> void iterateElements(F&& func) {
         func(serverClientID);
@@ -149,8 +146,8 @@ static_assert(CancelAckPayload::traits::payloadSize == sizeof(CancelAckPayload))
 static_assert(ModifyAckPayload::traits::payloadSize == sizeof(ModifyAckPayload));
 static_assert(TradePayload::traits::payloadSize == sizeof(TradePayload));
 
-static_assert(HelloAckPayload::traits::type == ::MessageType::HELLO_ACK);
-static_assert(LogoutAckPayload::traits::type == ::MessageType::LOGOUT_ACK);
+static_assert(HelloAckPayload::traits::type == MessageType::HELLO_ACK);
+static_assert(LogoutAckPayload::traits::type == MessageType::LOGOUT_ACK);
 static_assert(OrderAckPayload::traits::type == MessageType::ORDER_ACK);
 static_assert(CancelAckPayload::traits::type == MessageType::CANCEL_ACK);
 static_assert(ModifyAckPayload::traits::type == MessageType::MODIFY_ACK);

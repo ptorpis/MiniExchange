@@ -5,9 +5,12 @@
 
 class Session {
 public:
-    Session(int fd = -1, ClientID serverClientID = ClientID{0})
-        : recvBuffer(), sendBuffer(), fd(fd), serverClientID_(serverClientID),
-          serverSqn_(0), clientSqn_(0), authenticated_(false) {}
+    Session(int fileDescriptor = -1, ClientID serverClientID = ClientID{0})
+        : recvBuffer(), sendBuffer(), fd(fileDescriptor), serverClientID_(serverClientID),
+          serverSqn_(0), clientSqn_(0), authenticated_(false) {
+        recvBuffer.reserve(4 * 1024);
+        sendBuffer.reserve(4 * 1024);
+    }
 
     void reset() {
         recvBuffer.clear();
@@ -17,7 +20,7 @@ public:
         serverSqn_ = ServerSqn32{0};
         clientSqn_ = ClientSqn32{0};
         authenticated_ = false;
-        executionCounter_ = 0;
+        executionCounter_ = TradeID{0};
     }
 
     void clearBuffers() {
@@ -40,12 +43,13 @@ public:
     constexpr TradeID getTradeID() const { return executionCounter_; }
     constexpr bool isAuthenticated() const { return authenticated_; }
 
-    void authenticate() { authenticated_ = true; }
+    void authenticate() noexcept { authenticated_ = true; }
+    void logout() noexcept { authenticated_ = false; }
 
 private:
     ClientID serverClientID_;
     ServerSqn32 serverSqn_;
     ClientSqn32 clientSqn_;
     bool authenticated_;
-    TradeID executionCounter_;
+    TradeID executionCounter_{0};
 };

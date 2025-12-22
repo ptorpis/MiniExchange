@@ -6,6 +6,7 @@
 #include <bit>
 #include <cassert>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -24,10 +25,7 @@ template <std::unsigned_integral T> inline T swapEndian(T value) {
 template <typename T> void swapFieldEndian(T& field) {
     using FieldType = std::decay_t<T>;
 
-    if constexpr (requires {
-                      field.value();
-                      field.data_m;
-                  }) {
+    if constexpr (requires { field.data_m; }) {
         using UnderlyingType = decltype(field.data_m);
         if constexpr (std::is_integral_v<UnderlyingType> && sizeof(UnderlyingType) > 1) {
             field.data_m = swapEndian(field.data_m);
@@ -35,16 +33,13 @@ template <typename T> void swapFieldEndian(T& field) {
     } else if constexpr (std::is_integral_v<FieldType> && sizeof(FieldType) > 1) {
         field = swapEndian(field);
     }
+    // else: no-op for single bytes, arrays, etc.
 }
 
-inline std::byte readByteAdvance(std::span<const std::byte>& view) {
+inline uint8_t readByteAdvance(std::span<const std::byte>& view) {
     std::byte value = view.front();
     view = view.subspan(1);
-    return value;
-}
-
-inline uint8_t readUint8Advance(std::span<const std::byte>& view) {
-    return std::to_integer<uint8_t>(readByteAdvance(view));
+    return std::to_integer<uint8_t>(value);
 }
 
 inline void writeByteAdvance(std::byte*& ptr, std::byte val) {
@@ -100,7 +95,7 @@ std::optional<Message<Payload>> deserializeMessage(std::span<const std::byte> bu
     readBytesAdvance(view, reinterpret_cast<std::byte*>(msg.header.padding),
                      sizeof(msg.header.padding));
 
-    msg.payload.iterateElements([](auto& field) { field = swapFieldEndian(field); });
+    msg.payload.iterateElements([](auto& field) { swapFieldEndian(field); });
 
     return msg;
 }
@@ -128,4 +123,26 @@ SerializedMessage serializeMessage(const MessageType msgType, const MessageHeade
     std::memcpy(ptr, &payloadBE, payloadSize);
 
     return msg;
+}
+
+template <typename Payload>
+void serializeMessageInto(std::vector<std::byte>& buffer, MessageType msgType,
+                          const MessageHeader& header, const Payload& payload) {
+    constexpr size_t msgSize = sizeof(MessageHeader) + sizeof(Payload);
+
+    size_t oldSize = buffer.size();
+    buffer.resize(oldSize + msgSize);
+
+    std::byte* ptr = buffer.data() + oldSize;
+
+    writeByteAdvance(ptr, static_cast<std::byte>(msgType));
+    writeByteAdvance(ptr, static_cast<std::byte>(header.protocolVersionFlag));
+    writeIntegerAdvance(ptr, header.payloadLength);
+    writeIntegerAdvance(ptr, header.clientMsgSqn);
+    writeIntegerAdvance(ptr, header.serverMsgSqn);
+    writeBytesAdvance(ptr, header.padding, sizeof(header.padding));
+
+    Payload payloadBE = payload;
+    payloadBE.iterateElements([](auto& field) { swapFieldEndian(field); });
+    std::memcpy(ptr, &payloadBE, sizeof(Payload));
 }

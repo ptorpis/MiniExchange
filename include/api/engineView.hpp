@@ -6,9 +6,9 @@ class EngineView {
 public:
     EngineView(const MatchingEngine& engine);
 
-    std::optional<Price> getSpread();
-    std::optional<Price> getBestBid();
-    std::optional<Price> getBestAsk();
+    std::optional<Price> getSpread() { return engine_.getSpread(); }
+    std::optional<Price> getBestBid() { return engine_.getBestBid(); }
+    std::optional<Price> getBestAsk() { return engine_.getBestAsk(); }
 
     std::optional<const Order*> getOrder(OrderID id) const;
 

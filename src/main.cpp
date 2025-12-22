@@ -10,7 +10,7 @@ int main() {
                 .price = Price{100},
                 .goodTill = 100,
                 .timestamp = TSCClock::TSCClock::now(),
-                .instrumentID = 1,
+                .instrumentID = InstrumentID{1},
                 .tif = TimeInForce::GOOD_TILL_CANCELLED,
                 .side = OrderSide::BUY,
                 .type = OrderType::LIMIT,
