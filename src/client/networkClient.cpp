@@ -7,17 +7,20 @@
 #include "utils/utils.hpp"
 #include <algorithm>
 #include <arpa/inet.h>
+#include <atomic>
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <fcntl.h>
-#include <functional>
+#include <mutex>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <stdexcept>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 
 NetworkClient::NetworkClient(std::string host, std::uint16_t port)
@@ -60,10 +63,91 @@ bool NetworkClient::connect() {
     setNonBlocking_();
     setTCPNoDelay_();
 
+    startMessageLoop_();
+
     return true;
 }
 
+void NetworkClient::startMessageLoop_() {
+    running_.store(true, std::memory_order_release);
+    messageThread_ = std::thread([this]() { messageLoop_(); });
+}
+
+void NetworkClient::messageLoop_() {
+    while (running_.load(std::memory_order_acquire)) {
+        if (!isConnected()) {
+            break;
+        }
+
+        fd_set readfds, writefds;
+
+        FD_ZERO(&readfds);
+        FD_ZERO(&writefds);
+        FD_SET(sockfd_, &readfds);
+
+        bool hasDataToSend = false;
+        {
+            std::lock_guard<std::mutex> lock(sendMutex_);
+            hasDataToSend = !sendBuffer_.empty();
+        }
+
+        if (hasDataToSend) {
+            FD_SET(sockfd_, &writefds);
+        }
+
+        struct timeval timeout;
+
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 1000;
+
+        int ready = ::select(sockfd_ + 1, &readfds, &writefds, nullptr, &timeout);
+
+        if (ready < 0) {
+            if (errno != EINTR) {
+                break;
+            }
+
+            continue;
+        }
+
+        if (FD_ISSET(sockfd_, &readfds)) {
+            char buffer[4096];
+            ssize_t received = recv(sockfd_, buffer, sizeof(buffer), 0);
+            if (received > 0) {
+                recvBuffer_.insert(recvBuffer_.end(),
+                                   reinterpret_cast<std::byte*>(buffer),
+                                   reinterpret_cast<std::byte*>(buffer + received));
+                processRecvBuffer_();
+            } else if (received == 0) {
+                break;
+            } else {
+                if (errno != EAGAIN) {
+                    break;
+                }
+            }
+        }
+
+        if (FD_ISSET(sockfd_, &writefds)) {
+            std::lock_guard<std::mutex> lock(sendMutex_);
+
+            if (!sendBuffer_.empty()) {
+                ssize_t sent =
+                    ::send(sockfd_, sendBuffer_.data(), sendBuffer_.size(), MSG_NOSIGNAL);
+
+                if (sent > 0) {
+                    sendBuffer_.erase(sendBuffer_.begin(), sendBuffer_.begin() + sent);
+                } else if (sent < 0) {
+                    if (errno != EAGAIN) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
 void NetworkClient::disconnect() {
+    stopMessageLoop_();
     if (sockfd_ >= 0) {
         close(sockfd_);
         sockfd_ = -1;
@@ -76,6 +160,13 @@ void NetworkClient::disconnect() {
     serverSqn = ServerSqn32{0};
 }
 
+void NetworkClient::stopMessageLoop_() {
+    running_.store(false, std::memory_order_release);
+    if (messageThread_.joinable()) {
+        messageThread_.join();
+    }
+}
+
 void NetworkClient::sendHello() {
     client::HelloPayload payload{};
     std::memset(payload.padding, 0, sizeof(payload.padding));
@@ -84,20 +175,27 @@ void NetworkClient::sendHello() {
 
 void NetworkClient::sendLogout() {
     client::LogoutPayload payload{};
-    payload.serverClientID = serverClientID.value();
+    payload.serverClientID = serverClientID_.value();
     sendMessage_(MessageType::LOGOUT, payload);
 }
 
-void NetworkClient::sendNewOrder(const client::NewOrderPayload& payload) {
+void NetworkClient::sendNewOrder(
+    InstrumentID instrumentID, OrderSide side, OrderType type, Qty qty, Price price,
+    TimeInForce timeInForce = TimeInForce::GOOD_TILL_CANCELLED,
+    Timestamp goodTillDate = Timestamp{0}) {
+
+    client::NewOrderPayload payload{};
+    payload.serverClientID = serverClientID_.value();
+    payload.instrumentID = instrumentID.value();
+    payload.orderSide = +side;
+    payload.orderType = +type;
+    payload.timeInForce = +timeInForce;
+
+    payload.qty = qty.value();
+    payload.price = price.value();
+    payload.goodTillDate = goodTillDate;
+
     sendMessage_(MessageType::NEW_ORDER, payload);
-}
-
-void NetworkClient::sendCancel(const client::CancelOrderPayload& payload) {
-    sendMessage_(MessageType::CANCEL_ORDER, payload);
-}
-
-void NetworkClient::sendModify(const client::ModifyOrderPayload& payload) {
-    sendMessage_(MessageType::MODIFY_ORDER, payload);
 }
 
 template <typename Payload>
@@ -114,62 +212,8 @@ void NetworkClient::sendMessage_(MessageType type, const Payload& payload) {
 
     utils::printMessage(std::cout, message);
 
+    std::lock_guard<std::mutex> lock(sendMutex_);
     serializeMessageInto(sendBuffer_, type, header, payload);
-
-    while (!sendBuffer_.empty()) {
-        ssize_t sent =
-            ::send(sockfd_, sendBuffer_.data(), sendBuffer_.size(), MSG_NOSIGNAL);
-
-        if (sent > 0) {
-            sendBuffer_.erase(sendBuffer_.begin(), sendBuffer_.begin() + sent);
-        } else if (sent < 0) {
-            if (errno == EAGAIN) {
-                break;
-            } else if (errno != EINTR) {
-                throw std::runtime_error("Send failed: " + std::string(strerror(errno)));
-            }
-        }
-    }
-}
-
-void NetworkClient::processMessages() {
-    if (!isConnected()) {
-        return;
-    }
-
-    while (!sendBuffer_.empty()) {
-        ssize_t sent =
-            send(sockfd_, sendBuffer_.data(), sendBuffer_.size(), MSG_NOSIGNAL);
-
-        if (sent > 0) {
-            sendBuffer_.erase(sendBuffer_.begin(), sendBuffer_.begin() + sent);
-        } else if (sent < 0) {
-            if (errno == EAGAIN) {
-                break;
-            } else if (errno != EINTR) {
-                disconnect();
-                return;
-            }
-        }
-    }
-
-    char buffer[4096];
-    ssize_t received = recv(sockfd_, buffer, sizeof(buffer), 0);
-
-    if (received > 0) {
-        recvBuffer_.insert(recvBuffer_.end(), reinterpret_cast<std::byte*>(buffer),
-                           reinterpret_cast<std::byte*>(buffer + received));
-
-        processRecvBuffer_();
-
-    } else if (received == 0) {
-        disconnect();
-
-    } else {
-        if (errno != EAGAIN && errno != EINTR) {
-            disconnect();
-        }
-    }
 }
 
 void NetworkClient::processRecvBuffer_() {

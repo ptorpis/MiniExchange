@@ -1,12 +1,13 @@
 #pragma once
 
-#include "protocol/clientMessages.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/serverMessages.hpp"
 #include "utils/types.hpp"
 #include "utils/utils.hpp"
+#include <atomic>
 #include <cstdint>
 #include <string>
+#include <thread>
 #include <vector>
 
 class NetworkClient {
@@ -20,20 +21,30 @@ public:
 
     void sendHello();
     void sendLogout();
-    void sendNewOrder(const client::NewOrderPayload& payload);
-    void sendCancel(const client::CancelOrderPayload& payload);
-    void sendModify(const client::ModifyOrderPayload& payload);
 
     void processMessages();
+
+    void sendNewOrder(InstrumentID instrumentID, OrderSide side, OrderType type, Qty qty,
+                      Price price, TimeInForce timeInForce, Timestamp goodTillDate);
+
+    void sendCancel(OrderID orderID, InstrumentID instrumentID);
+
+    void sendModify(OrderID orderID, Qty newQty, Price newPrice,
+                    InstrumentID instrumentID);
+
+    void setClientID(ClientID id) { serverClientID_ = id; }
+    [[nodiscard]] ClientID getClientID() const { return serverClientID_; }
 
 protected:
     virtual void
     onHelloAck([[maybe_unused]] const Message<server::HelloAckPayload>& msg) {
+        setClientID(ClientID{msg.payload.serverClientID});
         utils::printMessage(std::cout, msg);
     }
 
     virtual void
     onLogoutAck([[maybe_unused]] const Message<server::LogoutAckPayload>& msg) {
+        setClientID(ClientID{0});
         utils::printMessage(std::cout, msg);
     }
 
@@ -57,6 +68,10 @@ protected:
     }
 
 private:
+    void messageLoop_();
+    void startMessageLoop_();
+    void stopMessageLoop_();
+
     template <typename Payload>
     void sendMessage_(MessageType type, const Payload& payload);
 
@@ -66,15 +81,19 @@ private:
     void setNonBlocking_();
     void setTCPNoDelay_();
 
+    std::atomic<bool> running_{false};
+
     int sockfd_;
     std::string host_;
     std::uint16_t port_;
 
     std::vector<std::byte> recvBuffer_;
     std::vector<std::byte> sendBuffer_;
+    std::mutex sendMutex_;
 
     ClientSqn32 clientSqn{0};
     ServerSqn32 serverSqn{0};
+    ClientID serverClientID_{0};
 
-    ClientID serverClientID{0};
+    std::thread messageThread_;
 };

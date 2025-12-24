@@ -55,17 +55,9 @@ int main() {
 
     waitForEnter("Press Enter to send NEW ORDER...");
 
-    client::NewOrderPayload order{};
-    order.serverClientID = 1;
-    order.instrumentID = 1;
-    order.orderSide = +(OrderSide::BUY);
-    order.orderType = +(OrderType::LIMIT);
-    order.timeInForce = 0;
-    order.qty = 100;
-    order.price = 15000;
-    order.goodTillDate = Timestamp{0};
+    client.sendNewOrder(InstrumentID{1}, OrderSide::BUY, OrderType::LIMIT, Qty{1000},
+                        Price{150000}, TimeInForce::GOOD_TILL_CANCELLED, Timestamp{0});
 
-    client.sendNewOrder(order);
     std::cout << "Sent order" << std::endl;
 
     std::cout << "Processing responses..." << std::endl;
