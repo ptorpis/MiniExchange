@@ -15,6 +15,9 @@ public:
         : sessionManager_(sm), api_(api), dirtyFDs_() {}
 
     void onMessage(int fd);
+    [[nodiscard]] std::unordered_set<int>& getDirtyFDs() { return dirtyFDs_; }
+
+    void clearDirtyFD(int fd) { dirtyFDs_.erase(fd); }
 
 private:
     void processMessages_(Session& session);
@@ -38,6 +41,8 @@ private:
                                                 bool isBuyer);
     Message<server::ModifyAckPayload> makeModifyAck_(Session& session,
                                                      const ModifyResult& res);
+    Message<server::CancelAckPayload> makeCancelAck_(Session& session, OrderID orderID,
+                                                     InstrumentID instrID, bool success);
 
     SessionManager& sessionManager_;
     MiniExchangeAPI& api_;

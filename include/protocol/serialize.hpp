@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstring>
 #include <optional>
+#include <print>
 #include <span>
 #include <type_traits>
 
@@ -94,6 +95,8 @@ std::optional<Message<Payload>> deserializeMessage(std::span<const std::byte> bu
     msg.header.serverMsgSqn = readIntegerAdvance<std::uint32_t>(view);
     readBytesAdvance(view, reinterpret_cast<std::byte*>(msg.header.padding),
                      sizeof(msg.header.padding));
+
+    std::memcpy(&msg.payload, view.data(), payloadSize);
 
     msg.payload.iterateElements([](auto& field) { swapFieldEndian(field); });
 

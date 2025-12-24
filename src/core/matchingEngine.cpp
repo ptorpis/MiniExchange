@@ -144,7 +144,7 @@ void MatchingEngine::reset() {
     // now, the order is cancelled, and the pointer [order] is invalidated
 
     std::unique_ptr<Order> newOrder = std::make_unique<Order>(
-        getNextOrderID_(), clientID, newQty, newPrice, tmpGoodTill, TSCClock::now(),
+        getNextOrderID(), clientID, newQty, newPrice, tmpGoodTill, TSCClock::now(),
         instrumentID_, tmpTif, tmpSide, OrderType::LIMIT, OrderStatus::MODIFIED);
 
     int sideIdx = (newOrder->side == OrderSide::BUY ? 0 : 1);

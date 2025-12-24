@@ -9,7 +9,9 @@
 #include "utils/utils.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <iterator>
 #include <optional>
+#include <print>
 
 void ProtocolHandler::onMessage(int fd) {
     Session* session = sessionManager_.getSession(fd);
@@ -25,7 +27,7 @@ void ProtocolHandler::processMessages_(Session& session) {
     std::span<const std::byte> view = session.recvBuffer;
     std::size_t totalConsumed{0};
 
-    while (view.empty()) {
+    while (!view.empty()) {
         if (view.size() < sizeof(MessageHeader)) {
             break;
         }
@@ -47,6 +49,9 @@ void ProtocolHandler::processMessages_(Session& session) {
         if (consumed == 0) {
             break;
         }
+
+        view = view.subspan(consumed);
+        totalConsumed += consumed;
     }
 
     if (totalConsumed > 0) {
@@ -95,9 +100,9 @@ ProtocolHandler::peekHeader_(std::span<const std::byte> view) const {
 
     header.messageType = readByteAdvance(headerView);
     header.protocolVersionFlag = readByteAdvance(headerView);
-    header.payloadLength = readByteAdvance(headerView);
-    header.clientMsgSqn = readByteAdvance(headerView);
-    header.serverMsgSqn = readByteAdvance(headerView);
+    header.payloadLength = readIntegerAdvance<std::uint16_t>(headerView);
+    header.clientMsgSqn = readIntegerAdvance<std::uint32_t>(headerView);
+    header.serverMsgSqn = readIntegerAdvance<std::uint32_t>(headerView);
     readBytesAdvance(headerView, reinterpret_cast<std::byte*>(header.padding),
                      sizeof(header.padding));
 
@@ -107,7 +112,7 @@ ProtocolHandler::peekHeader_(std::span<const std::byte> view) const {
 std::size_t ProtocolHandler::handleHello_(Session& session,
                                           std::span<const std::byte> messageBytes) {
     constexpr std::size_t sizeToBeConsumed =
-        constants::HEADER_SIZE + client::HelloPayload::traits::payloadSize;
+        MessageHeader::traits::HEADER_SIZE + client::HelloPayload::traits::payloadSize;
 
     if (session.recvBuffer.size() < sizeToBeConsumed) {
         return 0;
@@ -140,7 +145,7 @@ std::size_t ProtocolHandler::handleHello_(Session& session,
 std::size_t ProtocolHandler::handleLogout_(Session& session,
                                            std::span<const std::byte> messageBytes) {
     constexpr std::size_t sizeToBeConsumed =
-        client::LogoutPayload::traits::payloadSize + constants::HEADER_SIZE;
+        client::LogoutPayload::traits::payloadSize + MessageHeader::traits::HEADER_SIZE;
     if (session.recvBuffer.size() < sizeToBeConsumed) {
         return 0;
     }
@@ -172,7 +177,7 @@ std::size_t ProtocolHandler::handleLogout_(Session& session,
 std::size_t ProtocolHandler::handleNewOrder_(Session& session,
                                              std::span<const std::byte> messageBytes) {
     constexpr std::size_t sizeToBeConsumed =
-        client::NewOrderPayload::traits::payloadSize + constants::HEADER_SIZE;
+        client::NewOrderPayload::traits::payloadSize + MessageHeader::traits::HEADER_SIZE;
 
     if (session.recvBuffer.size() < sizeToBeConsumed) {
         return 0;
@@ -212,6 +217,8 @@ std::size_t ProtocolHandler::handleNewOrder_(Session& session,
                 dirtyFDs_.insert(sellerSession->fd);
             }
         }
+    } else {
+        return 0;
     }
 
     return sizeToBeConsumed;
@@ -220,7 +227,8 @@ std::size_t ProtocolHandler::handleNewOrder_(Session& session,
 std::size_t ProtocolHandler::handleModifyOrder_(Session& session,
                                                 std::span<const std::byte> messageBytes) {
     constexpr std::size_t sizeToBeConsumed =
-        constants::HEADER_SIZE + client::ModifyOrderPayload::traits::payloadSize;
+        MessageHeader::traits::HEADER_SIZE +
+        client::ModifyOrderPayload::traits::payloadSize;
 
     if (session.recvBuffer.size() < sizeToBeConsumed) {
         return 0;
@@ -263,10 +271,38 @@ std::size_t ProtocolHandler::handleModifyOrder_(Session& session,
     return sizeToBeConsumed;
 }
 
+std::size_t ProtocolHandler::handleCancel_(Session& session,
+                                           std::span<const std::byte> messageBytes) {
+    constexpr std::size_t sizeToBeConsumed =
+        MessageHeader::traits::HEADER_SIZE +
+        client::CancelOrderPayload::traits::payloadSize;
+
+    if (session.recvBuffer.size() < sizeToBeConsumed) {
+        return 0;
+    }
+
+    if (auto msgOpt = deserializeMessage<client::CancelOrderPayload>(messageBytes)) {
+        if (!utils::isCorrectIncrement(session.getClientSqn().value(),
+                                       msgOpt->header.clientMsgSqn)) {
+            return sizeToBeConsumed;
+        }
+
+        bool success = api_.cancelOrder(msgOpt->payload);
+        Message<server::CancelAckPayload> ackMsg =
+            makeCancelAck_(session, OrderID{msgOpt->payload.serverOrderID},
+                           InstrumentID{msgOpt->payload.instrumentID}, success);
+        serializeMessageInto(session.sendBuffer, MessageType::CANCEL_ACK, ackMsg.header,
+                             ackMsg.payload);
+        dirtyFDs_.insert(session.fd);
+    }
+
+    return sizeToBeConsumed;
+}
+
 template <typename Payload> inline MessageHeader makeHeader(Session& session) {
     MessageHeader header{};
     header.messageType = +Payload::traits::type;
-    header.protocolVersionFlag = +(constants::HeaderFlags::PROTOCOL_VERSION);
+    header.protocolVersionFlag = +(MessageHeader::traits::PROTOCOL_VERSION);
     header.payloadLength = Payload::traits::payloadSize;
     header.clientMsgSqn = session.getClientSqn().value();
     header.serverMsgSqn = session.getNextClientSqn().value();
@@ -343,6 +379,22 @@ ProtocolHandler::makeModifyAck_(Session& session, const ModifyResult& res) {
     msg.payload.status = +res.status;
 
     std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+
+    return msg;
+}
+
+Message<server::CancelAckPayload> ProtocolHandler::makeCancelAck_(Session& session,
+                                                                  OrderID orderID,
+                                                                  InstrumentID instrID,
+                                                                  bool success) {
+    Message<server::CancelAckPayload> msg;
+    msg.header = makeHeader<server::CancelAckPayload>(session);
+
+    msg.payload.serverClientID = session.getClientID().value();
+    msg.payload.serverOrderID = orderID.value();
+    msg.payload.instrumentID = instrID.value();
+    msg.payload.status =
+        success ? +status::CancelStatus::ACCEPTED : +status::CancelStatus::REJECTED;
 
     return msg;
 }

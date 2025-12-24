@@ -2,19 +2,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 
-namespace constants {
-inline static constexpr std::size_t HEADER_SIZE = 16;
-enum class HeaderFlags : std::uint8_t { PROTOCOL_VERSION = 0x02 };
-} // namespace constants
-
-namespace client {
-template <typename T> struct PayloadTraits;
-}
-
-namespace client {
-template <typename T> struct PayloadTraits;
-}
+// do not delete this
+namespace constants {} // namespace constants
 
 #pragma pack(push, 1)
 struct MessageHeader {
@@ -25,14 +16,38 @@ struct MessageHeader {
     std::uint32_t serverMsgSqn;
     std::uint8_t padding[4];
 
-    template <typename F> void iterateElements(F&& func) {
-        func(messageType);
-        func(protocolVersionFlag);
-        func(payloadLength);
-        func(clientMsgSqn);
-        func(serverMsgSqn);
-        func(padding);
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("messageType", self.messageType);
+        func("protocolVersionFlag", self.protocolVersionFlag);
+        func("payloadLength", self.payloadLength);
+        func("clientMsgSqn", self.clientMsgSqn);
+        func("serverMsgSqn", self.serverMsgSqn);
+        func("padding", self.padding);
     }
+
+public:
+    template <typename F> void iterateElements(F&& func) {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, const auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    struct traits {
+        static constexpr std::size_t HEADER_SIZE = 16;
+        static constexpr std::uint8_t PROTOCOL_VERSION = 0x02;
+    };
 };
 #pragma pack(pop)
 

@@ -10,9 +10,29 @@ struct HelloAckPayload {
     std::uint8_t status;
     std::uint8_t padding[7];
 
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("status", self.status);
+        func("padding", self.padding);
+    }
+
+public:
     template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(status);
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
     }
 
     struct traits {
@@ -28,9 +48,29 @@ struct LogoutAckPayload {
     std::uint8_t status;
     std::uint8_t padding[7];
 
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("status", self.status);
+        func("padding", self.padding);
+    }
+
+public:
     template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(status);
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
     }
 
     struct traits {
@@ -51,14 +91,34 @@ struct OrderAckPayload {
     std::uint8_t status;
     std::uint8_t padding[3];
 
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("serverOrderID", self.serverOrderID);
+        func("acceptedPrice", self.acceptedPrice);
+        func("remainingQty", self.remainingQty);
+        func("serverTime", self.serverTime);
+        func("instrumentID", self.instrumentID);
+        func("status", self.status);
+        func("padding", self.padding);
+    }
+
+public:
     template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(serverOrderID);
-        func(acceptedPrice);
-        func(remainingQty);
-        func(serverTime);
-        func(instrumentID);
-        func(status);
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
     }
 
     struct traits {
@@ -72,13 +132,35 @@ struct OrderAckPayload {
 struct CancelAckPayload {
     std::uint64_t serverClientID;
     std::uint64_t serverOrderID;
+    std::uint32_t instrumentID;
     std::uint8_t status;
-    std::uint8_t padding[7];
+    std::uint8_t padding[3];
 
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("serverOrderID", self.serverOrderID);
+        func("instrumentID", self.instrumentID);
+        func("status", self.status);
+        func("padding", self.padding);
+    }
+
+public:
     template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(serverOrderID);
-        func(status);
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
     }
 
     struct traits {
@@ -98,15 +180,34 @@ struct ModifyAckPayload {
     std::uint8_t status;
     std::uint8_t padding[7];
 
-    template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(oldServerOrderID);
-        func(newServerOrderID);
-        func(newQty);
-        func(newPrice);
-        func(status);
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("oldServerOrderID", self.oldServerOrderID);
+        func("newServerOrderID", self.newServerOrderID);
+        func("newQty", self.newQty);
+        func("newPrice", self.newPrice);
+        func("status", self.status);
+        func("padding", self.padding);
     }
 
+public:
+    template <typename F> void iterateElements(F&& func) {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
     struct traits {
         static constexpr std::size_t payloadSize = 48;
         static constexpr MessageType type = MessageType::MODIFY_ACK;
@@ -123,13 +224,32 @@ struct TradePayload {
     std::uint64_t filledPrice;
     std::uint64_t timestamp;
 
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("serverOrderID", self.serverOrderID);
+        func("tradeID", self.tradeID);
+        func("filledQty", self.filledQty);
+        func("filledPrice", self.filledPrice);
+        func("timestamp", self.timestamp);
+    }
+
+public:
     template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(serverOrderID);
-        func(tradeID);
-        func(filledQty);
-        func(filledPrice);
-        func(timestamp);
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
     }
 
     struct traits {

@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 SET(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+SET(CMAKE_BUILD_TYPE "Debug")
+
+SET(ENABLE_ASAN OFF)
 
 option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ON)
 
@@ -27,7 +30,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wdouble-promotion
         -Wformat=2
         -Wimplicit-fallthrough
-        -Wnull-dereference
+        # -Wnull-dereference
         -Wold-style-cast
         -Wduplicated-cond
         -Wduplicated-branches
@@ -51,17 +54,60 @@ endif()
 
 ## add ctest here eventually
 
-# add_subdirectory(tests)
+option(BUILD_TESTS "Build tests" ON)
+
+if(BUILD_TESTS)
+    enable_testing()
+    
+    find_package(GTest QUIET)
+    
+    add_executable(all_tests
+        tests/reflectionTests.cpp
+    )
+    
+    target_link_libraries(all_tests
+        PRIVATE 
+        MiniExchangeCore
+        GTest::gtest
+        GTest::gtest_main
+    )
+    
+    target_compile_options(all_tests PRIVATE
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+        -g
+        -O0
+    )
+    
+    target_link_options(all_tests PRIVATE
+        -fsanitize=address,undefined
+    )
+    
+    include(GoogleTest)
+    gtest_discover_tests(all_tests)
+endif()
+
 
 add_library(MiniExchangeCore
     src/core/matchingEngine.cpp
     src/protocol/protocolHandler.cpp
+    src/gateway/gateway.cpp
+    src/api/api.cpp
 )
 
 target_include_directories(MiniExchangeCore PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
+add_library(ClientLib
+    src/client/networkClient.cpp
+)
+target_include_directories(ClientLib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 add_executable(MiniExchange 
     src/main.cpp 
 )
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
 
+add_executable(ClientTest
+    src/client/testClient.cpp
+)
+target_link_libraries(ClientTest PRIVATE ClientLib)

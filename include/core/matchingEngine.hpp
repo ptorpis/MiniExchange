@@ -17,7 +17,12 @@ using OrderQueue = std::deque<std::unique_ptr<Order>>;
 class MatchingEngine {
 public:
     MatchingEngine(InstrumentID instrumentID = InstrumentID{1})
-        : instrumentID_(instrumentID) {}
+        : instrumentID_(instrumentID) {
+        dispatchTable_[0][0] = &MatchingEngine::matchOrder_<BuySide, LimitOrderPolicy>;
+        dispatchTable_[0][1] = &MatchingEngine::matchOrder_<BuySide, MarketOrderPolicy>;
+        dispatchTable_[1][0] = &MatchingEngine::matchOrder_<SellSide, LimitOrderPolicy>;
+        dispatchTable_[1][1] = &MatchingEngine::matchOrder_<SellSide, MarketOrderPolicy>;
+    }
 
     MatchResult processOrder(std::unique_ptr<Order> order);
     bool cancelOrder(const ClientID clientID, const OrderID orderID);
@@ -31,6 +36,7 @@ public:
     std::optional<Price> getBestBid() const;
 
     [[nodiscard]] InstrumentID getInstrumentID() const noexcept { return instrumentID_; }
+    OrderID getNextOrderID() { return ++orderID_; }
 
 private:
     InstrumentID instrumentID_;
@@ -111,7 +117,6 @@ private:
     OrderID orderID_{0};
 
     TradeID getNextTradeID_() { return ++tradeID_; }
-    OrderID getNextOrderID_() { return ++orderID_; }
 };
 
 template <typename SidePolicy, typename OrderTypePolicy>
@@ -124,7 +129,7 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     auto& book = SidePolicy::book(*this);
     Price bestPrice{};
 
-    while (remainingQty && book.empty()) {
+    while (remainingQty.value() && !book.empty()) {
         auto it = book.begin();
         bestPrice = it->first;
 

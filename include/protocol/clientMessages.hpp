@@ -4,9 +4,32 @@
 #include <cstdint>
 
 namespace client {
+
 struct HelloPayload {
     std::uint8_t padding[8]{};
-    template <typename F> void iterateElements([[maybe_unused]] F&& func) {}
+
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("padding", self.padding);
+    }
+
+public:
+    template <typename F> void iterateElements(F&& func) {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
 
     struct traits {
         static constexpr std::size_t payloadSize = 8;
@@ -15,8 +38,30 @@ struct HelloPayload {
 };
 
 struct LogoutPayload {
-    ClientID serverClientID;
-    template <typename F> void iterateElements(F&& func) { func(serverClientID); }
+    std::uint64_t serverClientID;
+
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+    }
+
+public:
+    template <typename F> void iterateElements(F&& func) {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
 
     struct traits {
         static constexpr std::size_t payloadSize = 8;
@@ -26,26 +71,45 @@ struct LogoutPayload {
 
 #pragma pack(push, 1)
 struct NewOrderPayload {
-    ClientID clientID;
-    InstrumentID instrumentID;
+    std::uint64_t serverClientID;
+    std::uint32_t instrumentID;
     std::uint8_t orderSide;
     std::uint8_t orderType;
     std::uint8_t timeInForce;
     std::uint8_t padding{0};
     std::uint64_t qty;
     std::uint64_t price;
-    Timestamp goodTillDate;
+    std::uint64_t goodTillDate;
 
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("instrumentID", self.instrumentID);
+        func("orderSide", self.orderSide);
+        func("orderType", self.orderType);
+        func("timeInForce", self.timeInForce);
+        func("padding", self.padding);
+        func("qty", self.qty);
+        func("price", self.price);
+        func("goodTillDate", self.goodTillDate);
+    }
+
+public:
     template <typename F> void iterateElements(F&& func) {
-        func(clientID);
-        func(instrumentID);
-        func(orderSide);
-        func(orderType);
-        func(timeInForce);
-        func(padding);
-        func(qty);
-        func(price);
-        func(goodTillDate);
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
     }
 
     struct traits {
@@ -57,15 +121,35 @@ struct NewOrderPayload {
 
 #pragma pack(push, 1)
 struct CancelOrderPayload {
-    ClientID serverClientID;
-    OrderID serverOrderID;
-    InstrumentID instrumentID;
+    std::uint64_t serverClientID;
+    std::uint64_t serverOrderID;
+    std::uint32_t instrumentID;
     std::uint8_t padding[4]{};
 
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("serverOrderID", self.serverOrderID);
+        func("instrumentID", self.instrumentID);
+        func("padding", self.padding);
+    }
+
+public:
     template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(serverOrderID);
-        func(instrumentID);
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
     }
 
     struct traits {
@@ -77,19 +161,39 @@ struct CancelOrderPayload {
 
 #pragma pack(push, 1)
 struct ModifyOrderPayload {
-    ClientID serverClientID;
-    OrderID serverOrderID;
+    std::uint64_t serverClientID;
+    std::uint64_t serverOrderID;
     std::uint64_t newQty;
     std::uint64_t newPrice;
-    InstrumentID instrumentID;
+    std::uint32_t instrumentID;
     std::uint8_t padding[4];
 
+private:
+    template <typename F, typename Self>
+    static void iterateHelperWithNames(Self& self, F&& func) {
+        func("serverClientID", self.serverClientID);
+        func("serverOrderID", self.serverOrderID);
+        func("newQty", self.newQty);
+        func("newPrice", self.newPrice);
+        func("instrumentID", self.instrumentID);
+        func("padding", self.padding);
+    }
+
+public:
     template <typename F> void iterateElements(F&& func) {
-        func(serverClientID);
-        func(serverOrderID);
-        func(newQty);
-        func(newPrice);
-        func(instrumentID);
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElements(F&& func) const {
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) {
+        iterateHelperWithNames(*this, std::forward<F>(func));
+    }
+
+    template <typename F> void iterateElementsWithNames(F&& func) const {
+        iterateHelperWithNames(*this, std::forward<F>(func));
     }
 
     struct traits {
