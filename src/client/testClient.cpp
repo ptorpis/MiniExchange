@@ -39,15 +39,14 @@ int main() {
     waitForEnter("Press Enter to connect...");
 
     if (!client.connect()) {
-        std::cerr << "❌ Failed to connect" << std::endl;
+        std::cerr << "Failed to connect" << std::endl;
         return 1;
     }
-    std::cout << "✓ Connected to exchange" << std::endl;
+    std::cout << "Connected to exchange" << std::endl;
 
     waitForEnter("Press Enter to send HELLO...");
     client.sendHello();
 
-    // Process responses
     std::cout << "Processing responses..." << std::endl;
     for (int i = 0; i < 10; ++i) {
         client.processMessages();
@@ -67,9 +66,8 @@ int main() {
     order.goodTillDate = Timestamp{0};
 
     client.sendNewOrder(order);
-    std::cout << "→ Sent order" << std::endl;
+    std::cout << "Sent order" << std::endl;
 
-    // Process responses
     std::cout << "Processing responses..." << std::endl;
     for (int i = 0; i < 100; ++i) {
         client.processMessages();
@@ -79,7 +77,7 @@ int main() {
     waitForEnter("Press Enter to disconnect...");
 
     client.disconnect();
-    std::cout << "✓ Disconnected" << std::endl;
+    std::cout << "Disconnected" << std::endl;
 
     return 0;
 }
