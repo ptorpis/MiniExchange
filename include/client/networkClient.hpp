@@ -33,7 +33,15 @@ public:
                     InstrumentID instrumentID);
 
     void setClientID(ClientID id) { serverClientID_ = id; }
-    [[nodiscard]] ClientID getClientID() const { return serverClientID_; }
+
+    [[nodiscard]] ClientID getClientID() const noexcept { return serverClientID_; }
+    [[nodiscard]] ClientOrderID getCurrentClientOrderID() const noexcept {
+        return internalOrderCounter_;
+    }
+
+    [[nodiscard]] ClientOrderID getNextClientOrderID() noexcept {
+        return ++internalOrderCounter_;
+    }
 
 protected:
     virtual void
@@ -94,6 +102,8 @@ private:
     ClientSqn32 clientSqn{0};
     ServerSqn32 serverSqn{0};
     ClientID serverClientID_{0};
+
+    ClientOrderID internalOrderCounter_{0};
 
     std::thread messageThread_;
 };

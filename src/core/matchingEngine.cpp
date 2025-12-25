@@ -129,6 +129,7 @@ void MatchingEngine::reset() {
     OrderSide tmpSide = order->side;
     TimeInForce tmpTif = order->tif;
     Timestamp tmpGoodTill = order->goodTill;
+    ClientOrderID tmpClientOrderID = order->clientOrderID;
 
     if (!cancelOrder(clientID, orderID)) {
         return {.serverClientID = clientID,
@@ -143,9 +144,10 @@ void MatchingEngine::reset() {
 
     // now, the order is cancelled, and the pointer [order] is invalidated
 
-    std::unique_ptr<Order> newOrder = std::make_unique<Order>(
-        getNextOrderID(), clientID, newQty, newPrice, tmpGoodTill, TSCClock::now(),
-        instrumentID_, tmpTif, tmpSide, OrderType::LIMIT, OrderStatus::MODIFIED);
+    std::unique_ptr<Order> newOrder =
+        std::make_unique<Order>(getNextOrderID(), clientID, tmpClientOrderID, newQty,
+                                newPrice, tmpGoodTill, TSCClock::now(), instrumentID_,
+                                tmpTif, tmpSide, OrderType::LIMIT, OrderStatus::MODIFIED);
 
     int sideIdx = (newOrder->side == OrderSide::BUY ? 0 : 1);
     int typeIdx = 0; // always limit

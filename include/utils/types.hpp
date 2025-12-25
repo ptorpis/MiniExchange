@@ -156,6 +156,9 @@ struct InstrumentIDTag : StrongType<std::uint32_t, InstrumentIDTag> {
 struct TradeIDTag : StrongType<std::uint64_t, TradeIDTag> {
     using StrongType::StrongType;
 };
+struct ClientOrderIDTag : StrongType<std::uint64_t, ClientOrderIDTag> {
+    using StrongType::StrongType;
+};
 
 namespace std {
 template <> struct hash<ClientIDTag> {
@@ -181,11 +184,36 @@ template <> struct hash<OrderIDTag> {
         return std::hash<std::uint64_t>{}(key.value());
     }
 };
+
+template <> struct hash<ClientOrderIDTag> {
+    hash() = default;
+    hash(const hash&) = default;
+    hash(hash&&) = default;
+    hash& operator=(const hash&) = default;
+    hash& operator=(hash&&) = default;
+
+    std::size_t operator()(const ClientOrderIDTag& key) const noexcept {
+        return std::hash<std::uint64_t>{}(key.value());
+    }
+};
+
+template <> struct hash<InstrumentIDTag> {
+    hash() = default;
+    hash(const hash&) = default;
+    hash(hash&&) = default;
+    hash& operator=(const hash&) = default;
+    hash& operator=(hash&&) = default;
+
+    std::size_t operator()(const InstrumentIDTag& key) const noexcept {
+        return std::hash<std::uint32_t>{}(key.value());
+    }
+};
 } // namespace std
 
 using Price = PriceTag;
 using Qty = QtyTag;
 using OrderID = OrderIDTag;
+using ClientOrderID = ClientOrderIDTag;
 using ClientID = ClientIDTag;
 
 // make sure that the server and client sequence numbers are never mixed
@@ -317,6 +345,8 @@ struct TradeEvent {
     OrderID sellerOrderID;
     ClientID buyerID;
     ClientID sellerID;
+    ClientOrderID buyerClientOrderID;
+    ClientOrderID sellerClientOrderID;
     Qty qty;
     Price price;
     Timestamp timestamp;

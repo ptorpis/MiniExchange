@@ -36,12 +36,15 @@ private:
     Message<server::LogoutAckPayload> makeLogoutAck_(Session& session,
                                                      status::LogoutAckStatus statusCode);
     Message<server::OrderAckPayload> makeOrderAck_(Session& session,
-                                                   const MatchResult& result);
+                                                   const MatchResult& result,
+                                                   ClientOrderID clientOrderID);
     Message<server::TradePayload> makeTradeMsg_(Session& session, const TradeEvent& ev,
                                                 bool isBuyer);
     Message<server::ModifyAckPayload> makeModifyAck_(Session& session,
-                                                     const ModifyResult& res);
+                                                     const ModifyResult& res,
+                                                     ClientOrderID clientOrderID);
     Message<server::CancelAckPayload> makeCancelAck_(Session& session, OrderID orderID,
+                                                     ClientOrderID clientOrderID,
                                                      InstrumentID instrID, bool success);
 
     SessionManager& sessionManager_;

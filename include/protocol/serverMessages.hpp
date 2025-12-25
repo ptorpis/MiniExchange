@@ -8,7 +8,7 @@ namespace server {
 struct HelloAckPayload {
     std::uint64_t serverClientID;
     std::uint8_t status;
-    std::uint8_t padding[7];
+    std::uint8_t padding[7]{};
 
 private:
     template <typename F, typename Self>
@@ -46,7 +46,7 @@ public:
 struct LogoutAckPayload {
     std::uint64_t serverClientID;
     std::uint8_t status;
-    std::uint8_t padding[7];
+    std::uint8_t padding[7]{};
 
 private:
     template <typename F, typename Self>
@@ -84,18 +84,20 @@ public:
 struct OrderAckPayload {
     std::uint64_t serverClientID;
     std::uint64_t serverOrderID;
+    std::uint64_t clientOrderID;
     std::uint64_t acceptedPrice;
     std::uint64_t remainingQty;
     std::uint64_t serverTime;
     std::uint32_t instrumentID;
     std::uint8_t status;
-    std::uint8_t padding[3];
+    std::uint8_t padding[3]{};
 
 private:
     template <typename F, typename Self>
     static void iterateHelperWithNames(Self& self, F&& func) {
         func("serverClientID", self.serverClientID);
         func("serverOrderID", self.serverOrderID);
+        func("clientOrderID", self.clientOrderID);
         func("acceptedPrice", self.acceptedPrice);
         func("remainingQty", self.remainingQty);
         func("serverTime", self.serverTime);
@@ -122,7 +124,7 @@ public:
     }
 
     struct traits {
-        static constexpr std::size_t payloadSize = 48;
+        static constexpr std::size_t payloadSize = 56;
         static constexpr MessageType type = MessageType::ORDER_ACK;
     };
 };
@@ -132,15 +134,17 @@ public:
 struct CancelAckPayload {
     std::uint64_t serverClientID;
     std::uint64_t serverOrderID;
+    std::uint64_t clientOrderID;
     std::uint32_t instrumentID;
     std::uint8_t status;
-    std::uint8_t padding[3];
+    std::uint8_t padding[3]{};
 
 private:
     template <typename F, typename Self>
     static void iterateHelperWithNames(Self& self, F&& func) {
         func("serverClientID", self.serverClientID);
         func("serverOrderID", self.serverOrderID);
+        func("clientOrderID", self.clientOrderID);
         func("instrumentID", self.instrumentID);
         func("status", self.status);
         func("padding", self.padding);
@@ -164,7 +168,7 @@ public:
     }
 
     struct traits {
-        static constexpr std::size_t payloadSize = 24;
+        static constexpr std::size_t payloadSize = 32;
         static constexpr MessageType type = MessageType::CANCEL_ACK;
     };
 };
@@ -175,10 +179,11 @@ struct ModifyAckPayload {
     std::uint64_t serverClientID;
     std::uint64_t oldServerOrderID;
     std::uint64_t newServerOrderID;
+    std::uint64_t clientOrderID;
     std::uint64_t newQty;
     std::uint64_t newPrice;
     std::uint8_t status;
-    std::uint8_t padding[7];
+    std::uint8_t padding[7]{};
 
 private:
     template <typename F, typename Self>
@@ -186,6 +191,7 @@ private:
         func("serverClientID", self.serverClientID);
         func("oldServerOrderID", self.oldServerOrderID);
         func("newServerOrderID", self.newServerOrderID);
+        func("clientOrderID", self.clientOrderID);
         func("newQty", self.newQty);
         func("newPrice", self.newPrice);
         func("status", self.status);
@@ -209,7 +215,7 @@ public:
         iterateHelperWithNames(*this, std::forward<F>(func));
     }
     struct traits {
-        static constexpr std::size_t payloadSize = 48;
+        static constexpr std::size_t payloadSize = 56;
         static constexpr MessageType type = MessageType::MODIFY_ACK;
     };
 };
@@ -219,6 +225,7 @@ public:
 struct TradePayload {
     std::uint64_t serverClientID;
     std::uint64_t serverOrderID;
+    std::uint64_t clientOrderID;
     std::uint64_t tradeID;
     std::uint64_t filledQty;
     std::uint64_t filledPrice;
@@ -229,6 +236,7 @@ private:
     static void iterateHelperWithNames(Self& self, F&& func) {
         func("serverClientID", self.serverClientID);
         func("serverOrderID", self.serverOrderID);
+        func("clientOrderID", self.clientOrderID);
         func("tradeID", self.tradeID);
         func("filledQty", self.filledQty);
         func("filledPrice", self.filledPrice);
@@ -253,7 +261,7 @@ public:
     }
 
     struct traits {
-        static constexpr std::size_t payloadSize = 48;
+        static constexpr std::size_t payloadSize = 56;
         static constexpr MessageType type = MessageType::TRADE;
     };
 };

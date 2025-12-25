@@ -7,18 +7,19 @@
 MatchResult MiniExchangeAPI::processNewOrder(const client::NewOrderPayload& payload) {
 
     // TODO: validate the order parameters
-    std::unique_ptr<Order> order =
-        std::make_unique<Order>(Order{.orderID = OrderID{engine_.getNextOrderID()},
-                                      .clientID = ClientID{payload.serverClientID},
-                                      .qty = Qty{payload.qty},
-                                      .price = Price{payload.price},
-                                      .goodTill = payload.goodTillDate,
-                                      .timestamp = TSCClock::now(),
-                                      .instrumentID = InstrumentID{payload.instrumentID},
-                                      .tif = TimeInForce{payload.timeInForce},
-                                      .side = OrderSide{payload.orderSide},
-                                      .type = OrderType{payload.orderType},
-                                      .status = OrderStatus::NEW});
+    std::unique_ptr<Order> order = std::make_unique<Order>(
+        Order{.orderID = OrderID{engine_.getNextOrderID()},
+              .clientID = ClientID{payload.serverClientID},
+              .clientOrderID = ClientOrderID{payload.clientOrderID},
+              .qty = Qty{payload.qty},
+              .price = Price{payload.price},
+              .goodTill = payload.goodTillDate,
+              .timestamp = TSCClock::now(),
+              .instrumentID = InstrumentID{payload.instrumentID},
+              .tif = TimeInForce{payload.timeInForce},
+              .side = OrderSide{payload.orderSide},
+              .type = OrderType{payload.orderType},
+              .status = OrderStatus::NEW});
 
     return engine_.processOrder(std::move(order));
 }

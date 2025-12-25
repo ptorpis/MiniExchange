@@ -153,34 +153,37 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
 
             Qty matchQty = std::min(remainingQty, restingOrder->qty);
 
-            OrderID sellerOrderID{};
-            OrderID buyerOrderID{};
-            ClientID sellerID{};
-            ClientID buyerID{};
+            OrderID sellerOrderID{}, buyerOrderID{};
+            ClientID sellerID{}, buyerID{};
+            ClientOrderID buyerClientOrderID{}, sellerClientOrderID{};
 
             if (SidePolicy::isBuyer()) {
                 buyerID = order->clientID;
                 sellerID = restingOrder->clientID;
                 buyerOrderID = order->orderID;
                 sellerOrderID = restingOrder->orderID;
+                buyerClientOrderID = order->clientOrderID;
+                sellerClientOrderID = restingOrder->clientOrderID;
             } else {
                 sellerID = order->clientID;
                 buyerID = restingOrder->clientID;
                 sellerOrderID = order->orderID;
                 buyerOrderID = restingOrder->orderID;
+                sellerClientOrderID = order->clientOrderID;
+                buyerClientOrderID = restingOrder->clientOrderID;
             }
 
-            TradeEvent tradeEv{.tradeID = getNextTradeID_(),
-                               .buyerOrderID = buyerOrderID,
-                               .sellerOrderID = sellerOrderID,
-                               .buyerID = buyerID,
-                               .sellerID = sellerID,
-                               .qty = matchQty,
-                               .price = bestPrice,
-                               .timestamp = TSCClock::now(),
-                               .instrumentID = instrumentID_};
-
-            tradeVec.push_back(std::move(tradeEv));
+            tradeVec.emplace_back(TradeEvent{.tradeID = getNextTradeID_(),
+                                             .buyerOrderID = buyerOrderID,
+                                             .sellerOrderID = sellerOrderID,
+                                             .buyerID = buyerID,
+                                             .sellerID = sellerID,
+                                             .buyerClientOrderID = buyerClientOrderID,
+                                             .sellerClientOrderID = sellerClientOrderID,
+                                             .qty = matchQty,
+                                             .price = bestPrice,
+                                             .timestamp = TSCClock::now(),
+                                             .instrumentID = instrumentID_});
         }
 
         if (!matched) {

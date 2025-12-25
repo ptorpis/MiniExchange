@@ -72,6 +72,7 @@ public:
 #pragma pack(push, 1)
 struct NewOrderPayload {
     std::uint64_t serverClientID;
+    std::uint64_t clientOrderID;
     std::uint32_t instrumentID;
     std::uint8_t orderSide;
     std::uint8_t orderType;
@@ -85,6 +86,7 @@ private:
     template <typename F, typename Self>
     static void iterateHelperWithNames(Self& self, F&& func) {
         func("serverClientID", self.serverClientID);
+        func("clientOrderID", self.clientOrderID);
         func("instrumentID", self.instrumentID);
         func("orderSide", self.orderSide);
         func("orderType", self.orderType);
@@ -113,7 +115,7 @@ public:
     }
 
     struct traits {
-        static constexpr std::size_t payloadSize = 40;
+        static constexpr std::size_t payloadSize = 48;
         static constexpr MessageType type = MessageType::NEW_ORDER;
     };
 };
@@ -123,6 +125,7 @@ public:
 struct CancelOrderPayload {
     std::uint64_t serverClientID;
     std::uint64_t serverOrderID;
+    std::uint64_t clientOrderID;
     std::uint32_t instrumentID;
     std::uint8_t padding[4]{};
 
@@ -131,6 +134,7 @@ private:
     static void iterateHelperWithNames(Self& self, F&& func) {
         func("serverClientID", self.serverClientID);
         func("serverOrderID", self.serverOrderID);
+        func("clientOrderID", self.clientOrderID);
         func("instrumentID", self.instrumentID);
         func("padding", self.padding);
     }
@@ -153,7 +157,7 @@ public:
     }
 
     struct traits {
-        static constexpr std::size_t payloadSize = 24;
+        static constexpr std::size_t payloadSize = 32;
         static constexpr MessageType type = MessageType::CANCEL_ORDER;
     };
 };
@@ -163,16 +167,18 @@ public:
 struct ModifyOrderPayload {
     std::uint64_t serverClientID;
     std::uint64_t serverOrderID;
+    std::uint64_t clientOrderID;
     std::uint64_t newQty;
     std::uint64_t newPrice;
     std::uint32_t instrumentID;
-    std::uint8_t padding[4];
+    std::uint8_t padding[4]{};
 
 private:
     template <typename F, typename Self>
     static void iterateHelperWithNames(Self& self, F&& func) {
         func("serverClientID", self.serverClientID);
         func("serverOrderID", self.serverOrderID);
+        func("clientOrderID", self.clientOrderID);
         func("newQty", self.newQty);
         func("newPrice", self.newPrice);
         func("instrumentID", self.instrumentID);
@@ -197,7 +203,7 @@ public:
     }
 
     struct traits {
-        static constexpr std::size_t payloadSize = 40;
+        static constexpr std::size_t payloadSize = 48;
         static constexpr MessageType type = MessageType::MODIFY_ORDER;
     };
 };

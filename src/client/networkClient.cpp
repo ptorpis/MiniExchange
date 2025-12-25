@@ -112,7 +112,7 @@ void NetworkClient::messageLoop_() {
 
         if (FD_ISSET(sockfd_, &readfds)) {
             char buffer[4096];
-            ssize_t received = recv(sockfd_, buffer, sizeof(buffer), 0);
+            ssize_t received = ::recv(sockfd_, buffer, sizeof(buffer), 0);
             if (received > 0) {
                 recvBuffer_.insert(recvBuffer_.end(),
                                    reinterpret_cast<std::byte*>(buffer),
@@ -186,6 +186,7 @@ void NetworkClient::sendNewOrder(
 
     client::NewOrderPayload payload{};
     payload.serverClientID = serverClientID_.value();
+    payload.clientOrderID = getNextClientOrderID().value();
     payload.instrumentID = instrumentID.value();
     payload.orderSide = +side;
     payload.orderType = +type;

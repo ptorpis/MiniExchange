@@ -37,6 +37,7 @@ template <typename Payload> void expectStandardPackedLayout(Payload& payload) {
 TEST(ClientPayloads, NewOrderPayload_IteratesWithValues) {
     NewOrderPayload payload{};
     payload.serverClientID = 1;
+    payload.clientOrderID = 8;
     payload.instrumentID = 2;
     payload.orderSide = +(OrderSide::BUY);
     payload.orderType = +(OrderType::LIMIT);
@@ -52,6 +53,8 @@ TEST(ClientPayloads, NewOrderPayload_IteratesWithValues) {
         }
         if (fieldName == "serverClientID") {
             EXPECT_EQ(field, 1);
+        } else if (fieldName == "clientOrderID") {
+            EXPECT_EQ(field, 8);
         } else if (fieldName == "instrumentID") {
             EXPECT_EQ(field, 2);
         } else if (fieldName == "orderSide") {
@@ -92,6 +95,7 @@ TEST(ServerPayloads, OrderAckPayload_IteratesWithValues) {
     OrderAckPayload payload{};
     payload.serverClientID = 1;
     payload.serverOrderID = 2;
+    payload.clientOrderID = 8;
     payload.acceptedPrice = 100;
     payload.remainingQty = 50;
     payload.serverTime = 999;
@@ -110,6 +114,8 @@ TEST(ServerPayloads, OrderAckPayload_IteratesWithValues) {
                 EXPECT_EQ(field, 1);
             } else if (n == "serverOrderID") {
                 EXPECT_EQ(field, 2);
+            } else if (n == "clientOrderID") {
+                EXPECT_EQ(field, 8);
             } else if (n == "acceptedPrice") {
                 EXPECT_EQ(field, 100);
             } else if (n == "remainingQty") {

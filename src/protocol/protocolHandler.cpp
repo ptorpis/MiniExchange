@@ -9,9 +9,9 @@
 #include "utils/utils.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <cstring>
 #include <iterator>
 #include <optional>
-#include <print>
 
 void ProtocolHandler::onMessage(int fd) {
     Session* session = sessionManager_.getSession(fd);
@@ -193,7 +193,10 @@ std::size_t ProtocolHandler::handleNewOrder_(Session& session,
             return sizeToBeConsumed;
         }
         MatchResult result = api_.processNewOrder(msgOpt->payload);
-        Message<server::OrderAckPayload> ackMsg = makeOrderAck_(session, result);
+
+        Message<server::OrderAckPayload> ackMsg =
+            makeOrderAck_(session, result, ClientOrderID{msgOpt->payload.clientOrderID});
+
         serializeMessageInto(session.sendBuffer, MessageType::ORDER_ACK, ackMsg.header,
                              ackMsg.payload);
         dirtyFDs_.insert(session.fd);
@@ -202,7 +205,9 @@ std::size_t ProtocolHandler::handleNewOrder_(Session& session,
             Session* buyerSession = sessionManager_.getSession(trade.buyerID);
             if (buyerSession) {
                 bool isBuyer = true;
+
                 auto tradeMsg = makeTradeMsg_(*buyerSession, trade, isBuyer);
+
                 serializeMessageInto(buyerSession->sendBuffer, MessageType::TRADE,
                                      tradeMsg.header, tradeMsg.payload);
                 dirtyFDs_.insert(buyerSession->fd);
@@ -288,9 +293,12 @@ std::size_t ProtocolHandler::handleCancel_(Session& session,
         }
 
         bool success = api_.cancelOrder(msgOpt->payload);
+
         Message<server::CancelAckPayload> ackMsg =
             makeCancelAck_(session, OrderID{msgOpt->payload.serverOrderID},
+                           ClientOrderID{msgOpt->payload.clientOrderID},
                            InstrumentID{msgOpt->payload.instrumentID}, success);
+
         serializeMessageInto(session.sendBuffer, MessageType::CANCEL_ACK, ackMsg.header,
                              ackMsg.payload);
         dirtyFDs_.insert(session.fd);
@@ -317,7 +325,7 @@ ProtocolHandler::makeHelloAck_(Session& session, status::HelloAckStatus statusCo
     msg.header = makeHeader<server::HelloAckPayload>(session);
     msg.payload.serverClientID = session.getClientID().value();
     msg.payload.status = +statusCode;
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+    std::memset(msg.payload.padding, 0, sizeof(msg.payload.padding));
 
     return msg;
 }
@@ -328,24 +336,26 @@ ProtocolHandler::makeLogoutAck_(Session& session, status::LogoutAckStatus status
     msg.header = makeHeader<server::LogoutAckPayload>(session);
     msg.payload.serverClientID = session.getClientID().value();
     msg.payload.status = +statusCode;
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+    std::memset(msg.payload.padding, 0, sizeof(msg.payload.padding));
 
     return msg;
 }
 
 Message<server::OrderAckPayload>
-ProtocolHandler::makeOrderAck_(Session& session, const MatchResult& result) {
+ProtocolHandler::makeOrderAck_(Session& session, const MatchResult& result,
+                               ClientOrderID clientOrderID) {
     Message<server::OrderAckPayload> msg;
     msg.header = makeHeader<server::OrderAckPayload>(session);
     msg.payload.serverClientID = session.getClientID().value();
     msg.payload.serverOrderID = result.orderID.value();
+    msg.payload.serverOrderID = clientOrderID.value();
     msg.payload.acceptedPrice = result.acceptedPrice.value();
     msg.payload.remainingQty = result.remainingQty.value();
     msg.payload.serverTime = TSCClock::now();
     msg.payload.instrumentID = result.instrumentID.value();
     msg.payload.status = +result.status;
 
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+    std::memset(msg.payload.padding, 0, sizeof(msg.payload.padding));
     return msg;
 }
 
@@ -358,6 +368,8 @@ ProtocolHandler::makeTradeMsg_(Session& session, const TradeEvent& ev, bool isBu
 
     msg.payload.serverOrderID =
         isBuyer ? ev.buyerOrderID.value() : ev.sellerOrderID.value();
+    msg.payload.clientOrderID =
+        isBuyer ? ev.buyerClientOrderID.value() : ev.sellerClientOrderID.value();
     msg.payload.tradeID = ev.tradeID.value();
     msg.payload.filledQty = ev.qty.value();
     msg.payload.filledPrice = ev.price.value();
@@ -367,34 +379,39 @@ ProtocolHandler::makeTradeMsg_(Session& session, const TradeEvent& ev, bool isBu
 }
 
 Message<server::ModifyAckPayload>
-ProtocolHandler::makeModifyAck_(Session& session, const ModifyResult& res) {
+ProtocolHandler::makeModifyAck_(Session& session, const ModifyResult& res,
+                                ClientOrderID clientOrderID) {
     Message<server::ModifyAckPayload> msg;
 
     msg.header = makeHeader<server::ModifyAckPayload>(session);
     msg.payload.serverClientID = session.getClientID().value();
     msg.payload.oldServerOrderID = res.oldOrderID.value();
     msg.payload.newServerOrderID = res.newOrderID.value();
+    msg.payload.clientOrderID = clientOrderID.value();
     msg.payload.newQty = res.newQty.value();
     msg.payload.newPrice = res.newPrice.value();
     msg.payload.status = +res.status;
 
-    std::fill(std::begin(msg.payload.padding), std::end(msg.payload.padding), 0x00);
+    std::memset(msg.payload.padding, 0, sizeof(msg.payload.padding));
 
     return msg;
 }
 
-Message<server::CancelAckPayload> ProtocolHandler::makeCancelAck_(Session& session,
-                                                                  OrderID orderID,
-                                                                  InstrumentID instrID,
-                                                                  bool success) {
+Message<server::CancelAckPayload>
+ProtocolHandler::makeCancelAck_(Session& session, OrderID orderID,
+                                ClientOrderID clientOrderID, InstrumentID instrID,
+                                bool success) {
     Message<server::CancelAckPayload> msg;
     msg.header = makeHeader<server::CancelAckPayload>(session);
 
     msg.payload.serverClientID = session.getClientID().value();
     msg.payload.serverOrderID = orderID.value();
+    msg.payload.clientOrderID = clientOrderID.value();
     msg.payload.instrumentID = instrID.value();
     msg.payload.status =
         success ? +status::CancelStatus::ACCEPTED : +status::CancelStatus::REJECTED;
+
+    std::memset(msg.payload.padding, 0, sizeof(msg.payload.padding));
 
     return msg;
 }
