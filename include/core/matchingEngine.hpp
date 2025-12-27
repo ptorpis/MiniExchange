@@ -1,11 +1,14 @@
 #pragma once
 
+#include <cassert>
+#include <cstdlib>
 #include <deque>
 #include <functional>
 #include <map>
 #include <memory>
 #include <optional>
 #include <print>
+#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 
@@ -35,6 +38,9 @@ public:
     std::optional<Price> getSpread() const;
     std::optional<Price> getBestAsk() const;
     std::optional<Price> getBestBid() const;
+
+    std::size_t getAskSize() const { return asks_.size(); }
+    std::size_t getBidsSize() const { return bids_.size(); }
 
     const Order* getOrder(OrderID orderID) const;
 
@@ -124,6 +130,10 @@ private:
 
 template <typename SidePolicy, typename OrderTypePolicy>
 MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
+    if (order->instrumentID != instrumentID_) {
+        throw std::runtime_error("Instrument ID does not match the matching engine");
+    }
+
     std::vector<TradeEvent> tradeVec{};
 
     Qty remainingQty = order->qty;
@@ -225,23 +235,38 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     return result;
 }
 
-template <typename Book> bool
-MatchingEngine::removeFromBook_(const OrderID orderID, const Price price, Book& book) {
+template <typename Book>
+bool MatchingEngine::removeFromBook_(OrderID orderID, Price price, Book& book) {
     auto it = book.find(price);
-    if (it == book.end()) return false;
+    if (it == book.end()) {
+        return false;
+    }
 
     OrderQueue& queue = it->second;
 
     for (auto qIt = queue.begin(); qIt != queue.end(); ++qIt) {
-        if ((*qIt)->orderID == orderID) {
-            queue.erase(qIt);
+        Order* order = qIt->get();
 
-            if (queue.empty()) {
-                book.erase(it);
-            }
-
-            return true;
+        if (order->orderID != orderID) {
+            continue;
         }
+
+#ifndef NDEBUG
+        // If the order exists in the book, it MUST exist in the registry
+        // This was a bug in v2 -- the orders were only removed from the books and not the
+        // registry
+        auto mapIt = orderMap_.find(orderID);
+        assert(mapIt != orderMap_.end());
+        assert(mapIt->second == order);
+#endif
+        orderMap_.erase(orderID);
+        queue.erase(qIt);
+
+        if (queue.empty()) {
+            book.erase(it);
+        }
+
+        return true;
     }
 
     return false;

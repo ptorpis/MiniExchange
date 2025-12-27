@@ -90,17 +90,6 @@ void MatchingEngine::reset() {
                 .matchResult = std::nullopt};
     }
 
-    if (newQty <= 0 || newPrice <= 0) {
-        return {.serverClientID = clientID,
-                .oldOrderID = orderID,
-                .newOrderID = OrderID{0},
-                .newQty = newQty,
-                .newPrice = newPrice,
-                .status = ModifyStatus::INVALID,
-                .instrumentID = instrumentID_,
-                .matchResult = std::nullopt};
-    }
-
     if (newPrice == order->price && newQty == order->qty) {
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
