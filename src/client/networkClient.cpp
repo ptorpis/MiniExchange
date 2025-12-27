@@ -186,17 +186,43 @@ void NetworkClient::sendNewOrder(
 
     client::NewOrderPayload payload{};
     payload.serverClientID = serverClientID_.value();
-    payload.clientOrderID = getNextClientOrderID().value();
+    payload.clientOrderID = getCurrentClientOrderID().value();
     payload.instrumentID = instrumentID.value();
     payload.orderSide = +side;
     payload.orderType = +type;
     payload.timeInForce = +timeInForce;
-
+    payload.padding = 0;
     payload.qty = qty.value();
     payload.price = price.value();
     payload.goodTillDate = goodTillDate;
 
     sendMessage_(MessageType::NEW_ORDER, payload);
+}
+
+void NetworkClient::sendCancel(ClientOrderID clientOrderID, OrderID orderID,
+                               InstrumentID instrumentID) {
+    client::CancelOrderPayload payload{};
+    payload.serverClientID = getClientID().value();
+    payload.serverOrderID = orderID.value();
+    payload.clientOrderID = clientOrderID.value();
+    payload.instrumentID = instrumentID.value();
+    std::memset(payload.padding, 0, sizeof(payload.padding));
+
+    sendMessage_(MessageType::CANCEL_ORDER, payload);
+}
+
+void NetworkClient::sendModify(ClientOrderID clientOrderID, OrderID orderID, Qty newQty,
+                               Price newPrice, InstrumentID instrumentID) {
+    client::ModifyOrderPayload payload{};
+    payload.serverClientID = getClientID().value();
+    payload.serverOrderID = orderID.value();
+    payload.clientOrderID = clientOrderID.value();
+    payload.newQty = newQty.value();
+    payload.newPrice = newPrice.value();
+    payload.instrumentID = instrumentID.value();
+    std::memset(payload.padding, 0, sizeof(payload.padding));
+
+    sendMessage_(MessageType::MODIFY_ORDER, payload);
 }
 
 template <typename Payload>

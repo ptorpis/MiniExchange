@@ -1,33 +1,13 @@
 #pragma once
 
 #include "client/networkClient.hpp"
+#include "core/order.hpp"
 #include "protocol/serverMessages.hpp"
 #include "utils/types.hpp"
 #include <cstdint>
 #include <mutex>
 #include <optional>
 #include <unordered_map>
-
-struct ClientOrder {
-    ClientOrderID orderID;
-    OrderID serverOrderID;
-    InstrumentID instrumentID;
-    OrderSide side;
-    OrderType type;
-    Price price;
-    Qty originalQty;
-    Qty remainingQty;
-    OrderStatus status;
-    Timestamp submitTime;
-
-    bool isPending() const { return serverOrderID == 0; }
-    bool isOpen() const {
-        return status == OrderStatus::NEW || status == OrderStatus::PARTIALLY_FILLED ||
-               status == OrderStatus::MODIFIED;
-    }
-    bool isCancelled() const { return status == OrderStatus::CANCELLED; }
-    bool isFilled() const { return status == OrderStatus::FILLED; }
-};
 
 struct Position {
     Qty longQty{0};
@@ -46,14 +26,15 @@ public:
     TradingClient(std::string host, std::uint16_t port);
     virtual ~TradingClient() = default;
     void submitOrder(InstrumentID instrumentID, OrderSide side, Qty qty, Price price,
-                     OrderType type);
+                     OrderType type, TimeInForce tif, Timestamp goodTill);
+    void submitOrder(ClientOrder order);
     bool cancelOrder(ClientOrderID orderID);
     void modifyOrder(ClientOrderID orderID, Qty newQty, Price newPrice);
 
     std::optional<ClientOrder> getOrder(ClientOrderID orderID) const;
     std::vector<ClientOrderID> getPendingOrders() const;
-    std::vector<ClientOrder> getOpenOrders() const;
-    std::vector<ClientOrder> getAllOrders() const;
+    std::vector<ClientOrderID> getOpenOrders() const;
+    std::vector<ClientOrderID> getAllOrders() const;
     Position getPosition(InstrumentID instrumentID) const;
 
     std::int64_t getUnrealizedPnL() const;
@@ -90,11 +71,11 @@ protected:
 
 private:
     void updateOrderState_(ClientOrderID orderID, OrderStatus status, Qty qty);
-    void updatePosition_(InstrumentID instrumentID, OrderSide side, Qty qty, Price price);
+    void updatePosition_(InstrumentID instrumentID, OrderSide side, Qty qty);
 
-    std::mutex stateMutex_;
+    mutable std::mutex stateMutex_;
 
     std::unordered_map<ClientOrderID, ClientOrder> orders_;
-    std::unordered_map<ClientOrderID, std::pair<InstrumentID, OrderID>> clientToServerID_;
+    std::unordered_map<OrderID, ClientOrderID> serverToClientID_;
     std::unordered_map<InstrumentID, Position> positions_;
 };

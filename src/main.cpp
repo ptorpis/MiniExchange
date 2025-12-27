@@ -5,15 +5,17 @@
 #include "sessions/sessionManager.hpp"
 #include "utils/types.hpp"
 
+#include <atomic>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 
 MiniExchangeGateway* g_gateway = nullptr;
+std::atomic<bool> g_shutdownRequested{false};
 
-void signalHandler(int sigNum) {
-    std::cout << "\nReceived signal " << sigNum << ", shutting down..." << std::endl;
+void signalHandler(int) {
+    g_shutdownRequested.store(true, std::memory_order_relaxed);
     if (g_gateway) {
         g_gateway->stop();
     }
@@ -53,7 +55,9 @@ int main(int argc, char** argv) {
         std::cout << "\nExchange ready - waiting for connections..." << std::endl;
         std::cout << "Press Ctrl+C to shutdown gracefully\n" << std::endl;
 
-        gateway.run();
+        while (!g_shutdownRequested.load(std::memory_order_relaxed)) {
+            gateway.run();
+        }
 
         std::cout << "\nExchange shutdown complete" << std::endl;
         g_gateway = nullptr;

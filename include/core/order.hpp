@@ -26,3 +26,26 @@ inline std::ostream& operator<<(std::ostream& os, const Order o) {
               << "|timeInForce=" << o.tif << "|orderSide=" << o.side
               << "|orderType=" << o.type << "\n";
 }
+
+struct ClientOrder {
+    ClientOrderID orderID;
+    OrderID serverOrderID;
+    InstrumentID instrumentID;
+    OrderSide side;
+    OrderType type;
+    Price price;
+    Qty originalQty;
+    Qty remainingQty;
+    OrderStatus status;
+    TimeInForce tif;
+    Timestamp goodTillDate;
+    Timestamp submitTime;
+
+    bool isPending() const { return status == OrderStatus::PENDING; }
+    bool isOpen() const {
+        return status == OrderStatus::NEW || status == OrderStatus::PARTIALLY_FILLED ||
+               status == OrderStatus::MODIFIED;
+    }
+    bool isCancelled() const { return status == OrderStatus::CANCELLED; }
+    bool isFilled() const { return status == OrderStatus::FILLED; }
+};

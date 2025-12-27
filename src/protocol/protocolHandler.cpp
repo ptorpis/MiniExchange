@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
-#include <iterator>
 #include <optional>
 
 void ProtocolHandler::onMessage(int fd) {
@@ -48,6 +47,9 @@ void ProtocolHandler::processMessages_(Session& session) {
 
         if (consumed == 0) {
             break;
+        }
+        if (consumed != totalMessageSize) {
+            std::cerr << "Protocol violation\n";
         }
 
         view = view.subspan(consumed);
@@ -127,7 +129,10 @@ std::size_t ProtocolHandler::handleHello_(Session& session,
                                        msgOpt->header.clientMsgSqn)) {
             return sizeToBeConsumed;
         }
+        session.getNextClientSqn();
         sessionManager_.authenticateClient(session.fd);
+        utils::printMessage(std::cout, msgOpt.value());
+
     } else {
         return sizeToBeConsumed;
     }
@@ -159,7 +164,10 @@ std::size_t ProtocolHandler::handleLogout_(Session& session,
                                        msgOpt->header.clientMsgSqn)) {
             return sizeToBeConsumed;
         }
+        session.getNextClientSqn();
         sessionManager_.logoutClient(session.fd);
+
+        utils::printMessage(std::cout, *msgOpt);
     } else {
         return sizeToBeConsumed;
     }
@@ -192,6 +200,8 @@ std::size_t ProtocolHandler::handleNewOrder_(Session& session,
                                        msgOpt->header.clientMsgSqn)) {
             return sizeToBeConsumed;
         }
+        session.getNextClientSqn();
+        utils::printMessage(std::cout, *msgOpt);
         MatchResult result = api_.processNewOrder(msgOpt->payload);
 
         Message<server::OrderAckPayload> ackMsg =
@@ -222,8 +232,6 @@ std::size_t ProtocolHandler::handleNewOrder_(Session& session,
                 dirtyFDs_.insert(sellerSession->fd);
             }
         }
-    } else {
-        return 0;
     }
 
     return sizeToBeConsumed;
@@ -244,9 +252,12 @@ std::size_t ProtocolHandler::handleModifyOrder_(Session& session,
                                        msgOpt->header.clientMsgSqn)) {
             return sizeToBeConsumed;
         }
+        utils::printMessage(std::cout, *msgOpt);
+        session.getNextClientSqn();
         ModifyResult res = api_.modifyOrder(msgOpt->payload);
 
-        auto ackMsg = makeModifyAck_(session, res);
+        auto ackMsg =
+            makeModifyAck_(session, res, ClientOrderID{msgOpt->payload.clientOrderID});
         serializeMessageInto(session.sendBuffer, MessageType::MODIFY_ACK, ackMsg.header,
                              ackMsg.payload);
         dirtyFDs_.insert(session.fd);
@@ -291,6 +302,8 @@ std::size_t ProtocolHandler::handleCancel_(Session& session,
                                        msgOpt->header.clientMsgSqn)) {
             return sizeToBeConsumed;
         }
+        session.getNextClientSqn();
+        utils::printMessage(std::cout, *msgOpt);
 
         bool success = api_.cancelOrder(msgOpt->payload);
 
@@ -313,7 +326,7 @@ template <typename Payload> inline MessageHeader makeHeader(Session& session) {
     header.protocolVersionFlag = +(MessageHeader::traits::PROTOCOL_VERSION);
     header.payloadLength = Payload::traits::payloadSize;
     header.clientMsgSqn = session.getClientSqn().value();
-    header.serverMsgSqn = session.getNextClientSqn().value();
+    header.serverMsgSqn = session.getNextServerSqn().value();
     std::memset(header.padding, 0, sizeof(header.padding));
 
     return header;
@@ -348,7 +361,7 @@ ProtocolHandler::makeOrderAck_(Session& session, const MatchResult& result,
     msg.header = makeHeader<server::OrderAckPayload>(session);
     msg.payload.serverClientID = session.getClientID().value();
     msg.payload.serverOrderID = result.orderID.value();
-    msg.payload.serverOrderID = clientOrderID.value();
+    msg.payload.clientOrderID = clientOrderID.value();
     msg.payload.acceptedPrice = result.acceptedPrice.value();
     msg.payload.remainingQty = result.remainingQty.value();
     msg.payload.serverTime = TSCClock::now();

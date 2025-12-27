@@ -152,6 +152,8 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
             matched = true;
 
             Qty matchQty = std::min(remainingQty, restingOrder->qty);
+            restingOrder->qty -= matchQty;
+            order->qty -= matchQty;
 
             OrderID sellerOrderID{}, buyerOrderID{};
             ClientID sellerID{}, buyerID{};
@@ -184,6 +186,13 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
                                              .price = bestPrice,
                                              .timestamp = TSCClock::now(),
                                              .instrumentID = instrumentID_});
+
+            if (restingOrder->qty == 0) {
+                restingOrder->status = OrderStatus::FILLED;
+                qIt = queue.erase(qIt);
+            } else {
+                ++qIt;
+            }
         }
 
         if (!matched) {

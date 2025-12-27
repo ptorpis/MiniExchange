@@ -27,10 +27,11 @@ public:
     void sendNewOrder(InstrumentID instrumentID, OrderSide side, OrderType type, Qty qty,
                       Price price, TimeInForce timeInForce, Timestamp goodTillDate);
 
-    void sendCancel(OrderID orderID, InstrumentID instrumentID);
-
-    void sendModify(OrderID orderID, Qty newQty, Price newPrice,
+    void sendCancel(ClientOrderID clientOrderID, OrderID orderID,
                     InstrumentID instrumentID);
+
+    void sendModify(ClientOrderID clientOrderID, OrderID orderID, Qty newQty,
+                    Price newPrice, InstrumentID instrumentID);
 
     void setClientID(ClientID id) { serverClientID_ = id; }
 

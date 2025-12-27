@@ -99,6 +99,7 @@ target_include_directories(MiniExchangeCore PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 add_library(ClientLib
     src/client/networkClient.cpp
+    src/client/tradingClient.cpp
 )
 target_include_directories(ClientLib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
@@ -108,6 +109,6 @@ add_executable(MiniExchange
 target_link_libraries(MiniExchange PRIVATE MiniExchangeCore)
 
 add_executable(ClientTest
-    src/client/testClient.cpp
+    src/client/clientMain.cpp
 )
 target_link_libraries(ClientTest PRIVATE ClientLib)

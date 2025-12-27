@@ -235,7 +235,7 @@ enum class TimeInForce : std::uint8_t {
 };
 
 enum class OrderStatus : uint8_t {
-    NULLSTATUS = 0x00,
+    PENDING = 0x00,
     NEW = 0x01,
     REJECTED = 0x02,
     PARTIALLY_FILLED = 0x03,
@@ -246,6 +246,8 @@ enum class OrderStatus : uint8_t {
 
 inline std::ostream& operator<<(std::ostream& os, OrderStatus status) {
     switch (status) {
+    case OrderStatus::PENDING:
+        return os << "PENDING";
     case OrderStatus::NEW:
         return os << "NEW";
     case OrderStatus::CANCELLED:

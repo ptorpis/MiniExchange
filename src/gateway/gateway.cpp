@@ -18,8 +18,8 @@
 void MiniExchangeGateway::run() {
     running_.store(true, std::memory_order_relaxed);
 
-    while (running_.load(std::memory_order_acquire)) {
-        int nfds = epoll_wait(epollFD_, events_, MAX_EVENTS, -1);
+    while (running_.load(std::memory_order_relaxed)) {
+        int nfds = epoll_wait(epollFD_, events_, MAX_EVENTS, 1000);
 
         if (nfds < 0) {
             if (errno == EINTR) {
@@ -64,6 +64,7 @@ void MiniExchangeGateway::handleRead_(int fd) {
     Session* session = sessionManager_.getSession(fd);
     if (!session) {
         closeConnection_(fd);
+        return;
     }
 
     while (true) {
@@ -113,6 +114,7 @@ void MiniExchangeGateway::handleWrite_(int fd) {
                                       session->sendBuffer.begin() + written);
         } else if (written < 0) {
             if (errno == EAGAIN) {
+                modifyEpoll_(fd, EPOLLIN | EPOLLET);
                 return;
             } else if (errno == EINTR) {
                 continue;
@@ -168,12 +170,12 @@ void MiniExchangeGateway::stop() {
     running_.store(false, std::memory_order_release);
 
     char dummy = 1;
-    write(shutdownPipe_[1], &dummy, 1);
+    ::write(shutdownPipe_[1], &dummy, 1);
 }
 
 void MiniExchangeGateway::shutdown_() {
     if (listenFD_ >= 0) {
-        close(listenFD_);
+        ::close(listenFD_);
         listenFD_ = -1;
     }
 
@@ -182,10 +184,10 @@ void MiniExchangeGateway::shutdown_() {
     while (std::chrono::steady_clock::now() < deadline) {
         bool allEmpty = true;
 
-        for (int fd : handler_.getDirtyFDs()) {
+        auto dirty = handler_.getDirtyFDs();
+        for (int fd : dirty) {
             Session* session = sessionManager_.getSession(fd);
             if (session && !session->sendBuffer.empty()) {
-                allEmpty = false;
                 handleWrite_(fd);
             }
         }
@@ -196,12 +198,12 @@ void MiniExchangeGateway::shutdown_() {
     }
 
     for (auto& [fd, session] : sessionManager_.getSessions()) {
-        close(fd);
+        ::close(fd);
     }
 
-    close(epollFD_);
-    close(shutdownPipe_[0]);
-    close(shutdownPipe_[1]);
+    ::close(epollFD_);
+    ::close(shutdownPipe_[0]);
+    ::close(shutdownPipe_[1]);
 }
 
 void MiniExchangeGateway::handleError_(int fd) {
@@ -216,7 +218,7 @@ void MiniExchangeGateway::closeConnection_(int fd) {
     removeFromEpoll_(fd);
     sessionManager_.removeSession(fd);
     handler_.clearDirtyFD(fd);
-    close(fd);
+    ::close(fd);
 }
 
 void MiniExchangeGateway::addToEpoll_(int fd, std::uint32_t events) {
@@ -225,7 +227,7 @@ void MiniExchangeGateway::addToEpoll_(int fd, std::uint32_t events) {
     ev.data.fd = fd;
 
     if (epoll_ctl(epollFD_, EPOLL_CTL_ADD, fd, &ev) < 0) {
-        close(fd);
+        ::close(fd);
     }
 }
 
