@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <print>
 #include <unordered_map>
 #include <utility>
 
@@ -34,6 +35,8 @@ public:
     std::optional<Price> getSpread() const;
     std::optional<Price> getBestAsk() const;
     std::optional<Price> getBestBid() const;
+
+    const Order* getOrder(OrderID orderID) const;
 
     [[nodiscard]] InstrumentID getInstrumentID() const noexcept { return instrumentID_; }
     OrderID getNextOrderID() { return ++orderID_; }
@@ -153,7 +156,7 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
 
             Qty matchQty = std::min(remainingQty, restingOrder->qty);
             restingOrder->qty -= matchQty;
-            order->qty -= matchQty;
+            remainingQty -= matchQty;
 
             OrderID sellerOrderID{}, buyerOrderID{};
             ClientID sellerID{}, buyerID{};

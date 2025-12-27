@@ -167,3 +167,11 @@ void MatchingEngine::reset() {
             .instrumentID = instrumentID_,
             .matchResult = matchResult};
 }
+
+const Order* MatchingEngine::getOrder(OrderID orderID) const {
+    if (auto it = orderMap_.find(orderID); it != orderMap_.end()) {
+        return it->second;
+    } else {
+        return nullptr;
+    }
+}
