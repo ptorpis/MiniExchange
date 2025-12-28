@@ -259,7 +259,7 @@ bool MatchingEngine::removeFromBook_(OrderID orderID, Price price, Book& book) {
         assert(mapIt != orderMap_.end());
         assert(mapIt->second == order);
 #endif
-        orderMap_.erase(orderID);
+        orderMap_.erase(orderID); // BEFORE erasing from the queue -- UB otherwise
         queue.erase(qIt);
 
         if (queue.empty()) {
