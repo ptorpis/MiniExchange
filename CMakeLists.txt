@@ -52,8 +52,6 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     endif()
 endif()
 
-## add ctest here eventually
-
 option(BUILD_TESTS "Build tests" ON)
 
 if(BUILD_TESTS)
