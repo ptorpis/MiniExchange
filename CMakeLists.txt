@@ -92,6 +92,7 @@ add_library(MiniExchangeCore
     src/protocol/protocolHandler.cpp
     src/gateway/gateway.cpp
     src/api/api.cpp
+    src/market-data/observer.cpp
 )
 
 target_include_directories(MiniExchangeCore PUBLIC ${CMAKE_SOURCE_DIR}/include)

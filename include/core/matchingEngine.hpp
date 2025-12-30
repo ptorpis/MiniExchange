@@ -7,12 +7,13 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <print>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
 
 #include "core/order.hpp"
+#include "market-data/bookEvent.hpp"
+#include "utils/spsc_queue.hpp"
 #include "utils/timing.hpp"
 #include "utils/types.hpp"
 
@@ -20,8 +21,9 @@ using OrderQueue = std::deque<std::unique_ptr<Order>>;
 
 class MatchingEngine {
 public:
-    MatchingEngine(InstrumentID instrumentID = InstrumentID{1})
-        : instrumentID_(instrumentID) {
+    MatchingEngine(spsc_queue_shm<OrderBookUpdate>* queue = nullptr,
+                   InstrumentID instrumentID = InstrumentID{1})
+        : instrumentID_(instrumentID), queue_(queue) {
         dispatchTable_[0][0] = &MatchingEngine::matchOrder_<BuySide, LimitOrderPolicy>;
         dispatchTable_[0][1] = &MatchingEngine::matchOrder_<BuySide, MarketOrderPolicy>;
         dispatchTable_[1][0] = &MatchingEngine::matchOrder_<SellSide, LimitOrderPolicy>;
@@ -53,11 +55,16 @@ private:
     std::map<Price, OrderQueue, std::greater<Price>> bids_;
     std::unordered_map<OrderID, Order*> orderMap_;
 
+    spsc_queue_shm<OrderBookUpdate>* queue_;
+
     using MatchFunction = MatchResult (MatchingEngine::*)(std::unique_ptr<Order>);
     MatchFunction dispatchTable_[2][2];
 
     template <typename SidePolicy, typename OrderTypePolicy>
     MatchResult matchOrder_(std::unique_ptr<Order> order);
+
+    void emitObserverEvent_(Price price, Qty amount, OrderSide side,
+                            BookUpdateEventType type);
 
     struct BuySide {
         constexpr static auto& book(MatchingEngine& eng) { return eng.asks_; }
@@ -140,10 +147,15 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     const Qty originalQty = remainingQty;
 
     auto& book = SidePolicy::book(*this);
+
     Price bestPrice{};
+    if (book.empty()) {
+        bestPrice = order->price;
+    }
 
     while (remainingQty.value() && !book.empty()) {
         auto it = book.begin();
+
         bestPrice = it->first;
 
         if constexpr (OrderTypePolicy::needsPriceCheck) {
@@ -167,6 +179,11 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
             Qty matchQty = std::min(remainingQty, restingOrder->qty);
             restingOrder->qty -= matchQty;
             remainingQty -= matchQty;
+
+            OrderSide eventSide =
+                SidePolicy::isBuyer() ? OrderSide::SELL : OrderSide::BUY;
+            emitObserverEvent_(bestPrice, matchQty, eventSide,
+                               BookUpdateEventType::REDUCE);
 
             OrderID sellerOrderID{}, buyerOrderID{};
             ClientID sellerID{}, buyerID{};
@@ -252,13 +269,16 @@ bool MatchingEngine::removeFromBook_(OrderID orderID, Price price, Book& book) {
         }
 
 #ifndef NDEBUG
-        // If the order exists in the book, it MUST exist in the registry
-        // This was a bug in v2 -- the orders were only removed from the books and not the
-        // registry
+        // the removal from the registry was not here in v2, it was in the caller. I moved
+        // this here, because it keeps the invariant clearer, the orders that are removed
+        // from the book are also being removed from the registry
         auto mapIt = orderMap_.find(orderID);
         assert(mapIt != orderMap_.end());
         assert(mapIt->second == order);
 #endif
+        emitObserverEvent_(order->price, order->qty, order->side,
+                           BookUpdateEventType::REDUCE);
+
         orderMap_.erase(orderID); // BEFORE erasing from the queue -- UB otherwise
         queue.erase(qIt);
 

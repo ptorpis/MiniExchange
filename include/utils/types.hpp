@@ -235,6 +235,8 @@ using TradeID = TradeIDTag;
 
 using InstrumentID = InstrumentIDTag;
 
+enum class BookUpdateEventType : std::uint8_t { ADD = 0, REDUCE = 1 };
+
 enum class OrderType : std::uint8_t { LIMIT, MARKET };
 enum class OrderSide : std::uint8_t { BUY, SELL };
 enum class TimeInForce : std::uint8_t {

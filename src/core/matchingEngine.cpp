@@ -1,8 +1,11 @@
 #include "core/matchingEngine.hpp"
+#include "market-data/bookEvent.hpp"
 #include "utils/timing.hpp"
 #include "utils/types.hpp"
+#include <cstring>
 #include <memory>
 #include <optional>
+#include <thread>
 
 [[nodiscard]] MatchResult MatchingEngine::processOrder(std::unique_ptr<Order> order) {
 
@@ -29,6 +32,8 @@ std::optional<Price> MatchingEngine::getSpread() const {
 
 void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
     Order* raw = order.get();
+
+    emitObserverEvent_(order->price, order->qty, order->side, BookUpdateEventType::ADD);
 
     if (order->side == OrderSide::BUY) {
         bids_[order->price].emplace_back(std::move(order));
@@ -105,6 +110,10 @@ void MatchingEngine::reset() {
         order->qty = newQty;
         order->status = OrderStatus::MODIFIED;
 
+        // REDUCE AT PRICE EVENT (REDUCE BY DELTA)
+        Qty delta = order->qty - newQty;
+        emitObserverEvent_(newPrice, delta, order->side, BookUpdateEventType::REDUCE);
+
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
                 .newOrderID = orderID,
@@ -162,5 +171,25 @@ const Order* MatchingEngine::getOrder(OrderID orderID) const {
         return it->second;
     } else {
         return nullptr;
+    }
+}
+
+void inline MatchingEngine::emitObserverEvent_(Price price, Qty amount, OrderSide side,
+                                               BookUpdateEventType type) {
+    OrderBookUpdate ev{};
+
+    ev.price = price;
+    ev.amount = amount;
+    ev.side = side;
+    ev.type = type;
+    ev._padding = 0;
+    ev._padding2 = 0;
+
+    if (!queue_) {
+        return;
+    }
+
+    while (!queue_->try_push(ev)) {
+        std::this_thread::yield();
     }
 }

@@ -131,7 +131,6 @@ std::size_t ProtocolHandler::handleHello_(Session& session,
         }
         session.getNextClientSqn();
         sessionManager_.authenticateClient(session.fd);
-        utils::printMessage(std::cout, msgOpt.value());
 
     } else {
         return sizeToBeConsumed;
@@ -167,7 +166,6 @@ std::size_t ProtocolHandler::handleLogout_(Session& session,
         session.getNextClientSqn();
         sessionManager_.logoutClient(session.fd);
 
-        utils::printMessage(std::cout, *msgOpt);
     } else {
         return sizeToBeConsumed;
     }
@@ -201,7 +199,6 @@ std::size_t ProtocolHandler::handleNewOrder_(Session& session,
             return sizeToBeConsumed;
         }
         session.getNextClientSqn();
-        utils::printMessage(std::cout, *msgOpt);
         MatchResult result = api_.processNewOrder(msgOpt->payload);
 
         Message<server::OrderAckPayload> ackMsg =
@@ -252,7 +249,6 @@ std::size_t ProtocolHandler::handleModifyOrder_(Session& session,
                                        msgOpt->header.clientMsgSqn)) {
             return sizeToBeConsumed;
         }
-        utils::printMessage(std::cout, *msgOpt);
         session.getNextClientSqn();
         ModifyResult res = api_.modifyOrder(msgOpt->payload);
 
@@ -303,7 +299,6 @@ std::size_t ProtocolHandler::handleCancel_(Session& session,
             return sizeToBeConsumed;
         }
         session.getNextClientSqn();
-        utils::printMessage(std::cout, *msgOpt);
 
         bool success = api_.cancelOrder(msgOpt->payload);
 
@@ -369,6 +364,7 @@ ProtocolHandler::makeOrderAck_(Session& session, const MatchResult& result,
     msg.payload.status = +result.status;
 
     std::memset(msg.payload.padding, 0, sizeof(msg.payload.padding));
+
     return msg;
 }
 
@@ -403,6 +399,7 @@ ProtocolHandler::makeModifyAck_(Session& session, const ModifyResult& res,
     msg.payload.clientOrderID = clientOrderID.value();
     msg.payload.newQty = res.newQty.value();
     msg.payload.newPrice = res.newPrice.value();
+    msg.payload.instrumentID = res.instrumentID.value();
     msg.payload.status = +res.status;
 
     std::memset(msg.payload.padding, 0, sizeof(msg.payload.padding));

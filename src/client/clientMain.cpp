@@ -43,7 +43,7 @@ int main() {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     strategy.submitOrder(InstrumentID{1}, OrderSide::BUY, Qty{100}, Price{15000});
-    strategy.submitOrder(InstrumentID{1}, OrderSide::SELL, Qty{50}, Price{15000});
+    strategy.submitOrder(InstrumentID{1}, OrderSide::SELL, Qty{100}, Price{15000});
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 

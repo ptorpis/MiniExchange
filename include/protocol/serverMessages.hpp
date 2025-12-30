@@ -182,8 +182,9 @@ struct ModifyAckPayload {
     std::uint64_t clientOrderID;
     std::uint64_t newQty;
     std::uint64_t newPrice;
+    std::uint32_t instrumentID;
     std::uint8_t status;
-    std::uint8_t padding[7]{};
+    std::uint8_t padding[3]{};
 
 private:
     template <typename F, typename Self>
@@ -194,6 +195,7 @@ private:
         func("clientOrderID", self.clientOrderID);
         func("newQty", self.newQty);
         func("newPrice", self.newPrice);
+        func("instrumentID", self.instrumentID);
         func("status", self.status);
         func("padding", self.padding);
     }
