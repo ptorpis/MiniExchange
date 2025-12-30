@@ -1,22 +1,52 @@
 #include "client/tradingClient.hpp"
 #include "client/networkClient.hpp"
+#include "protocol/messages.hpp"
 #include "protocol/serverMessages.hpp"
 #include "utils/status.hpp"
 #include "utils/timing.hpp"
 #include "utils/types.hpp"
 #include "utils/utils.hpp"
+#include <chrono>
 #include <cstdint>
 #include <mutex>
 #include <optional>
+#include <thread>
 #include <vector>
 
 TradingClient::TradingClient(std::string host, std::uint16_t port)
-    : NetworkClient(std::move(host), port) {}
+    : network_(std::move(host), port) {
+
+    // Register callbacks with NetworkClient
+    network_.setHelloAckCallback([this](const auto& msg) { handleHelloAck_(msg); });
+
+    network_.setOrderAckCallback([this](const auto& msg) { handleOrderAck_(msg); });
+
+    network_.setCancelAckCallback([this](const auto& msg) { handleCancelAck_(msg); });
+
+    network_.setModifyAckCallback([this](const auto& msg) { handleModifyAck_(msg); });
+
+    network_.setTradeCallback([this](const auto& msg) { handleTrade_(msg); });
+}
+
+bool TradingClient::connect() {
+    if (!network_.connect()) {
+        return false;
+    }
+
+    network_.sendHello();
+    return true;
+}
+
+void TradingClient::disconnect() {
+    network_.sendLogout();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    network_.disconnect();
+}
 
 void TradingClient::submitOrder(InstrumentID instrumentID, OrderSide side, Qty qty,
                                 Price price, OrderType type, TimeInForce tif,
                                 Timestamp goodTill) {
-    ClientOrderID clientOrderID = getNextClientOrderID();
+    ClientOrderID clientOrderID = network_.getNextClientOrderID();
 
     {
         std::lock_guard<std::mutex> lock(stateMutex_);
@@ -37,8 +67,9 @@ void TradingClient::submitOrder(InstrumentID instrumentID, OrderSide side, Qty q
         orders_[clientOrderID] = order;
     }
 
-    sendNewOrder(instrumentID, side, type, qty, price, TimeInForce::GOOD_TILL_CANCELLED,
-                 0);
+    network_.sendNewOrder(instrumentID, side, type, qty, price, clientOrderID, tif,
+                          goodTill);
+
     onOrderSubmitted(clientOrderID);
 }
 
@@ -48,24 +79,26 @@ bool TradingClient::cancelOrder(ClientOrderID clientOrderID) {
 
     {
         std::lock_guard<std::mutex> lock(stateMutex_);
+
         auto it = orders_.find(clientOrderID);
         if (it == orders_.end()) {
             return false;
         }
 
         if (it->second.isPending()) {
-            return false;
+            return false; // Can't cancel pending order (no server ID yet)
         }
 
         if (!it->second.isOpen()) {
-            return false;
+            return false; // Order not in cancelable state
         }
 
         serverOrderID = it->second.serverOrderID;
         instrumentID = it->second.instrumentID;
     }
 
-    sendCancel(clientOrderID, serverOrderID, instrumentID);
+    network_.sendCancel(clientOrderID, serverOrderID, instrumentID);
+
     return true;
 }
 
@@ -93,7 +126,7 @@ void TradingClient::modifyOrder(ClientOrderID clientOrderID, Qty newQty, Price n
         instrumentID = it->second.instrumentID;
     }
 
-    sendModify(clientOrderID, serverOrderID, newQty, newPrice, instrumentID);
+    network_.sendModify(clientOrderID, serverOrderID, newQty, newPrice, instrumentID);
 }
 
 std::optional<ClientOrder> TradingClient::getOrder(ClientOrderID clientOrderID) const {
@@ -108,40 +141,43 @@ std::optional<ClientOrder> TradingClient::getOrder(ClientOrderID clientOrderID) 
     return it->second;
 }
 
-std::vector<ClientOrderID> TradingClient::getPendingOrders() const {
+std::vector<ClientOrder> TradingClient::getPendingOrders() const {
     std::lock_guard<std::mutex> lock(stateMutex_);
 
-    std::vector<ClientOrderID> pending;
+    std::vector<ClientOrder> pending;
     for (const auto& [id, order] : orders_) {
         if (order.isPending()) {
-            pending.push_back(id);
+            pending.push_back(order);
         }
     }
 
     return pending;
 }
 
-std::vector<ClientOrderID> TradingClient::getOpenOrders() const {
+std::vector<ClientOrder> TradingClient::getOpenOrders() const {
     std::lock_guard<std::mutex> lock(stateMutex_);
 
-    std::vector<ClientOrderID> openOrders;
+    std::vector<ClientOrder> open;
     for (const auto& [id, order] : orders_) {
         if (order.isOpen()) {
-            openOrders.push_back(id);
+            open.push_back(order);
         }
     }
 
-    return openOrders;
+    return open;
 }
 
-std::vector<ClientOrderID> TradingClient::getAllOrders() const {
+std::vector<ClientOrder> TradingClient::getAllOrders() const {
     std::lock_guard<std::mutex> lock(stateMutex_);
 
-    std::vector<ClientOrderID> orders;
+    std::vector<ClientOrder> all;
+    all.reserve(orders_.size());
+
     for (const auto& [id, order] : orders_) {
-        orders.push_back(id);
+        all.push_back(order);
     }
-    return orders;
+
+    return all;
 }
 
 Position TradingClient::getPosition(InstrumentID instrumentID) const {
@@ -155,12 +191,17 @@ Position TradingClient::getPosition(InstrumentID instrumentID) const {
 }
 
 std::int64_t TradingClient::getUnrealizedPnL() const {
+    std::lock_guard<std::mutex> lock(stateMutex_);
     // need market data to calculate this
     return 0;
 }
 
-void TradingClient::onOrderAck(const Message<server::OrderAckPayload>& msg) {
-    utils::printMessage(std::cout, msg);
+void TradingClient::handleHelloAck_(
+    [[maybe_unused]] const Message<server::HelloAckPayload>& msg) {
+    // nothing to do, network client takes care of bookkeeping
+}
+
+void TradingClient::handleOrderAck_(const Message<server::OrderAckPayload>& msg) {
     ClientOrderID clientOrderID{msg.payload.clientOrderID};
     OrderID serverOrderID{msg.payload.serverOrderID};
 
@@ -204,7 +245,7 @@ void TradingClient::onOrderAck(const Message<server::OrderAckPayload>& msg) {
     }
 }
 
-void TradingClient::onCancelAck(const Message<server::CancelAckPayload>& msg) {
+void TradingClient::handleCancelAck_(const Message<server::CancelAckPayload>& msg) {
     ClientOrderID clientOrderID{msg.payload.clientOrderID};
     status::CancelStatus cancelStatus = status::CancelStatus{msg.payload.status};
 
@@ -232,7 +273,7 @@ void TradingClient::onCancelAck(const Message<server::CancelAckPayload>& msg) {
     }
 }
 
-void TradingClient::onModifyAck(const Message<server::ModifyAckPayload>& msg) {
+void TradingClient::handleModifyAck_(const Message<server::ModifyAckPayload>& msg) {
     bool found{false};
     {
         std::lock_guard<std::mutex> lock(stateMutex_);
@@ -269,7 +310,7 @@ void TradingClient::onModifyAck(const Message<server::ModifyAckPayload>& msg) {
     }
 }
 
-void TradingClient::onTrade(const Message<server::TradePayload>& msg) {
+void TradingClient::handleTrade_(const Message<server::TradePayload>& msg) {
     ClientOrderID clientOrderID{msg.payload.clientOrderID};
     Qty fillQty{msg.payload.filledQty};
     Price fillPrice{msg.payload.filledPrice};
@@ -301,7 +342,7 @@ void TradingClient::onTrade(const Message<server::TradePayload>& msg) {
             order.status = OrderStatus::PARTIALLY_FILLED;
         }
 
-        updatePosition_(instrumentID, side, fillQty);
+        updatePosition_(instrumentID, side, fillQty, fillPrice);
     }
 
     if (found) {
@@ -309,17 +350,8 @@ void TradingClient::onTrade(const Message<server::TradePayload>& msg) {
     }
 }
 
-void TradingClient::updateOrderState_(ClientOrderID clientOrderID, OrderStatus status,
-                                      Qty qty) {
-    // Assumes mutex is already held
-    auto it = orders_.find(clientOrderID);
-    if (it != orders_.end()) {
-        it->second.status = status;
-        it->second.remainingQty = qty;
-    }
-}
-
-void TradingClient::updatePosition_(InstrumentID instrumentID, OrderSide side, Qty qty) {
+void TradingClient::updatePosition_(InstrumentID instrumentID, OrderSide side, Qty qty,
+                                    Price price) {
     // Assumes mutex is already held
     auto& position = positions_[instrumentID];
 
@@ -328,4 +360,7 @@ void TradingClient::updatePosition_(InstrumentID instrumentID, OrderSide side, Q
     } else {
         position.shortQty = Qty{position.shortQty.value() + qty.value()};
     }
+
+    // TODO: Track average price for P&L calculation
+    (void)price;
 }

@@ -2,7 +2,7 @@
 #include "protocol/clientMessages.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/serialize.hpp"
-#include "protocol/serverMessages.hpp"
+#include "sessions/clientSession.hpp"
 #include "utils/types.hpp"
 #include "utils/utils.hpp"
 #include <algorithm>
@@ -24,45 +24,43 @@
 #include <unistd.h>
 
 NetworkClient::NetworkClient(std::string host, std::uint16_t port)
-    : sockfd_(-1), host_(std::move(host)), port_(port) {
-    recvBuffer_.reserve(4 * 1024);
-    sendBuffer_.reserve(4 * 1024);
-}
+    : session_(std::move(host), port) {}
 
 NetworkClient::~NetworkClient() {
     disconnect();
 }
 
 bool NetworkClient::connect() {
-    if (isConnected()) {
+    if (session_.isConnected()) {
         return true;
     }
 
-    sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd_ < 0) {
+    session_.sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (session_.sockfd < 0) {
         return false;
     }
 
     sockaddr_in serverAddr{};
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(port_);
+    serverAddr.sin_port = htons(session_.port);
 
-    if (inet_pton(AF_INET, host_.c_str(), &serverAddr.sin_addr) <= 0) {
-        close(sockfd_);
-        sockfd_ = -1;
+    if (inet_pton(AF_INET, session_.host.c_str(), &serverAddr.sin_addr) <= 0) {
+        close(session_.sockfd);
+        session_.sockfd = -1;
         return false;
     }
 
-    if (::connect(sockfd_, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) <
-        0) {
-        close(sockfd_);
-        sockfd_ = -1;
+    if (::connect(session_.sockfd, reinterpret_cast<sockaddr*>(&serverAddr),
+                  sizeof(serverAddr)) < 0) {
+        close(session_.sockfd);
+        session_.sockfd = -1;
         return false;
     }
 
     setNonBlocking_();
     setTCPNoDelay_();
 
+    session_.connected.store(true, std::memory_order_release);
     startMessageLoop_();
 
     return true;
@@ -75,48 +73,46 @@ void NetworkClient::startMessageLoop_() {
 
 void NetworkClient::messageLoop_() {
     while (running_.load(std::memory_order_acquire)) {
-        if (!isConnected()) {
+        if (!session_.isConnected()) {
             break;
         }
 
         fd_set readfds, writefds;
-
         FD_ZERO(&readfds);
         FD_ZERO(&writefds);
-        FD_SET(sockfd_, &readfds);
+        FD_SET(session_.sockfd, &readfds);
 
         bool hasDataToSend = false;
         {
-            std::lock_guard<std::mutex> lock(sendMutex_);
-            hasDataToSend = !sendBuffer_.empty();
+            std::lock_guard<std::mutex> lock(session_.sendMutex);
+            hasDataToSend = !session_.sendBuffer.empty();
         }
 
         if (hasDataToSend) {
-            FD_SET(sockfd_, &writefds);
+            FD_SET(session_.sockfd, &writefds);
         }
 
         struct timeval timeout;
-
         timeout.tv_sec = 0;
         timeout.tv_usec = 1000;
 
-        int ready = ::select(sockfd_ + 1, &readfds, &writefds, nullptr, &timeout);
+        int ready = ::select(session_.sockfd + 1, &readfds, &writefds, nullptr, &timeout);
 
         if (ready < 0) {
             if (errno != EINTR) {
                 break;
             }
-
             continue;
         }
 
-        if (FD_ISSET(sockfd_, &readfds)) {
+        if (FD_ISSET(session_.sockfd, &readfds)) {
             char buffer[4096];
-            ssize_t received = ::recv(sockfd_, buffer, sizeof(buffer), 0);
+            ssize_t received = ::recv(session_.sockfd, buffer, sizeof(buffer), 0);
+
             if (received > 0) {
-                recvBuffer_.insert(recvBuffer_.end(),
-                                   reinterpret_cast<std::byte*>(buffer),
-                                   reinterpret_cast<std::byte*>(buffer + received));
+                session_.recvBuffer.insert(
+                    session_.recvBuffer.end(), reinterpret_cast<std::byte*>(buffer),
+                    reinterpret_cast<std::byte*>(buffer + received));
                 processRecvBuffer_();
             } else if (received == 0) {
                 break;
@@ -127,15 +123,16 @@ void NetworkClient::messageLoop_() {
             }
         }
 
-        if (FD_ISSET(sockfd_, &writefds)) {
-            std::lock_guard<std::mutex> lock(sendMutex_);
+        if (FD_ISSET(session_.sockfd, &writefds)) {
+            std::lock_guard<std::mutex> lock(session_.sendMutex);
 
-            if (!sendBuffer_.empty()) {
-                ssize_t sent =
-                    ::send(sockfd_, sendBuffer_.data(), sendBuffer_.size(), MSG_NOSIGNAL);
+            if (!session_.sendBuffer.empty()) {
+                ssize_t sent = ::send(session_.sockfd, session_.sendBuffer.data(),
+                                      session_.sendBuffer.size(), MSG_NOSIGNAL);
 
                 if (sent > 0) {
-                    sendBuffer_.erase(sendBuffer_.begin(), sendBuffer_.begin() + sent);
+                    session_.sendBuffer.erase(session_.sendBuffer.begin(),
+                                              session_.sendBuffer.begin() + sent);
                 } else if (sent < 0) {
                     if (errno != EAGAIN) {
                         break;
@@ -148,16 +145,18 @@ void NetworkClient::messageLoop_() {
 
 void NetworkClient::disconnect() {
     stopMessageLoop_();
-    if (sockfd_ >= 0) {
-        close(sockfd_);
-        sockfd_ = -1;
+
+    if (session_.sockfd >= 0) {
+        close(session_.sockfd);
+        session_.sockfd = -1;
     }
 
-    recvBuffer_.clear();
-    sendBuffer_.clear();
-
-    clientSqn = ClientSqn32{0};
-    serverSqn = ServerSqn32{0};
+    session_.connected.store(false, std::memory_order_release);
+    session_.recvBuffer.clear();
+    session_.sendBuffer.clear();
+    session_.clientSqn = ClientSqn32{0};
+    session_.serverSqn = ServerSqn32{0};
+    session_.serverClientID = ClientID{0};
 }
 
 void NetworkClient::stopMessageLoop_() {
@@ -175,18 +174,17 @@ void NetworkClient::sendHello() {
 
 void NetworkClient::sendLogout() {
     client::LogoutPayload payload{};
-    payload.serverClientID = serverClientID_.value();
+    payload.serverClientID = session_.serverClientID.value();
     sendMessage_(MessageType::LOGOUT, payload);
 }
 
-void NetworkClient::sendNewOrder(
-    InstrumentID instrumentID, OrderSide side, OrderType type, Qty qty, Price price,
-    TimeInForce timeInForce = TimeInForce::GOOD_TILL_CANCELLED,
-    Timestamp goodTillDate = Timestamp{0}) {
-
+void NetworkClient::sendNewOrder(InstrumentID instrumentID, OrderSide side,
+                                 OrderType type, Qty qty, Price price,
+                                 ClientOrderID clientOrderID, TimeInForce timeInForce,
+                                 Timestamp goodTillDate) {
     client::NewOrderPayload payload{};
-    payload.serverClientID = serverClientID_.value();
-    payload.clientOrderID = getCurrentClientOrderID().value();
+    payload.serverClientID = session_.serverClientID.value();
+    payload.clientOrderID = clientOrderID.value();
     payload.instrumentID = instrumentID.value();
     payload.orderSide = +side;
     payload.orderType = +type;
@@ -199,11 +197,11 @@ void NetworkClient::sendNewOrder(
     sendMessage_(MessageType::NEW_ORDER, payload);
 }
 
-void NetworkClient::sendCancel(ClientOrderID clientOrderID, OrderID orderID,
+void NetworkClient::sendCancel(ClientOrderID clientOrderID, OrderID serverOrderID,
                                InstrumentID instrumentID) {
     client::CancelOrderPayload payload{};
-    payload.serverClientID = getClientID().value();
-    payload.serverOrderID = orderID.value();
+    payload.serverClientID = session_.serverClientID.value();
+    payload.serverOrderID = serverOrderID.value();
     payload.clientOrderID = clientOrderID.value();
     payload.instrumentID = instrumentID.value();
     std::memset(payload.padding, 0, sizeof(payload.padding));
@@ -211,11 +209,11 @@ void NetworkClient::sendCancel(ClientOrderID clientOrderID, OrderID orderID,
     sendMessage_(MessageType::CANCEL_ORDER, payload);
 }
 
-void NetworkClient::sendModify(ClientOrderID clientOrderID, OrderID orderID, Qty newQty,
-                               Price newPrice, InstrumentID instrumentID) {
+void NetworkClient::sendModify(ClientOrderID clientOrderID, OrderID serverOrderID,
+                               Qty newQty, Price newPrice, InstrumentID instrumentID) {
     client::ModifyOrderPayload payload{};
-    payload.serverClientID = getClientID().value();
-    payload.serverOrderID = orderID.value();
+    payload.serverClientID = session_.serverClientID.value();
+    payload.serverOrderID = serverOrderID.value();
     payload.clientOrderID = clientOrderID.value();
     payload.newQty = newQty.value();
     payload.newPrice = newPrice.value();
@@ -231,20 +229,16 @@ void NetworkClient::sendMessage_(MessageType type, const Payload& payload) {
     header.messageType = +type;
     header.protocolVersionFlag = MessageHeader::traits::PROTOCOL_VERSION;
     header.payloadLength = Payload::traits::payloadSize;
-    header.clientMsgSqn = (++clientSqn).value();
-    header.serverMsgSqn = serverSqn.value();
-
+    header.clientMsgSqn = (++session_.clientSqn).value();
+    header.serverMsgSqn = session_.serverSqn.value();
     std::memset(header.padding, 0, sizeof(header.padding));
-    Message<Payload> message = {header, payload};
 
-    utils::printMessage(std::cout, message);
-
-    std::lock_guard<std::mutex> lock(sendMutex_);
-    serializeMessageInto(sendBuffer_, type, header, payload);
+    std::lock_guard<std::mutex> lock(session_.sendMutex);
+    serializeMessageInto(session_.sendBuffer, type, header, payload);
 }
 
 void NetworkClient::processRecvBuffer_() {
-    std::span<const std::byte> view = recvBuffer_;
+    std::span<const std::byte> view = session_.recvBuffer;
     std::size_t totalConsumed = 0;
 
     while (!view.empty()) {
@@ -271,56 +265,77 @@ void NetworkClient::processRecvBuffer_() {
     }
 
     if (totalConsumed > 0) {
-        auto newEnd = std::shift_left(recvBuffer_.begin(), recvBuffer_.end(),
-                                      static_cast<std::ptrdiff_t>(totalConsumed));
+        auto newEnd =
+            std::shift_left(session_.recvBuffer.begin(), session_.recvBuffer.end(),
+                            static_cast<std::ptrdiff_t>(totalConsumed));
 
-        recvBuffer_.erase(newEnd, recvBuffer_.end());
+        session_.recvBuffer.erase(newEnd, session_.recvBuffer.end());
     }
 }
 
 void NetworkClient::handleMessage_(std::span<const std::byte> messageBytes) {
     MessageType type =
         static_cast<MessageType>(std::to_integer<std::uint8_t>(messageBytes[0]));
+
     switch (type) {
     case MessageType::HELLO_ACK:
         if (auto msg = deserializeMessage<server::HelloAckPayload>(messageBytes)) {
-            serverSqn = ServerSqn32{msg->header.serverMsgSqn};
-            onHelloAck(*msg);
+            session_.serverSqn = ServerSqn32{msg->header.serverMsgSqn};
+            session_.serverClientID = ClientID{msg->payload.serverClientID};
+
+            if (helloAckCallback_) {
+                helloAckCallback_(*msg);
+            }
         }
         break;
 
     case MessageType::LOGOUT_ACK:
         if (auto msg = deserializeMessage<server::LogoutAckPayload>(messageBytes)) {
-            serverSqn = ServerSqn32{msg->header.serverMsgSqn};
-            onLogoutAck(*msg);
+            session_.serverSqn = ServerSqn32{msg->header.serverMsgSqn};
+
+            if (logoutAckCallback_) {
+                logoutAckCallback_(*msg);
+            }
         }
         break;
 
     case MessageType::ORDER_ACK:
         if (auto msg = deserializeMessage<server::OrderAckPayload>(messageBytes)) {
-            serverSqn = ServerSqn32{msg->header.serverMsgSqn};
-            onOrderAck(*msg);
+            session_.serverSqn = ServerSqn32{msg->header.serverMsgSqn};
+
+            if (orderAckCallback_) {
+                orderAckCallback_(*msg);
+            }
         }
         break;
 
     case MessageType::CANCEL_ACK:
         if (auto msg = deserializeMessage<server::CancelAckPayload>(messageBytes)) {
-            serverSqn = ServerSqn32{msg->header.serverMsgSqn};
-            onCancelAck(*msg);
+            session_.serverSqn = ServerSqn32{msg->header.serverMsgSqn};
+
+            if (cancelAckCallback_) {
+                cancelAckCallback_(*msg);
+            }
         }
         break;
 
     case MessageType::MODIFY_ACK:
         if (auto msg = deserializeMessage<server::ModifyAckPayload>(messageBytes)) {
-            serverSqn = ServerSqn32{msg->header.serverMsgSqn};
-            onModifyAck(*msg);
+            session_.serverSqn = ServerSqn32{msg->header.serverMsgSqn};
+
+            if (modifyAckCallback_) {
+                modifyAckCallback_(*msg);
+            }
         }
         break;
 
     case MessageType::TRADE:
         if (auto msg = deserializeMessage<server::TradePayload>(messageBytes)) {
-            serverSqn = ServerSqn32{msg->header.serverMsgSqn};
-            onTrade(*msg);
+            session_.serverSqn = ServerSqn32{msg->header.serverMsgSqn};
+
+            if (tradeCallback_) {
+                tradeCallback_(*msg);
+            }
         }
         break;
 
@@ -330,19 +345,19 @@ void NetworkClient::handleMessage_(std::span<const std::byte> messageBytes) {
 }
 
 void NetworkClient::setNonBlocking_() {
-    int flags = fcntl(sockfd_, F_GETFL, 0);
+    int flags = fcntl(session_.sockfd, F_GETFL, 0);
     if (flags < 0) {
         throw std::runtime_error("fcntl F_GETFL failed");
     }
 
-    if (fcntl(sockfd_, F_SETFL, flags | O_NONBLOCK) < 0) {
+    if (fcntl(session_.sockfd, F_SETFL, flags | O_NONBLOCK) < 0) {
         throw std::runtime_error("fcntl F_SETFL failed");
     }
 }
 
 void NetworkClient::setTCPNoDelay_() {
     int flag = 1;
-    setsockopt(sockfd_, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+    setsockopt(session_.sockfd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
 }
 
 template void

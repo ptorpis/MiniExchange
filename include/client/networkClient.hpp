@@ -2,13 +2,14 @@
 
 #include "protocol/messages.hpp"
 #include "protocol/serverMessages.hpp"
+#include "sessions/clientSession.hpp"
 #include "utils/types.hpp"
-#include "utils/utils.hpp"
+
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <thread>
-#include <vector>
 
 class NetworkClient {
 public:
@@ -16,65 +17,47 @@ public:
     virtual ~NetworkClient();
 
     bool connect();
+    bool isConnected() const { return session_.isConnected(); }
     void disconnect();
-    bool isConnected() const { return sockfd_ >= 0; }
 
     void sendHello();
     void sendLogout();
 
-    void processMessages();
-
     void sendNewOrder(InstrumentID instrumentID, OrderSide side, OrderType type, Qty qty,
-                      Price price, TimeInForce timeInForce, Timestamp goodTillDate);
+                      Price price, ClientOrderID clientOrderID,
+                      TimeInForce timeInForce = TimeInForce::GOOD_TILL_CANCELLED,
+                      Timestamp goodTillDate = Timestamp{0});
 
-    void sendCancel(ClientOrderID clientOrderID, OrderID orderID,
+    void sendCancel(ClientOrderID clientOrderID, OrderID serverOrderID,
                     InstrumentID instrumentID);
 
-    void sendModify(ClientOrderID clientOrderID, OrderID orderID, Qty newQty,
+    void sendModify(ClientOrderID clientOrderID, OrderID serverOrderID, Qty newQty,
                     Price newPrice, InstrumentID instrumentID);
 
-    void setClientID(ClientID id) { serverClientID_ = id; }
+    using HelloAckCallback = std::function<void(const Message<server::HelloAckPayload>&)>;
+    using LogoutAckCallback =
+        std::function<void(const Message<server::LogoutAckPayload>&)>;
+    using OrderAckCallback = std::function<void(const Message<server::OrderAckPayload>&)>;
+    using CancelAckCallback =
+        std::function<void(const Message<server::CancelAckPayload>&)>;
+    using ModifyAckCallback =
+        std::function<void(const Message<server::ModifyAckPayload>&)>;
+    using TradeCallback = std::function<void(const Message<server::TradePayload>&)>;
 
-    [[nodiscard]] ClientID getClientID() const noexcept { return serverClientID_; }
-    [[nodiscard]] ClientOrderID getCurrentClientOrderID() const noexcept {
-        return internalOrderCounter_;
+    void setHelloAckCallback(HelloAckCallback cb) { helloAckCallback_ = std::move(cb); }
+    void setLogoutAckCallback(LogoutAckCallback cb) {
+        logoutAckCallback_ = std::move(cb);
     }
+    void setOrderAckCallback(OrderAckCallback cb) { orderAckCallback_ = std::move(cb); }
+    void setCancelAckCallback(CancelAckCallback cb) {
+        cancelAckCallback_ = std::move(cb);
+    }
+    void setModifyAckCallback(ModifyAckCallback cb) {
+        modifyAckCallback_ = std::move(cb);
+    }
+    void setTradeCallback(TradeCallback cb) { tradeCallback_ = std::move(cb); }
 
-    [[nodiscard]] ClientOrderID getNextClientOrderID() noexcept {
-        return ++internalOrderCounter_;
-    }
-
-protected:
-    virtual void
-    onHelloAck([[maybe_unused]] const Message<server::HelloAckPayload>& msg) {
-        setClientID(ClientID{msg.payload.serverClientID});
-        utils::printMessage(std::cout, msg);
-    }
-
-    virtual void
-    onLogoutAck([[maybe_unused]] const Message<server::LogoutAckPayload>& msg) {
-        setClientID(ClientID{0});
-        utils::printMessage(std::cout, msg);
-    }
-
-    virtual void
-    onOrderAck([[maybe_unused]] const Message<server::OrderAckPayload>& msg) {
-        utils::printMessage(std::cout, msg);
-    }
-
-    virtual void
-    onCancelAck([[maybe_unused]] const Message<server::CancelAckPayload>& msg) {
-        utils::printMessage(std::cout, msg);
-    }
-
-    virtual void
-    onModifyAck([[maybe_unused]] const Message<server::ModifyAckPayload>& msg) {
-        utils::printMessage(std::cout, msg);
-    }
-
-    virtual void onTrade([[maybe_unused]] const Message<server::TradePayload>& msg) {
-        utils::printMessage(std::cout, msg);
-    }
+    ClientOrderID getNextClientOrderID() { return session_.getNextOrderID(); }
 
 private:
     void messageLoop_();
@@ -86,25 +69,18 @@ private:
 
     void processRecvBuffer_();
     void handleMessage_(std::span<const std::byte> messageBytes);
-
     void setNonBlocking_();
     void setTCPNoDelay_();
 
+    ClientSession session_;
+
     std::atomic<bool> running_{false};
-
-    int sockfd_;
-    std::string host_;
-    std::uint16_t port_;
-
-    std::vector<std::byte> recvBuffer_;
-    std::vector<std::byte> sendBuffer_;
-    std::mutex sendMutex_;
-
-    ClientSqn32 clientSqn{0};
-    ServerSqn32 serverSqn{0};
-    ClientID serverClientID_{0};
-
-    ClientOrderID internalOrderCounter_{0};
-
     std::thread messageThread_;
+
+    HelloAckCallback helloAckCallback_;
+    LogoutAckCallback logoutAckCallback_;
+    OrderAckCallback orderAckCallback_;
+    CancelAckCallback cancelAckCallback_;
+    ModifyAckCallback modifyAckCallback_;
+    TradeCallback tradeCallback_;
 };

@@ -10,7 +10,7 @@ using MessageView = std::span<const std::byte>;
 struct SerializedMessage {
     MessageBuffer buffer;
 
-    MessageView span() const { return {buffer}; }
+    MessageView span() const { return buffer; }
     std::size_t size() const { return buffer.size(); }
 };
 

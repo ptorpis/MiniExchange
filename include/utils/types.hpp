@@ -161,6 +161,16 @@ struct ClientOrderIDTag : StrongType<std::uint64_t, ClientOrderIDTag> {
 };
 
 namespace std {
+
+/*
+specializing hash functions for the strong types so map syntax becomes easier.
+
+Instead of std::unordered_map<StrongType, *something*, StrongType::Hash>
+
+it becomes -> std::unordered_map<StrongType, *something*> --> without the need of
+specifying the hash function that is needed
+*/
+
 template <> struct hash<ClientIDTag> {
     hash() = default;
     hash(const hash&) = default;
