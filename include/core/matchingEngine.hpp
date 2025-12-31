@@ -273,6 +273,7 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
 
             if (restingOrder->qty == 0) {
                 restingOrder->status = OrderStatus::FILLED;
+                orderMap_.erase(restingOrder->orderID);
                 qIt = queue.erase(qIt);
             } else {
                 ++qIt;

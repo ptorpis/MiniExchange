@@ -493,3 +493,232 @@ TEST_F(MatchingEngineTest, RestOfMarketOrderGetsCancelled) {
     EXPECT_FALSE(engine->getBestBid().has_value());
     EXPECT_FALSE(engine->getBestAsk().has_value());
 }
+
+TEST_F(MatchingEngineTest, InvalidOrder_MarketWithPrice) {
+    auto marketOrderWithPrice =
+        OrderBuilder{}.withType(OrderType::MARKET).withPrice(Price{1}).build();
+
+    auto res = engine->processOrder(std::move(marketOrderWithPrice));
+
+    EXPECT_EQ(res.status, OrderStatus::REJECTED);
+    EXPECT_EQ(res.tradeVec.size(), 0);
+
+    EXPECT_FALSE(engine->getSpread());
+    EXPECT_FALSE(engine->getBestAsk());
+    EXPECT_FALSE(engine->getBestBid());
+}
+
+TEST_F(MatchingEngineTest, InvalidOrder_LimitWithZeroPrice) {
+    auto limitOrderWithZeroPrice =
+        OrderBuilder{}.withType(OrderType::LIMIT).withPrice(Price{0}).build();
+
+    auto res = engine->processOrder(std::move(limitOrderWithZeroPrice));
+
+    EXPECT_EQ(res.status, OrderStatus::REJECTED);
+    EXPECT_EQ(res.tradeVec.size(), 0);
+
+    EXPECT_FALSE(engine->getSpread());
+    EXPECT_FALSE(engine->getBestAsk());
+    EXPECT_FALSE(engine->getBestBid());
+}
+
+TEST_F(MatchingEngineTest, InvalidOrder_ZeroQty) {
+    auto orderWithZeroQty = OrderBuilder{}.withQty(Qty{0}).build();
+
+    auto res = engine->processOrder(std::move(orderWithZeroQty));
+
+    EXPECT_EQ(res.status, OrderStatus::REJECTED);
+    EXPECT_EQ(res.tradeVec.size(), 0);
+
+    EXPECT_FALSE(engine->getSpread());
+    EXPECT_FALSE(engine->getBestAsk());
+    EXPECT_FALSE(engine->getBestBid());
+}
+
+TEST_F(MatchingEngineTest, InvalidOrder_WrongSide) {
+    auto orderWithWrongSide = OrderBuilder{}.withSide(static_cast<OrderSide>(2)).build();
+
+    auto res = engine->processOrder(std::move(orderWithWrongSide));
+
+    EXPECT_EQ(res.status, OrderStatus::REJECTED);
+    EXPECT_EQ(res.tradeVec.size(), 0);
+
+    EXPECT_FALSE(engine->getSpread());
+    EXPECT_FALSE(engine->getBestAsk());
+    EXPECT_FALSE(engine->getBestBid());
+}
+
+TEST_F(MatchingEngineTest, InvalidOrder_WrongType) {
+    auto orderWithWrongType = OrderBuilder{}.withType(static_cast<OrderType>(2)).build();
+
+    auto res = engine->processOrder(std::move(orderWithWrongType));
+
+    EXPECT_EQ(res.status, OrderStatus::REJECTED);
+    EXPECT_EQ(res.tradeVec.size(), 0);
+
+    EXPECT_FALSE(engine->getSpread());
+    EXPECT_FALSE(engine->getBestAsk());
+    EXPECT_FALSE(engine->getBestBid());
+}
+
+TEST_F(MatchingEngineTest, InvalidOrder_RejectedOrderDoesNotFillResting) {
+    auto validLimitOrder = OrderBuilder{}
+                               .withOrderID(OrderID{1})
+                               .withSide(OrderSide::SELL)
+                               .withPrice(Price{2000})
+                               .withQty(Qty{50})
+                               .build();
+    auto res1 = engine->processOrder(std::move(validLimitOrder));
+    EXPECT_EQ(res1.status, OrderStatus::NEW);
+
+    auto invalidOrder =
+        OrderBuilder{}.withType(OrderType::MARKET).withPrice(Price{1}).build();
+
+    auto res2 = engine->processOrder(std::move(invalidOrder));
+    EXPECT_EQ(res2.status, OrderStatus::REJECTED);
+    EXPECT_EQ(res2.tradeVec.size(), 0);
+
+    EXPECT_TRUE(engine->getBestAsk().has_value());
+    EXPECT_FALSE(engine->getBestBid().has_value());
+    EXPECT_FALSE(engine->getSpread().has_value());
+}
+
+TEST_F(MatchingEngineTest, ResetEngine) {
+    auto limitOrder = OrderBuilder{}.build();
+    auto res = engine->processOrder(std::move(limitOrder));
+    EXPECT_EQ(res.status, OrderStatus::NEW);
+    EXPECT_TRUE(engine->getBestBid().has_value());
+
+    engine->reset();
+
+    EXPECT_FALSE(engine->getBestBid().has_value());
+    EXPECT_FALSE(engine->getBestAsk().has_value());
+    EXPECT_FALSE(engine->getSpread().has_value());
+}
+
+TEST_F(MatchingEngineTest, SnapshotTest) {
+    auto buy1 = OrderBuilder{}.withPrice(Price{100}).withQty(Qty{10}).build();
+    auto buy2 = OrderBuilder{}.withPrice(Price{101}).withQty(Qty{20}).build();
+    auto buy3 = OrderBuilder{}.withPrice(Price{102}).withQty(Qty{30}).build();
+
+    engine->processOrder(std::move(buy1));
+    engine->processOrder(std::move(buy2));
+    engine->processOrder(std::move(buy3));
+
+    auto bidSnapshot = engine->getSnapshot<OrderSide::BUY>();
+
+    ASSERT_EQ(bidSnapshot.size(), 3);
+    EXPECT_EQ(bidSnapshot[0].first, Price{100});
+    EXPECT_EQ(bidSnapshot[0].second, Qty{10});
+    EXPECT_EQ(bidSnapshot[1].first, Price{101});
+    EXPECT_EQ(bidSnapshot[1].second, Qty{20});
+    EXPECT_EQ(bidSnapshot[2].first, Price{102});
+    EXPECT_EQ(bidSnapshot[2].second, Qty{30});
+}
+
+TEST_F(MatchingEngineTest, SnapshotEmptyBook) {
+    auto bidSnapshot = engine->getSnapshot<OrderSide::BUY>();
+    auto askSnapshot = engine->getSnapshot<OrderSide::SELL>();
+
+    ASSERT_EQ(bidSnapshot.size(), 0);
+    ASSERT_EQ(askSnapshot.size(), 0);
+}
+
+TEST_F(MatchingEngineTest, SnapshotAskTest) {
+    auto sell1 = OrderBuilder{}
+                     .withPrice(Price{100})
+                     .withQty(Qty{10})
+                     .withSide(OrderSide::SELL)
+                     .build();
+    auto sell2 = OrderBuilder{}
+                     .withPrice(Price{101})
+                     .withQty(Qty{20})
+                     .withSide(OrderSide::SELL)
+                     .build();
+    auto sell3 = OrderBuilder{}
+                     .withPrice(Price{102})
+                     .withQty(Qty{30})
+                     .withSide(OrderSide::SELL)
+                     .build();
+
+    engine->processOrder(std::move(sell1));
+    engine->processOrder(std::move(sell2));
+    engine->processOrder(std::move(sell3));
+
+    auto askSnapshot = engine->getSnapshot<OrderSide::SELL>();
+
+    ASSERT_EQ(askSnapshot.size(), 3);
+    EXPECT_EQ(askSnapshot[0].first, Price{102});
+    EXPECT_EQ(askSnapshot[0].second, Qty{30});
+    EXPECT_EQ(askSnapshot[1].first, Price{101});
+    EXPECT_EQ(askSnapshot[1].second, Qty{20});
+    EXPECT_EQ(askSnapshot[2].first, Price{100});
+    EXPECT_EQ(askSnapshot[2].second, Qty{10});
+}
+
+TEST_F(MatchingEngineTest, GetOrder_NonExistent) {
+    auto order = engine->getOrder(OrderID{999});
+    EXPECT_EQ(order, nullptr);
+}
+
+TEST_F(MatchingEngineTest, GetOrder_Existing) {
+    auto limitOrder = OrderBuilder{}.withOrderID(OrderID{123}).build();
+    auto res = engine->processOrder(std::move(limitOrder));
+    EXPECT_EQ(res.status, OrderStatus::NEW);
+
+    auto order = engine->getOrder(OrderID{123});
+    EXPECT_NE(order, nullptr);
+    EXPECT_EQ(order->orderID, OrderID{123});
+    EXPECT_EQ(order->qty, OrderBuilder::Defaults::qty);
+    EXPECT_EQ(order->price, OrderBuilder::Defaults::price);
+}
+
+TEST_F(MatchingEngineTest, GetOrder_AfterFill) {
+    auto buy = OrderBuilder{}.withOrderID(OrderID{1}).withClientID(ClientID{1}).build();
+    auto sell = OrderBuilder{}
+                    .withOrderID(OrderID{2})
+                    .withClientID(ClientID{2})
+                    .withSide(OrderSide::SELL)
+                    .build();
+
+    engine->processOrder(std::move(buy));
+    engine->processOrder(std::move(sell));
+
+    auto order = engine->getOrder(OrderID{1});
+    EXPECT_EQ(order, nullptr);
+
+    order = engine->getOrder(OrderID{2});
+    EXPECT_EQ(order, nullptr);
+}
+
+TEST_F(MatchingEngineTest, GetOrder_AfterCancel) {
+    auto limitOrder = OrderBuilder{}.withOrderID(OrderID{123}).build();
+    auto res = engine->processOrder(std::move(limitOrder));
+    EXPECT_EQ(res.status, OrderStatus::NEW);
+
+    auto cancelResult =
+        engine->cancelOrder(ClientID{OrderBuilder::Defaults::clientID}, OrderID{123});
+    EXPECT_TRUE(cancelResult);
+
+    auto order = engine->getOrder(OrderID{123});
+    EXPECT_EQ(order, nullptr);
+}
+
+TEST_F(MatchingEngineTest, GetOrder_AfterModify) {
+    auto limitOrder = OrderBuilder{}.withOrderID(OrderID{123}).build();
+    auto res = engine->processOrder(std::move(limitOrder));
+    EXPECT_EQ(res.status, OrderStatus::NEW);
+
+    auto modifyResult = engine->modifyOrder(ClientID{OrderBuilder::Defaults::clientID},
+                                            OrderID{123}, Qty{150}, Price{2001});
+
+    EXPECT_EQ(modifyResult.status, ModifyStatus::ACCEPTED);
+
+    auto oldOrder = engine->getOrder(OrderID{123});
+    EXPECT_EQ(oldOrder, nullptr);
+
+    auto modifiedOrder = engine->getOrder(modifyResult.newOrderID);
+    EXPECT_NE(modifiedOrder, nullptr);
+    EXPECT_EQ(modifiedOrder->qty, Qty{150});
+    EXPECT_EQ(modifiedOrder->price, Price{2001});
+}
