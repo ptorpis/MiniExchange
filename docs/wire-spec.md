@@ -35,9 +35,7 @@ NEW_ORDER|10/0xA|48|Server Client ID (8) <br> Client OrderID (8) <br> Instrument
 ORDER_ACK|11/0xB | 56 | Server Client ID (8) <br>  Server Order ID (8) <br> Client Order ID (8) <br> Accepted Price (8) <br> Remaining Quantity (8) <br> Server Time (8) <br> Instrument ID (4) <br> Status (1) <br> Padding (3) | 72
 CANCEL_ORDER|12/0xC|32|Server Client ID (8) <br> Server Order ID (8) <br> Client Order ID (8) <br> Instrument ID (4) <br> Padding (4) | 48
 CANCEL_ACK|13/0xD | 32| Server Client ID (8) <br> Server OrderID (8) <br> Client Order ID (8) <br> Instrument ID (4) <br> Status (1) <br> Padding (3) | 48
-MODIFY_ORDER|14/0xE |
-MODIFY_ACK|15/0xF
-TRADE|16/0x10
-
-
+MODIFY_ORDER|14/0xE | 48 | Server Client ID (8) <br> Server Order ID (8) <br> Client Order ID (8) <br> New Quantity (8) <br> New Price (8) <br> Instrument ID (4) <br> Padding (4) | 56
+MODIFY_ORDER|14/0xF | 48 | Server Client ID (8) <br> Server Order ID (8) <br> Client Order ID (8) <br> New Quantity (8) <br> New Price (8) <br> Instrument ID (4) <br> Status (1) <br> Padding (3) | 56
+TRADE|16/0x10 | 56| Server Client ID (8) <br> Server Order ID (8) <br> Client Order ID (8) <br> Trade ID (8) <br> Filled Quantity (8) <br> Filled Price (8) <br> Timestamp (8) | 72
 
