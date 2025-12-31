@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <deque>
@@ -7,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -21,7 +23,7 @@ using OrderQueue = std::deque<std::unique_ptr<Order>>;
 
 class MatchingEngine {
 public:
-    MatchingEngine(spsc_queue_shm<OrderBookUpdate>* queue = nullptr,
+    MatchingEngine(utils::spsc_queue_shm<OrderBookUpdate>* queue = nullptr,
                    InstrumentID instrumentID = InstrumentID{1})
         : instrumentID_(instrumentID), queue_(queue) {
         dispatchTable_[0][0] = &MatchingEngine::matchOrder_<BuySide, LimitOrderPolicy>;
@@ -49,13 +51,40 @@ public:
     [[nodiscard]] InstrumentID getInstrumentID() const noexcept { return instrumentID_; }
     OrderID getNextOrderID() { return ++orderID_; }
 
+    template <typename PriceComp>
+    static std::vector<std::pair<Price, Qty>> makeSnapshot(const auto& book) {
+        std::vector<std::pair<Price, Qty>> snapshot;
+        snapshot.reserve(book.size());
+
+        for (const auto& [price, queue] : book) {
+            Qty total = std::ranges::fold_left(
+                queue |
+                    std::views::transform([](const auto& order) { return order->qty; }),
+                Qty{0}, std::plus{});
+            if (total > 0) {
+                snapshot.emplace_back(price, total);
+            }
+        }
+
+        std::ranges::reverse(snapshot);
+        return snapshot;
+    }
+
+    template <OrderSide Side> std::vector<std::pair<Price, Qty>> getSnapshot() const {
+        if constexpr (Side == OrderSide::BUY) {
+            return makeSnapshot<std::greater<Price>>(bids_);
+        } else {
+            return makeSnapshot<std::less<Price>>(asks_);
+        }
+    }
+
 private:
     InstrumentID instrumentID_;
     std::map<Price, OrderQueue, std::less<Price>> asks_;
     std::map<Price, OrderQueue, std::greater<Price>> bids_;
     std::unordered_map<OrderID, Order*> orderMap_;
 
-    spsc_queue_shm<OrderBookUpdate>* queue_;
+    utils::spsc_queue_shm<OrderBookUpdate>* queue_;
 
     using MatchFunction = MatchResult (MatchingEngine::*)(std::unique_ptr<Order>);
     MatchFunction dispatchTable_[2][2];

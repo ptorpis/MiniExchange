@@ -6,6 +6,7 @@
 #include <cstring>
 #include <type_traits>
 
+namespace utils {
 template <typename T> class spsc_queue_shm {
     static_assert(std::is_trivially_copyable_v<T>,
                   "spsc_queue_shm requires trivially copyable types");
@@ -78,3 +79,5 @@ private:
         return reinterpret_cast<T*>(reinterpret_cast<char*>(this) + buffer_offset_m);
     }
 };
+
+} // namespace utils

@@ -62,6 +62,7 @@ if(BUILD_TESTS)
     add_executable(all_tests
         tests/reflectionTests.cpp
         tests/engineTests.cpp
+        tests/engineObserverParity.cpp
     )
     
     target_link_libraries(all_tests

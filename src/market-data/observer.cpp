@@ -18,8 +18,6 @@ bool Observer::priceBetterOrEqual_(Price incoming, Price resting, OrderSide side
 void Observer::addAtPrice_(Price price, Qty amount, OrderSide side) {
     auto& book = getBook_(side);
 
-    std::cout << "ADD: " << amount << " @ " << price << " on " << side << "\n";
-
     for (auto rIt = book.rbegin(); rIt != book.rend(); ++rIt) {
         if (rIt->first == price) {
             rIt->second += amount;
@@ -36,8 +34,6 @@ void Observer::addAtPrice_(Price price, Qty amount, OrderSide side) {
 
 void Observer::reduceAtPrice_(Price price, Qty amount, OrderSide side) {
     auto& book = getBook_(side);
-
-    std::cout << "REDUCE: " << amount << " @ " << price << " on " << side << "\n";
 
     for (auto rIt = book.rbegin(); rIt != book.rend(); ++rIt) {
         if (rIt->first == price) {

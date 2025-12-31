@@ -2,7 +2,6 @@
 #include "market-data/bookEvent.hpp"
 #include "utils/timing.hpp"
 #include "utils/types.hpp"
-#include <cstring>
 #include <memory>
 #include <optional>
 #include <thread>
@@ -110,7 +109,6 @@ void MatchingEngine::reset() {
         order->qty = newQty;
         order->status = OrderStatus::MODIFIED;
 
-        // REDUCE AT PRICE EVENT (REDUCE BY DELTA)
         Qty delta = order->qty - newQty;
         emitObserverEvent_(newPrice, delta, order->side, BookUpdateEventType::REDUCE);
 

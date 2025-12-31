@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
 
         std::size_t capacity = 1023;
 
-        std::size_t raw_size = sizeof(spsc_queue_shm<OrderBookUpdate>) +
+        std::size_t raw_size = sizeof(utils::spsc_queue_shm<OrderBookUpdate>) +
                                sizeof(OrderBookUpdate) * std::bit_ceil(capacity + 1);
 
         void* raw_mem = std::malloc(raw_size);
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
             return EXIT_FAILURE;
         }
 
-        auto* queue = reinterpret_cast<spsc_queue_shm<OrderBookUpdate>*>(raw_mem);
+        auto* queue = reinterpret_cast<utils::spsc_queue_shm<OrderBookUpdate>*>(raw_mem);
 
         queue->init(capacity);
 
