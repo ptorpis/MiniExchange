@@ -2,11 +2,23 @@
 #include "market-data/bookEvent.hpp"
 #include "utils/timing.hpp"
 #include "utils/types.hpp"
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <thread>
 
 [[nodiscard]] MatchResult MatchingEngine::processOrder(std::unique_ptr<Order> order) {
+    std::uint64_t currentTime = TSCClock::now();
+
+    if (!isValidOrder(*order)) {
+        return MatchResult{.orderID = OrderID{0},
+                           .timestamp = currentTime,
+                           .remainingQty = order->qty,
+                           .acceptedPrice = Price{0},
+                           .status = OrderStatus::REJECTED,
+                           .instrumentID = instrumentID_,
+                           .tradeVec{}};
+    }
 
     int sideIdx = (order->side == OrderSide::BUY ? 0 : 1);
     int typeIdx = (order->type == OrderType::LIMIT ? 0 : 1);

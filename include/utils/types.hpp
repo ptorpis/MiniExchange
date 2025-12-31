@@ -240,8 +240,8 @@ using L2Book = std::vector<Level>;
 
 enum class BookUpdateEventType : std::uint8_t { ADD = 0, REDUCE = 1 };
 
-enum class OrderType : std::uint8_t { LIMIT, MARKET };
-enum class OrderSide : std::uint8_t { BUY, SELL };
+enum class OrderType : std::uint8_t { LIMIT = 0, MARKET };
+enum class OrderSide : std::uint8_t { BUY = 0, SELL };
 enum class TimeInForce : std::uint8_t {
     GOOD_TILL_CANCELLED,
     FILL_OR_KILL,

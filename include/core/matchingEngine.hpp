@@ -79,6 +79,34 @@ public:
         }
     }
 
+    constexpr bool isValidOrder(const Order& order) {
+        std::uint8_t mask = 0;
+
+        constexpr std::uint8_t PRICE_BIT = 1u << 0;
+        constexpr std::uint8_t QTY_BIT = 1u << 1;
+        constexpr std::uint8_t SIDE_BIT = 1u << 2;
+        constexpr std::uint8_t TYPE_BIT = 1u << 3;
+        constexpr std::uint8_t INSTRUMENT_BIT = 1u << 4;
+        constexpr std::uint8_t MARKET_PRICE_BIT = 1u << 5;
+
+        mask |= (order.type == OrderType::LIMIT && order.price.value() == 0)
+                    ? PRICE_BIT
+                    : std::uint8_t{0};
+
+        mask |= (order.qty.value() == 0) ? QTY_BIT : std::uint8_t{0};
+        mask |= (+order.side > 1) ? SIDE_BIT : std::uint8_t{0};
+        mask |= (+order.type > 1) ? TYPE_BIT : std::uint8_t{0};
+
+        mask |= (order.instrumentID.value() != instrumentID_) ? INSTRUMENT_BIT
+                                                              : std::uint8_t{0};
+
+        mask |= ((order.type == OrderType::MARKET && order.price.value() != 0)
+                     ? MARKET_PRICE_BIT
+                     : std::uint8_t{0});
+
+        return mask == 0;
+    }
+
 private:
     InstrumentID instrumentID_;
     std::map<Price, OrderQueue, std::less<Price>> asks_;
@@ -167,10 +195,6 @@ private:
 
 template <typename SidePolicy, typename OrderTypePolicy>
 MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
-    if (order->instrumentID != instrumentID_) {
-        throw std::runtime_error("Instrument ID does not match the matching engine");
-    }
-
     std::vector<TradeEvent> tradeVec{};
 
     Qty remainingQty = order->qty;

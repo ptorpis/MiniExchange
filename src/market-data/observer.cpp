@@ -18,18 +18,17 @@ bool Observer::priceBetterOrEqual_(Price incoming, Price resting, OrderSide side
 void Observer::addAtPrice_(Price price, Qty amount, OrderSide side) {
     auto& book = getBook_(side);
 
-    for (auto rIt = book.rbegin(); rIt != book.rend(); ++rIt) {
-        if (rIt->first == price) {
-            rIt->second += amount;
-            return;
-        }
+    auto it = std::find_if(book.rbegin(), book.rend(), [&](const auto& level) {
+        return level.first == price || !priceBetterOrEqual_(price, level.first, side);
+    });
 
-        if (!priceBetterOrEqual_(price, rIt->first, side)) {
-            book.insert(rIt.base(), {price, amount});
-        }
+    if (it != book.rend() && it->first == price) {
+        it->second += amount;
+        return;
     }
 
-    book.insert(book.begin(), {price, amount});
+    auto insertIt = (it == book.rend()) ? book.begin() : it.base();
+    book.insert(insertIt, {price, amount});
 }
 
 void Observer::reduceAtPrice_(Price price, Qty amount, OrderSide side) {

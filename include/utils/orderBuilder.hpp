@@ -50,7 +50,9 @@ struct OrderBuilder {
         return *this;
     }
     OrderBuilder& withPrice(Price p) {
-        price = p;
+        if (type == OrderType::LIMIT) {
+            price = p;
+        }
         return *this;
     }
     OrderBuilder& withGoodTill(Timestamp t) {
@@ -74,6 +76,9 @@ struct OrderBuilder {
         return *this;
     }
     OrderBuilder& withType(OrderType t) {
+        if (t == OrderType::MARKET) {
+            price = Price{0};
+        }
         type = t;
         return *this;
     }

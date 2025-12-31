@@ -174,7 +174,8 @@ TEST_F(MatchingEngineTest, BuyWalksTheBook) {
 
 TEST_F(MatchingEngineTest, WrongInstrumentID) {
     auto order = OrderBuilder{}.withInstrumentID(InstrumentID{2}).build();
-    EXPECT_THROW(engine->processOrder(std::move(order)), std::runtime_error);
+    auto res = engine->processOrder(std::move(order));
+    EXPECT_EQ(res.status, OrderStatus::REJECTED);
 }
 
 TEST_F(MatchingEngineTest, CancelOrder) {

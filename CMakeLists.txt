@@ -63,6 +63,7 @@ if(BUILD_TESTS)
         tests/reflectionTests.cpp
         tests/engineTests.cpp
         tests/engineObserverParity.cpp
+        tests/paramObserverTests.cpp
     )
     
     target_link_libraries(all_tests
