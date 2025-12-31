@@ -29,11 +29,15 @@ private:
 
 public:
     template <typename F> void iterateElements(F&& func) {
-        iterateHelperWithNames(*this, [&](auto&&, auto& field) { func(field); });
+        iterateHelperWithNames(*this, [&](auto&&, auto& field) {
+            func(field);
+        });
     }
 
     template <typename F> void iterateElements(F&& func) const {
-        iterateHelperWithNames(*this, [&](auto&&, const auto& field) { func(field); });
+        iterateHelperWithNames(*this, [&](auto&&, const auto& field) {
+            func(field);
+        });
     }
 
     template <typename F> void iterateElementsWithNames(F&& func) {
