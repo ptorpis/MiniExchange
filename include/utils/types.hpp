@@ -235,6 +235,9 @@ using TradeID = TradeIDTag;
 
 using InstrumentID = InstrumentIDTag;
 
+using Level = std::pair<Price, Qty>;
+using L2Book = std::vector<Level>;
+
 enum class BookUpdateEventType : std::uint8_t { ADD = 0, REDUCE = 1 };
 
 enum class OrderType : std::uint8_t { LIMIT, MARKET };

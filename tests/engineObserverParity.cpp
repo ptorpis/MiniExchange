@@ -72,13 +72,20 @@ inline void checkBooks(const MatchingEngine& engine, const Observer& observer) {
 TEST_F(ObserverTest, LimitBuy) {
     auto buy = OrderBuilder{}.build();
     engine->processOrder(std::move(buy));
-    observer->popFromQueue();
+    observer->drainQueue();
     checkBooks(*engine, *observer);
 }
 
 TEST_F(ObserverTest, LimitSell) {
     auto sell = OrderBuilder{}.withSide(OrderSide::SELL).build();
     engine->processOrder(std::move(sell));
-    observer->popFromQueue();
+    observer->drainQueue();
+    checkBooks(*engine, *observer);
+}
+
+TEST_F(ObserverTest, MarketBuyIntoEmpty) {
+    auto marketBuy = OrderBuilder{}.withType(OrderType::MARKET).build();
+    engine->processOrder(std::move(marketBuy));
+    observer->drainQueue();
     checkBooks(*engine, *observer);
 }

@@ -51,16 +51,17 @@ public:
     [[nodiscard]] InstrumentID getInstrumentID() const noexcept { return instrumentID_; }
     OrderID getNextOrderID() { return ++orderID_; }
 
-    template <typename PriceComp>
     static std::vector<std::pair<Price, Qty>> makeSnapshot(const auto& book) {
         std::vector<std::pair<Price, Qty>> snapshot;
         snapshot.reserve(book.size());
 
         for (const auto& [price, queue] : book) {
-            Qty total = std::ranges::fold_left(
-                queue |
-                    std::views::transform([](const auto& order) { return order->qty; }),
-                Qty{0}, std::plus{});
+            auto qtyView = std::views::transform([](const auto& order) {
+                return order->qty;
+            });
+
+            Qty total = std::ranges::fold_left(queue | qtyView, Qty{0}, std::plus{});
+
             if (total > 0) {
                 snapshot.emplace_back(price, total);
             }
@@ -72,9 +73,9 @@ public:
 
     template <OrderSide Side> std::vector<std::pair<Price, Qty>> getSnapshot() const {
         if constexpr (Side == OrderSide::BUY) {
-            return makeSnapshot<std::greater<Price>>(bids_);
+            return makeSnapshot(bids_);
         } else {
-            return makeSnapshot<std::less<Price>>(asks_);
+            return makeSnapshot(asks_);
         }
     }
 

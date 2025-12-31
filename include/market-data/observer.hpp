@@ -3,10 +3,6 @@
 #include "market-data/bookEvent.hpp"
 #include "utils/spsc_queue.hpp"
 #include "utils/types.hpp"
-#include <utility>
-
-using Level = std::pair<Price, Qty>;
-using Book = std::vector<Level>;
 
 class Observer {
 public:
@@ -14,9 +10,9 @@ public:
         : queue_(queue), instrumentID_(instrumentID) {}
     ~Observer() = default;
 
-    void popFromQueue();
+    void drainQueue();
 
-    template <OrderSide Side> Book getSnapshot() const {
+    template <OrderSide Side> L2Book getSnapshot() const {
         if constexpr (Side == OrderSide::BUY) {
             return bids_;
         } else {
@@ -25,7 +21,7 @@ public:
     }
 
 private:
-    Book& getBook_(OrderSide side);
+    L2Book& getBook_(OrderSide side);
     bool priceBetterOrEqual_(Price incoming, Price resting, OrderSide side);
 
     void addAtPrice_(Price price, Qty amount, OrderSide side);
@@ -33,6 +29,6 @@ private:
 
     utils::spsc_queue_shm<OrderBookUpdate>* queue_;
     InstrumentID instrumentID_;
-    Book bids_;
-    Book asks_;
+    L2Book bids_;
+    L2Book asks_;
 };

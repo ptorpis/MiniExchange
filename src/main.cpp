@@ -41,12 +41,12 @@ int main(int argc, char** argv) {
         std::size_t raw_size = sizeof(utils::spsc_queue_shm<OrderBookUpdate>) +
                                sizeof(OrderBookUpdate) * std::bit_ceil(capacity + 1);
 
-        void* raw_mem = std::malloc(raw_size);
-        if (!raw_mem) {
+        void* rawMem = std::malloc(raw_size);
+        if (!rawMem) {
             return EXIT_FAILURE;
         }
 
-        auto* queue = reinterpret_cast<utils::spsc_queue_shm<OrderBookUpdate>*>(raw_mem);
+        auto* queue = reinterpret_cast<utils::spsc_queue_shm<OrderBookUpdate>*>(rawMem);
 
         queue->init(capacity);
 
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
 
         std::jthread observerThread([&]() {
             while (!g_shutdownRequested.load(std::memory_order_relaxed)) {
-                observer.popFromQueue();
+                observer.drainQueue();
                 std::this_thread::yield();
             }
         });
@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
             gateway.run();
         }
 
-        std::free(raw_mem);
+        std::free(rawMem);
         std::cout << "\nExchange shutdown complete" << std::endl;
 
         g_gateway = nullptr;

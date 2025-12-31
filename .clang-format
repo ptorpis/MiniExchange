@@ -17,3 +17,6 @@ ReflowComments: true
 AlignAfterOpenBracket: Align
 AlwaysBreakTemplateDeclarations: No
 AccessModifierOffset: -4
+PenaltyBreakBeforeFirstCallParameter: 1
+AllowShortLambdasOnASingleLine: Empty
+

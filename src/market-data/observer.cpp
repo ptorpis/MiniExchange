@@ -3,7 +3,7 @@
 #include "utils/types.hpp"
 #include <cassert>
 
-Book& Observer::getBook_(OrderSide side) {
+L2Book& Observer::getBook_(OrderSide side) {
     return side == OrderSide::BUY ? bids_ : asks_;
 }
 
@@ -52,7 +52,7 @@ void Observer::reduceAtPrice_(Price price, Qty amount, OrderSide side) {
 #endif
 }
 
-void Observer::popFromQueue() {
+void Observer::drainQueue() {
     OrderBookUpdate ev{};
     if (!queue_) {
         return;
