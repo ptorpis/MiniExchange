@@ -58,18 +58,15 @@ void Observer::drainQueue() {
     if (!engineQueue_) {
         return;
     }
-
     while (engineQueue_->try_pop(ev)) {
         if (ev.type == BookUpdateEventType::REDUCE) {
             reduceAtPrice_(ev.price, ev.amount, ev.side);
         } else {
             addAtPrice_(ev.price, ev.amount, ev.side);
         }
-    }
 
-    if (!mdQueue_) {
-        return;
+        if (mdQueue_) {
+            mdQueue_->try_push(ev);
+        }
     }
-
-    mdQueue_->try_push(ev);
 }

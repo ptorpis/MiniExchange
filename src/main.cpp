@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
         std::jthread observerThread([&]() {
             while (!g_shutdownRequested.load(std::memory_order_relaxed)) {
                 observer.drainQueue();
-                std::this_thread::yield();
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
             }
             std::cout << "Observer thread shutting down" << std::endl;
         });
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
         std::jthread mdPublisherThread([&]() {
             while (!g_shutdownRequested.load(std::memory_order_relaxed)) {
                 mdPublisher.runOnce();
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
             }
 
             std::cout << "Market data publisher thread shutting down" << std::endl;
