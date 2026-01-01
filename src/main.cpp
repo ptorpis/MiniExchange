@@ -1,6 +1,7 @@
 #include "api/api.hpp"
 #include "core/matchingEngine.hpp"
 #include "gateway/gateway.hpp"
+#include "market-data/MDPublisher.hpp"
 #include "market-data/bookEvent.hpp"
 #include "market-data/observer.hpp"
 #include "protocol/protocolHandler.hpp"
@@ -9,10 +10,12 @@
 #include "utils/types.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <thread>
 
 MiniExchangeGateway* g_gateway = nullptr;
@@ -50,19 +53,39 @@ int main(int argc, char** argv) {
 
         queue->init(capacity);
 
+        auto mdQueue = std::make_unique<utils::spsc_queue<OrderBookUpdate>>(1024);
+
         MatchingEngine engine(queue, instrumentID);
         std::cout << "Matching engine initialized" << std::endl;
 
-        Observer observer(queue, instrumentID);
+        Level2OrderBook level2Book;
+
+        market_data::Observer observer(queue, mdQueue.get(), level2Book, instrumentID);
+        std::cout << "Observer initialized" << std::endl;
+
+        market_data::UDPConfig mdConfig{};
+        market_data::PublisherConfig pubCfg{};
+        market_data::MarketDataPublisher mdPublisher(mdQueue.get(), level2Book,
+                                                     instrumentID, pubCfg);
+
+        std::cout << "Market data publisher initialized" << std::endl;
 
         std::jthread observerThread([&]() {
             while (!g_shutdownRequested.load(std::memory_order_relaxed)) {
                 observer.drainQueue();
                 std::this_thread::yield();
             }
+            std::cout << "Observer thread shutting down" << std::endl;
         });
 
-        std::cout << "Observer initialized" << std::endl;
+        std::jthread mdPublisherThread([&]() {
+            while (!g_shutdownRequested.load(std::memory_order_relaxed)) {
+                mdPublisher.runOnce();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+
+            std::cout << "Market data publisher thread shutting down" << std::endl;
+        });
 
         SessionManager sessions;
         std::cout << "Session manager initialized" << std::endl;

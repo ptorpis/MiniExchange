@@ -95,6 +95,8 @@ add_library(MiniExchangeCore
     src/gateway/gateway.cpp
     src/api/api.cpp
     src/market-data/observer.cpp
+    src/market-data/mdPublisher.cpp
+    src/market-data/udpMulticastTransport.cpp
 )
 
 target_include_directories(MiniExchangeCore PUBLIC ${CMAKE_SOURCE_DIR}/include)

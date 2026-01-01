@@ -3,8 +3,10 @@
 #include "utils/types.hpp"
 #include <cassert>
 
-L2Book& Observer::getBook_(OrderSide side) {
-    return side == OrderSide::BUY ? bids_ : asks_;
+using namespace market_data;
+
+auto& Observer::getBook_(OrderSide side) {
+    return side == OrderSide::BUY ? book_.bids : book_.asks;
 }
 
 bool Observer::priceBetterOrEqual_(Price incoming, Price resting, OrderSide side) {
@@ -53,15 +55,21 @@ void Observer::reduceAtPrice_(Price price, Qty amount, OrderSide side) {
 
 void Observer::drainQueue() {
     OrderBookUpdate ev{};
-    if (!queue_) {
+    if (!engineQueue_) {
         return;
     }
 
-    while (queue_->try_pop(ev)) {
+    while (engineQueue_->try_pop(ev)) {
         if (ev.type == BookUpdateEventType::REDUCE) {
             reduceAtPrice_(ev.price, ev.amount, ev.side);
         } else {
             addAtPrice_(ev.price, ev.amount, ev.side);
         }
     }
+
+    if (!mdQueue_) {
+        return;
+    }
+
+    mdQueue_->try_push(ev);
 }

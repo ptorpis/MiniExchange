@@ -136,7 +136,7 @@ public:
     }
 
     struct traits {
-        static constexpr std::size_t SNAPSHOT_HEADER_SIZE = 16;
+        static constexpr std::size_t SNAPSHOT_HEADER_SIZE = 8;
     };
 };
 #pragma pack(pop)

@@ -34,17 +34,20 @@ protected:
         InstrumentID instrumentID{1};
 
         engine = std::make_unique<MatchingEngine>(queue, instrumentID);
-        observer = std::make_unique<Observer>(queue, instrumentID);
+        observer =
+            std::make_unique<market_data::Observer>(queue, nullptr, l2b, instrumentID);
     }
 
     std::unique_ptr<MatchingEngine> engine;
-    std::unique_ptr<Observer> observer;
+    std::unique_ptr<market_data::Observer> observer;
+    Level2OrderBook l2b;
     void* rawMem_ = nullptr;
 
     void TearDown() override { std::free(rawMem_); }
 };
 
-inline void printBooks(const MatchingEngine& engine, const Observer& observer) {
+inline void printBooks(const MatchingEngine& engine,
+                       const market_data::Observer& observer) {
     std::println("----- BUYS -----");
     std::println("Matching Engine OrderBook Snapshot");
 
@@ -81,7 +84,7 @@ inline void printBooks(const MatchingEngine& engine, const Observer& observer) {
 }
 
 template <OrderSide Side>
-void checkSide(const MatchingEngine& engine, const Observer& observer) {
+void checkSide(const MatchingEngine& engine, const market_data::Observer& observer) {
     auto engineSnapshot = engine.getSnapshot<Side>();
 
     auto observerSnapshot = observer.getSnapshot<Side>();
@@ -111,7 +114,8 @@ void checkSide(const MatchingEngine& engine, const Observer& observer) {
     }
 }
 
-inline void checkBooks(const MatchingEngine& engine, const Observer& observer) {
+inline void checkBooks(const MatchingEngine& engine,
+                       const market_data::Observer& observer) {
     static std::size_t iterCount{};
     try {
         ++iterCount;
