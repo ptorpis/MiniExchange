@@ -3,6 +3,7 @@
 #include "market-data/serialization.hpp"
 #include "utils/spsc_queue.hpp"
 #include "utils/types.hpp"
+#include "utils/utils.hpp"
 #include <chrono>
 #include <exception>
 
@@ -58,6 +59,7 @@ void MarketDataPublisher::publishDelta() {
 }
 
 void MarketDataPublisher::sendPacket_(std::span<const std::byte> msgBytes) {
+    utils::printHex(msgBytes);
     try {
         transport_.send(msgBytes);
     } catch (const std::exception& e) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "client/mdReceiver.hpp"
 #include "protocol/messages.hpp"
 #include "protocol/serverMessages.hpp"
 #include "sessions/clientSession.hpp"
@@ -8,12 +9,22 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <string>
 #include <thread>
+
+struct NetworkConfig {
+    std::string tradingHost;
+    std::uint16_t tradingPort;
+    MDConfig mdConfig;
+    bool enableMarketData;
+};
 
 class NetworkClient {
 public:
     NetworkClient(std::string host, std::uint16_t port);
+    explicit NetworkClient(const NetworkConfig& config);
+
     virtual ~NetworkClient();
 
     bool connect();
@@ -59,6 +70,10 @@ public:
 
     ClientOrderID getNextClientOrderID() { return session_.getNextOrderID(); }
 
+    MDReceiver* getMarketData() { return mdReceiver_.get(); }
+    const MDReceiver* getMarketData() const { return mdReceiver_.get(); }
+    bool isMarketDataEnabled() const { return mdReceiver_ != nullptr; }
+
 private:
     void messageLoop_();
     void startMessageLoop_();
@@ -83,4 +98,6 @@ private:
     CancelAckCallback cancelAckCallback_;
     ModifyAckCallback modifyAckCallback_;
     TradeCallback tradeCallback_;
+
+    std::unique_ptr<MDReceiver> mdReceiver_;
 };

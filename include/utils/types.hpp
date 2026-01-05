@@ -103,6 +103,16 @@ template <typename Type, typename CRTP> struct StrongType {
         return static_cast<CRTP&>(*this);
     }
 
+    constexpr CRTP& operator+=(Type value) noexcept {
+        data_m += value;
+        return static_cast<CRTP&>(*this);
+    }
+
+    constexpr CRTP& operator-=(Type value) noexcept {
+        data_m -= value;
+        return static_cast<CRTP&>(*this);
+    }
+
     constexpr CRTP& operator++() noexcept {
         ++data_m;
         return static_cast<CRTP&>(*this);
@@ -157,6 +167,10 @@ struct TradeIDTag : StrongType<std::uint64_t, TradeIDTag> {
     using StrongType::StrongType;
 };
 struct ClientOrderIDTag : StrongType<std::uint64_t, ClientOrderIDTag> {
+    using StrongType::StrongType;
+};
+
+struct MDSqnTag : StrongType<std::uint64_t, MDSqnTag> {
     using StrongType::StrongType;
 };
 
@@ -234,6 +248,8 @@ using Timestamp = std::uint64_t;
 using TradeID = TradeIDTag;
 
 using InstrumentID = InstrumentIDTag;
+
+using MDSqn = MDSqnTag;
 
 struct Level2OrderBook {
     std::vector<std::pair<Price, Qty>> bids;

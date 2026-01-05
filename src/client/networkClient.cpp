@@ -5,6 +5,7 @@
 #include "sessions/clientSession.hpp"
 #include "utils/types.hpp"
 #include "utils/utils.hpp"
+
 #include <algorithm>
 #include <arpa/inet.h>
 #include <atomic>
@@ -12,7 +13,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <fcntl.h>
+#include <iostream>
+#include <memory>
 #include <mutex>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -24,7 +28,27 @@
 #include <unistd.h>
 
 NetworkClient::NetworkClient(std::string host, std::uint16_t port)
-    : session_(std::move(host), port) {}
+    : NetworkClient(NetworkConfig{.tradingHost = std::move(host),
+                                  .tradingPort = port,
+                                  .mdConfig = MDConfig{},
+                                  .enableMarketData = false}) {}
+
+NetworkClient::NetworkClient(const NetworkConfig& config)
+    : session_(config.tradingHost, config.tradingPort), mdReceiver_(nullptr) {
+    if (config.enableMarketData) {
+        mdReceiver_ = std::make_unique<MDReceiver>(config.mdConfig);
+
+        try {
+            mdReceiver_->initialize();
+            std::cout << "Market data receiver initialized on "
+                      << config.mdConfig.multicastGroup << ":" << config.mdConfig.port
+                      << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Failed to initalize market data: " << e.what() << std::endl;
+            mdReceiver_.reset();
+        }
+    }
+}
 
 NetworkClient::~NetworkClient() {
     disconnect();
@@ -68,13 +92,19 @@ bool NetworkClient::connect() {
 
 void NetworkClient::startMessageLoop_() {
     running_.store(true, std::memory_order_release);
-    messageThread_ = std::thread([this]() { messageLoop_(); });
+    messageThread_ = std::thread([this]() {
+        messageLoop_();
+    });
 }
 
 void NetworkClient::messageLoop_() {
     while (running_.load(std::memory_order_acquire)) {
         if (!session_.isConnected()) {
             break;
+        }
+
+        if (mdReceiver_) {
+            mdReceiver_->receiveOne();
         }
 
         fd_set readfds, writefds;
@@ -94,7 +124,7 @@ void NetworkClient::messageLoop_() {
 
         struct timeval timeout;
         timeout.tv_sec = 0;
-        timeout.tv_usec = 1000;
+        timeout.tv_usec = 100;
 
         int ready = ::select(session_.sockfd + 1, &readfds, &writefds, nullptr, &timeout);
 

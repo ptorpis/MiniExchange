@@ -8,6 +8,11 @@
 #include <vector>
 
 struct ClientSession {
+    ClientSession(std::string h, std::uint16_t p) : host(std::move(h)), port(p) {
+        recvBuffer.reserve(4 * 1024);
+        sendBuffer.reserve(4 * 1024);
+    }
+
     int sockfd{-1};
     std::string host;
     std::uint16_t port;
@@ -23,11 +28,6 @@ struct ClientSession {
 
     ClientID serverClientID{0};
     ClientOrderID orderIDCounter{0};
-
-    ClientSession(std::string h, std::uint16_t p) : host(std::move(h)), port(p) {
-        recvBuffer.reserve(4 * 1024);
-        sendBuffer.reserve(4 * 1024);
-    }
 
     ClientOrderID getNextOrderID() { return ++orderIDCounter; }
 

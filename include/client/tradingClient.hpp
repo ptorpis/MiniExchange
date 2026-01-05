@@ -1,5 +1,6 @@
 #pragma once
 
+#include "client/mdReceiver.hpp"
 #include "client/networkClient.hpp"
 #include "core/order.hpp"
 #include "utils/types.hpp"
@@ -8,6 +9,13 @@
 #include <optional>
 #include <unordered_map>
 #include <vector>
+
+struct TradingConfig {
+    std::string host = "127.0.0.1";
+    std::uint16_t port = 12345;
+    MDConfig mdConfig;
+    bool enabledMarketData = true;
+};
 
 struct Position {
     Qty longQty{0};
@@ -23,7 +31,8 @@ struct Position {
 
 class TradingClient {
 public:
-    TradingClient(std::string host, std::uint16_t port);
+    explicit TradingClient(const TradingConfig& config);
+
     virtual ~TradingClient() = default;
 
     bool connect();
@@ -45,6 +54,18 @@ public:
     Position getPosition(InstrumentID instrumentID) const;
     std::int64_t getUnrealizedPnL() const;
 
+    const Level2OrderBook& getOrderBook() const {
+        if (network_.isMarketDataEnabled()) {
+            return network_.getMarketData()->getOrderBook();
+        }
+        static Level2OrderBook emptyBook;
+        return emptyBook;
+    }
+
+    bool isBookValid() const {
+        return network_.getMarketData() && network_.getMarketData()->isBookValid();
+    }
+
 protected:
     virtual void onOrderSubmitted([[maybe_unused]] ClientOrderID clientOrderID) {}
     virtual void onOrderAccepted([[maybe_unused]] ClientOrderID clientOrderID,
@@ -63,6 +84,17 @@ protected:
                                   [[maybe_unused]] Price newPrice) {}
     virtual void onModifyRejected([[maybe_unused]] ClientOrderID clientOrderID) {}
 
+    virtual void onBookSnapshot([[maybe_unused]] const Level2OrderBook& book,
+                                [[maybe_unused]] std::uint64_t seqNum) {}
+    virtual void onBookDelta([[maybe_unused]] Price price, [[maybe_unused]] Qty qty,
+                             [[maybe_unused]] OrderSide side,
+                             [[maybe_unused]] MDDeltatype type,
+                             [[maybe_unused]] std::uint64_t seqNum) {}
+    virtual void onBookValid() {}
+    virtual void onBookInvalid() {}
+    virtual void onGapDetected([[maybe_unused]] std::uint64_t expected,
+                               [[maybe_unused]] std::uint64_t received) {}
+
 private:
     NetworkClient network_;
 
@@ -78,4 +110,6 @@ private:
     void handleTrade_(const Message<server::TradePayload>& msg);
 
     void updatePosition_(InstrumentID instrumentID, OrderSide side, Qty qty, Price price);
+
+    void setupMarketDataCallbacks_();
 };

@@ -104,6 +104,7 @@ target_include_directories(MiniExchangeCore PUBLIC ${CMAKE_SOURCE_DIR}/include)
 add_library(ClientLib
     src/client/networkClient.cpp
     src/client/tradingClient.cpp
+    src/client/mdReceiver.cpp
 )
 target_include_directories(ClientLib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 

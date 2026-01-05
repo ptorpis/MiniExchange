@@ -13,19 +13,30 @@
 #include <thread>
 #include <vector>
 
-TradingClient::TradingClient(std::string host, std::uint16_t port)
-    : network_(std::move(host), port) {
+TradingClient::TradingClient(const TradingConfig& config)
+    : network_(NetworkConfig{.tradingHost = config.host,
+                             .tradingPort = config.port,
+                             .mdConfig = config.mdConfig,
+                             .enableMarketData = config.enabledMarketData}) {
+    network_.setHelloAckCallback([this](const auto& msg) {
+        handleHelloAck_(msg);
+    });
+    network_.setOrderAckCallback([this](const auto& msg) {
+        handleOrderAck_(msg);
+    });
+    network_.setCancelAckCallback([this](const auto& msg) {
+        handleCancelAck_(msg);
+    });
+    network_.setModifyAckCallback([this](const auto& msg) {
+        handleModifyAck_(msg);
+    });
+    network_.setTradeCallback([this](const auto& msg) {
+        handleTrade_(msg);
+    });
 
-    // Register callbacks with NetworkClient
-    network_.setHelloAckCallback([this](const auto& msg) { handleHelloAck_(msg); });
-
-    network_.setOrderAckCallback([this](const auto& msg) { handleOrderAck_(msg); });
-
-    network_.setCancelAckCallback([this](const auto& msg) { handleCancelAck_(msg); });
-
-    network_.setModifyAckCallback([this](const auto& msg) { handleModifyAck_(msg); });
-
-    network_.setTradeCallback([this](const auto& msg) { handleTrade_(msg); });
+    if (network_.getMarketData()) {
+        setupMarketDataCallbacks_();
+    }
 }
 
 bool TradingClient::connect() {
@@ -363,4 +374,29 @@ void TradingClient::updatePosition_(InstrumentID instrumentID, OrderSide side, Q
 
     // TODO: Track average price for P&L calculation
     (void)price;
+}
+void TradingClient::setupMarketDataCallbacks_() {
+    auto* md = network_.getMarketData();
+    if (!md) return;
+
+    md->setOnSnapshot([this](const Level2OrderBook& book, std::uint64_t seq) {
+        onBookSnapshot(book, seq);
+    });
+
+    md->setOnDelta([this](Price price, Qty qty, OrderSide side, MDDeltatype type,
+                          std::uint64_t seq) {
+        onBookDelta(price, qty, side, type, seq);
+    });
+
+    md->setOnBookValid([this]() {
+        onBookValid();
+    });
+
+    md->setOnBookInvalid([this]() {
+        onBookInvalid();
+    });
+
+    md->setOnGapDetected([this](std::uint64_t expected, std::uint64_t received) {
+        onGapDetected(expected, received);
+    });
 }

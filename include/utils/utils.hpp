@@ -84,4 +84,15 @@ template <typename T> void printReflected(std::ostream& os, const T& obj) {
 template <std::unsigned_integral T> bool isCorrectIncrement(const T prev, const T curr) {
     return (curr - prev) == 1;
 }
+
+inline void printHex(std::span<const std::byte> data) {
+    for (auto i{0uz}; i < data.size(); i++) {
+        if ((i % 16) == 0) {
+            std::cout << "\n";
+        }
+        std::cout << std::hex << std::setw(2) << std::setfill('0')
+                  << static_cast<int>(data[i]) << " ";
+    }
+    std::cout << std::dec << "\n\n";
+}
 } // namespace utils
