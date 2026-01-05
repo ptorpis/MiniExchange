@@ -15,6 +15,16 @@
 - Relevant messages contain `ClientOrderID` fields for easier tracking and consistency between server-client
 - Improved client-side architecture
 - Client side memory bugs fixed (uninitialized fields)
-- Market observer, which keeps a level 2 order book, plans to use this for a market data feed implementation
+- Market observer -- keeps a level 2 order book
+- Level 2 market data (UDP multicast)
+- Client capable of receiving and processing market data
 - Cleaner shutdown
 - Better order validation
+
+## Planned features
+
+- Market data front-end -> order book visualizations, market dynamics visualization (price, liquidity, etc)
+- Client side python bindings for scriptable client strategies
+- Scenario testing/running framework (making the system usable)
+- Distributed server -> separating the observer and the market data components into a separate process with a message queue in a shared memory region between them and the matching engine
+- (more testing)
