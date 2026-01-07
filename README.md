@@ -9,7 +9,7 @@
 
 - Improved protocol handling logic
 - InstrumentID included in all message types
-- Removing orders from the `orderMap_` registry happens in the same place that the 
+- Removing orders from the `orderMap_` registry happens in the same place that the removal from the bids/asks happens
 - Tested message layouts
 - `MathResult` objects contain price information
 - Relevant messages contain `ClientOrderID` fields for easier tracking and consistency between server-client
