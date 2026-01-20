@@ -9,7 +9,7 @@
 
 using namespace market_data;
 
-MarketDataPublisher::MarketDataPublisher(utils::spsc_queue<OrderBookUpdate>* queue,
+MarketDataPublisher::MarketDataPublisher(utils::spsc_queue<L2OrderBookUpdate>* queue,
                                          const Level2OrderBook& book,
                                          InstrumentID instrumentID,
                                          PublisherConfig cfg = PublisherConfig{})
@@ -43,7 +43,7 @@ void MarketDataPublisher::publishDelta() {
         return;
     }
 
-    OrderBookUpdate update{};
+    L2OrderBookUpdate update{};
     while (queue_->try_pop(update)) {
         DeltaPayload delta{};
         delta.priceLevel = update.price.value();

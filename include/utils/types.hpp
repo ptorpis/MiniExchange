@@ -1,10 +1,13 @@
 #pragma once
+#include "utils/utils.hpp"
 #include <cstdint>
+#include <deque>
+#include <map>
+#include <memory>
 #include <ostream>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
-
-#include "utils/utils.hpp"
 
 /**
  * @brief CRTP base class providing strong typing for primitive types.
@@ -251,13 +254,6 @@ using InstrumentID = InstrumentIDTag;
 
 using MDSqn = MDSqnTag;
 
-struct Level2OrderBook {
-    std::vector<std::pair<Price, Qty>> bids;
-    std::vector<std::pair<Price, Qty>> asks;
-};
-
-enum class BookUpdateEventType : std::uint8_t { ADD = 0, REDUCE = 1 };
-
 enum class OrderType : std::uint8_t { LIMIT = 0, MARKET };
 enum class OrderSide : std::uint8_t { BUY = 0, SELL };
 enum class TimeInForce : std::uint8_t {
@@ -276,6 +272,59 @@ enum class OrderStatus : uint8_t {
     CANCELLED = 0x05,
     MODIFIED = 0x06
 };
+
+struct Order {
+    const OrderID orderID;             // 8 bytes
+    const ClientID clientID;           // 8 bytes
+    const ClientOrderID clientOrderID; // 8 bytes
+    Qty qty;                           // 8 bytes
+    const Price price;                 // 8 bytes
+    const Timestamp goodTill;          // 8 bytes
+    const Timestamp timestamp;         // 8 bytes
+    const InstrumentID instrumentID;   // 4 bytes
+    const TimeInForce tif;             // 1 byte
+    const OrderSide side;              // 1 byte
+    const OrderType type;              // 1 byte
+    OrderStatus status;                // 1 byte
+};
+
+struct ClientOrder {
+    ClientOrderID orderID;
+    OrderID serverOrderID;
+    InstrumentID instrumentID;
+    OrderSide side;
+    OrderType type;
+    Price price;
+    Qty originalQty;
+    Qty remainingQty;
+    OrderStatus status;
+    TimeInForce tif;
+    Timestamp goodTillDate;
+    Timestamp submitTime;
+
+    bool isPending() const { return status == OrderStatus::PENDING; }
+    bool isOpen() const {
+        return status == OrderStatus::NEW || status == OrderStatus::PARTIALLY_FILLED ||
+               status == OrderStatus::MODIFIED;
+    }
+    bool isCancelled() const { return status == OrderStatus::CANCELLED; }
+    bool isFilled() const { return status == OrderStatus::FILLED; }
+};
+
+struct Level2OrderBook {
+    std::vector<std::pair<Price, Qty>> bids;
+    std::vector<std::pair<Price, Qty>> asks;
+};
+
+using OrderQueue = std::deque<std::unique_ptr<Order>>;
+
+struct Level3OrderBook {
+    std::map<Price, OrderQueue, std::less<Price>> asks;
+    std::map<Price, OrderQueue, std::greater<Price>> bids;
+    std::unordered_map<OrderID, Order*> orderMap;
+};
+
+enum class BookUpdateEventType : std::uint8_t { ADD = 0, REDUCE = 1 };
 
 inline std::ostream& operator<<(std::ostream& os, OrderStatus status) {
     switch (status) {

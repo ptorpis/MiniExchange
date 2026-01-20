@@ -12,17 +12,14 @@
 #include <unordered_map>
 #include <utility>
 
-#include "core/order.hpp"
 #include "market-data/bookEvent.hpp"
 #include "utils/spsc_queue.hpp"
 #include "utils/timing.hpp"
 #include "utils/types.hpp"
 
-using OrderQueue = std::deque<std::unique_ptr<Order>>;
-
 class MatchingEngine {
 public:
-    MatchingEngine(utils::spsc_queue_shm<OrderBookUpdate>* queue = nullptr,
+    MatchingEngine(utils::spsc_queue_shm<L2OrderBookUpdate>* queue = nullptr,
                    InstrumentID instrumentID = InstrumentID{1})
         : instrumentID_(instrumentID), queue_(queue) {
         dispatchTable_[0][0] = &MatchingEngine::matchOrder_<BuySide, LimitOrderPolicy>;
@@ -42,8 +39,8 @@ public:
     std::optional<Price> getBestAsk() const;
     std::optional<Price> getBestBid() const;
 
-    std::size_t getAskSize() const { return asks_.size(); }
-    std::size_t getBidsSize() const { return bids_.size(); }
+    std::size_t getAskSize() const { return book.bids.size(); }
+    std::size_t getBidsSize() const { return book.asks.size(); }
 
     const Order* getOrder(OrderID orderID) const;
 
@@ -72,9 +69,9 @@ public:
 
     template <OrderSide Side> std::vector<std::pair<Price, Qty>> getSnapshot() const {
         if constexpr (Side == OrderSide::BUY) {
-            return makeSnapshot(bids_);
+            return makeSnapshot(book.bids);
         } else {
-            return makeSnapshot(asks_);
+            return makeSnapshot(book.asks);
         }
     }
 
@@ -108,11 +105,9 @@ public:
 
 private:
     InstrumentID instrumentID_;
-    std::map<Price, OrderQueue, std::less<Price>> asks_;
-    std::map<Price, OrderQueue, std::greater<Price>> bids_;
-    std::unordered_map<OrderID, Order*> orderMap_;
+    Level3OrderBook book;
 
-    utils::spsc_queue_shm<OrderBookUpdate>* queue_;
+    utils::spsc_queue_shm<L2OrderBookUpdate>* queue_;
 
     using MatchFunction = MatchResult (MatchingEngine::*)(std::unique_ptr<Order>);
     MatchFunction dispatchTable_[2][2];
@@ -124,7 +119,7 @@ private:
                             BookUpdateEventType type);
 
     struct BuySide {
-        constexpr static auto& book(MatchingEngine& eng) { return eng.asks_; }
+        constexpr static auto& book(MatchingEngine& eng) { return eng.book.asks; }
         static bool pricePasses(Price orderPrice, Price bestPrice) {
             return orderPrice >= bestPrice;
         }
@@ -132,7 +127,7 @@ private:
     };
 
     struct SellSide {
-        constexpr static auto& book(MatchingEngine& eng) { return eng.bids_; }
+        constexpr static auto& book(MatchingEngine& eng) { return eng.book.bids; }
         static bool pricePasses(Price orderPrice, Price bestPrice) {
             return orderPrice <= bestPrice;
         }
@@ -199,15 +194,15 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
     Qty remainingQty = order->qty;
     const Qty originalQty = remainingQty;
 
-    auto& book = SidePolicy::book(*this);
+    auto& bookSide = SidePolicy::book(*this);
 
     Price bestPrice{};
-    if (book.empty()) {
+    if (bookSide.empty()) {
         bestPrice = order->price;
     }
 
-    while (remainingQty.value() && !book.empty()) {
-        auto it = book.begin();
+    while (remainingQty.value() && !bookSide.empty()) {
+        auto it = bookSide.begin();
 
         bestPrice = it->first;
 
@@ -272,7 +267,7 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
 
             if (restingOrder->qty == 0) {
                 restingOrder->status = OrderStatus::FILLED;
-                orderMap_.erase(restingOrder->orderID);
+                book.orderMap.erase(restingOrder->orderID);
                 qIt = queue.erase(qIt);
             } else {
                 ++qIt;
@@ -284,7 +279,7 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
         }
 
         if (queue.empty()) {
-            book.erase(bestPrice);
+            bookSide.erase(bestPrice);
         }
     }
 
@@ -307,9 +302,9 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
 }
 
 template <typename Book>
-bool MatchingEngine::removeFromBook_(OrderID orderID, Price price, Book& book) {
-    auto it = book.find(price);
-    if (it == book.end()) {
+bool MatchingEngine::removeFromBook_(OrderID orderID, Price price, Book& bookSide) {
+    auto it = bookSide.find(price);
+    if (it == bookSide.end()) {
         return false;
     }
 
@@ -326,18 +321,18 @@ bool MatchingEngine::removeFromBook_(OrderID orderID, Price price, Book& book) {
         // the removal from the registry was not here in v2, it was in the caller. I moved
         // this here, because it keeps the invariant clearer, the orders that are removed
         // from the book are also being removed from the registry
-        auto mapIt = orderMap_.find(orderID);
-        assert(mapIt != orderMap_.end());
+        auto mapIt = book.orderMap.find(orderID);
+        assert(mapIt != book.orderMap.end());
         assert(mapIt->second == order);
 #endif
         emitObserverEvent_(order->price, order->qty, order->side,
                            BookUpdateEventType::REDUCE);
 
-        orderMap_.erase(orderID); // BEFORE erasing from the queue -- UB otherwise
+        book.orderMap.erase(orderID); // BEFORE erasing from the queue -- UB otherwise
         queue.erase(qIt);
 
         if (queue.empty()) {
-            book.erase(it);
+            bookSide.erase(it);
         }
 
         return true;

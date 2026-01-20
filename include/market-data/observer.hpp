@@ -7,10 +7,10 @@
 namespace market_data {
 class Observer {
 public:
-    Observer(utils::spsc_queue_shm<OrderBookUpdate>* engineQueue,
-             utils::spsc_queue<OrderBookUpdate>* mdQueue, Level2OrderBook& book,
-             InstrumentID instrumentID)
-        : engineQueue_(engineQueue), mdQueue_(mdQueue), book_(book),
+    Observer(utils::spsc_queue_shm<L2OrderBookUpdate>* engineQueue,
+             utils::spsc_queue<L2OrderBookUpdate>* mdQueue, Level2OrderBook& l2,
+             Level3OrderBook& l3, InstrumentID instrumentID)
+        : engineQueue_(engineQueue), mdQueue_(mdQueue), l2book_(l2), l3book_(l3),
           instrumentID_(instrumentID) {}
 
     ~Observer() = default;
@@ -19,22 +19,24 @@ public:
 
     template <OrderSide Side> auto getSnapshot() const {
         if constexpr (Side == OrderSide::BUY) {
-            return book_.bids;
+            return l2book_.bids;
         } else {
-            return book_.asks;
+            return l2book_.asks;
         }
     }
 
 private:
-    auto& getBook_(OrderSide side);
+    inline auto& getBook_(OrderSide side);
+
     bool priceBetterOrEqual_(Price incoming, Price resting, OrderSide side);
 
     void addAtPrice_(Price price, Qty amount, OrderSide side);
     void reduceAtPrice_(Price price, Qty amount, OrderSide side);
 
-    utils::spsc_queue_shm<OrderBookUpdate>* engineQueue_;
-    utils::spsc_queue<OrderBookUpdate>* mdQueue_;
-    Level2OrderBook& book_;
+    utils::spsc_queue_shm<L2OrderBookUpdate>* engineQueue_;
+    utils::spsc_queue<L2OrderBookUpdate>* mdQueue_;
+    Level2OrderBook& l2book_;
+    Level3OrderBook& l3book_;
     InstrumentID instrumentID_;
 };
 

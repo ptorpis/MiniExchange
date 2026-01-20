@@ -2,7 +2,6 @@
 
 #include "client/mdReceiver.hpp"
 #include "client/networkClient.hpp"
-#include "core/order.hpp"
 #include "utils/types.hpp"
 #include <cstdint>
 #include <mutex>

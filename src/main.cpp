@@ -41,26 +41,28 @@ int main(int argc, char** argv) {
 
         std::size_t capacity = 1023;
 
-        std::size_t raw_size = sizeof(utils::spsc_queue_shm<OrderBookUpdate>) +
-                               sizeof(OrderBookUpdate) * std::bit_ceil(capacity + 1);
+        std::size_t raw_size = sizeof(utils::spsc_queue_shm<L2OrderBookUpdate>) +
+                               sizeof(L2OrderBookUpdate) * std::bit_ceil(capacity + 1);
 
         void* rawMem = std::malloc(raw_size);
         if (!rawMem) {
             return EXIT_FAILURE;
         }
 
-        auto* queue = reinterpret_cast<utils::spsc_queue_shm<OrderBookUpdate>*>(rawMem);
+        auto* queue = reinterpret_cast<utils::spsc_queue_shm<L2OrderBookUpdate>*>(rawMem);
 
         queue->init(capacity);
 
-        auto mdQueue = std::make_unique<utils::spsc_queue<OrderBookUpdate>>(1024);
+        auto mdQueue = std::make_unique<utils::spsc_queue<L2OrderBookUpdate>>(1024);
 
         MatchingEngine engine(queue, instrumentID);
         std::cout << "Matching engine initialized" << std::endl;
 
         Level2OrderBook level2Book;
+        Level3OrderBook level3book;
 
-        market_data::Observer observer(queue, mdQueue.get(), level2Book, instrumentID);
+        market_data::Observer observer(queue, mdQueue.get(), level2Book, level3book,
+                                       instrumentID);
         std::cout << "Observer initialized" << std::endl;
 
         market_data::UDPConfig mdConfig{};

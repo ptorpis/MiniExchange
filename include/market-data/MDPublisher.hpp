@@ -17,7 +17,7 @@ struct PublisherConfig {
 
 struct MarketDataPublisher {
 public:
-    MarketDataPublisher(utils::spsc_queue<OrderBookUpdate>* queue,
+    MarketDataPublisher(utils::spsc_queue<L2OrderBookUpdate>* queue,
                         const Level2OrderBook& book, InstrumentID instrumentID,
                         PublisherConfig cfg);
 
@@ -28,7 +28,7 @@ public:
 private:
     void sendPacket_(std::span<const std::byte> messageBytes);
 
-    utils::spsc_queue<OrderBookUpdate>* queue_;
+    utils::spsc_queue<L2OrderBookUpdate>* queue_;
     const Level2OrderBook& book_;
     InstrumentID instrumentID_;
     PublisherConfig cfg_;

@@ -27,18 +27,18 @@
 };
 
 std::optional<Price> MatchingEngine::getBestAsk() const {
-    if (asks_.empty()) return std::nullopt;
-    return asks_.begin()->first;
+    if (book.asks.empty()) return std::nullopt;
+    return book.asks.begin()->first;
 }
 
 std::optional<Price> MatchingEngine::getBestBid() const {
-    if (bids_.empty()) return std::nullopt;
-    return bids_.begin()->first;
+    if (book.bids.empty()) return std::nullopt;
+    return book.bids.begin()->first;
 }
 
 std::optional<Price> MatchingEngine::getSpread() const {
-    if (asks_.empty() || bids_.empty()) return std::nullopt;
-    return asks_.begin()->first - bids_.begin()->first;
+    if (book.asks.empty() || book.bids.empty()) return std::nullopt;
+    return book.asks.begin()->first - book.bids.begin()->first;
 }
 
 void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
@@ -47,23 +47,23 @@ void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
     emitObserverEvent_(order->price, order->qty, order->side, BookUpdateEventType::ADD);
 
     if (order->side == OrderSide::BUY) {
-        bids_[order->price].emplace_back(std::move(order));
+        book.bids[order->price].emplace_back(std::move(order));
     } else {
-        asks_[order->price].emplace_back(std::move(order));
+        book.asks[order->price].emplace_back(std::move(order));
     }
-    orderMap_[raw->orderID] = raw;
+    book.orderMap[raw->orderID] = raw;
 }
 
 void MatchingEngine::reset() {
-    bids_.clear();
-    asks_.clear();
-    orderMap_.clear();
+    book.bids.clear();
+    book.asks.clear();
+    book.orderMap.clear();
 }
 
 [[nodiscard]] bool MatchingEngine::cancelOrder(const ClientID clientID,
                                                const OrderID orderID) {
-    auto it = orderMap_.find(orderID);
-    if (it == orderMap_.end()) {
+    auto it = book.orderMap.find(orderID);
+    if (it == book.orderMap.end()) {
         return false;
     }
 
@@ -72,8 +72,8 @@ void MatchingEngine::reset() {
     }
 
     bool removed = (it->second->side == OrderSide::BUY)
-                       ? (removeFromBook_(orderID, it->second->price, bids_))
-                       : (removeFromBook_(orderID, it->second->price, asks_));
+                       ? (removeFromBook_(orderID, it->second->price, book.bids))
+                       : (removeFromBook_(orderID, it->second->price, book.asks));
 
     return removed;
 }
@@ -82,8 +82,8 @@ void MatchingEngine::reset() {
                                                        const OrderID orderID,
                                                        const Qty newQty,
                                                        const Price newPrice) {
-    auto it = orderMap_.find(orderID);
-    if (it == orderMap_.end()) {
+    auto it = book.orderMap.find(orderID);
+    if (it == book.orderMap.end()) {
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
                 .newOrderID = OrderID{0},
@@ -177,7 +177,7 @@ void MatchingEngine::reset() {
 }
 
 const Order* MatchingEngine::getOrder(OrderID orderID) const {
-    if (auto it = orderMap_.find(orderID); it != orderMap_.end()) {
+    if (auto it = book.orderMap.find(orderID); it != book.orderMap.end()) {
         return it->second;
     } else {
         return nullptr;
@@ -186,7 +186,7 @@ const Order* MatchingEngine::getOrder(OrderID orderID) const {
 
 void inline MatchingEngine::emitObserverEvent_(Price price, Qty amount, OrderSide side,
                                                BookUpdateEventType type) {
-    OrderBookUpdate ev{};
+    L2OrderBookUpdate ev{};
 
     ev.price = price;
     ev.amount = amount;

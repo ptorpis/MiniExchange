@@ -5,8 +5,8 @@
 
 using namespace market_data;
 
-auto& Observer::getBook_(OrderSide side) {
-    return side == OrderSide::BUY ? book_.bids : book_.asks;
+inline auto& Observer::getBook_(OrderSide side) {
+    return side == OrderSide::BUY ? l2book_.bids : l2book_.asks;
 }
 
 bool Observer::priceBetterOrEqual_(Price incoming, Price resting, OrderSide side) {
@@ -54,7 +54,7 @@ void Observer::reduceAtPrice_(Price price, Qty amount, OrderSide side) {
 }
 
 void Observer::drainQueue() {
-    OrderBookUpdate ev{};
+    L2OrderBookUpdate ev{};
     if (!engineQueue_) {
         return;
     }

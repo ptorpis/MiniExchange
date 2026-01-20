@@ -21,26 +21,28 @@ class ObserverTest : public ::testing::Test {
 protected:
     void SetUp() override {
         std::size_t qCap = 1023;
-        std::size_t rawSize = sizeof(utils::spsc_queue_shm<OrderBookUpdate>) +
-                              sizeof(OrderBookUpdate) * std::bit_ceil(qCap + 1);
+        std::size_t rawSize = sizeof(utils::spsc_queue_shm<L2OrderBookUpdate>) +
+                              sizeof(L2OrderBookUpdate) * std::bit_ceil(qCap + 1);
 
         rawMem_ = std::malloc(rawSize);
         if (!rawMem_) {
             throw std::runtime_error("Malloc failed");
         }
 
-        auto* queue = reinterpret_cast<utils::spsc_queue_shm<OrderBookUpdate>*>(rawMem_);
+        auto* queue =
+            reinterpret_cast<utils::spsc_queue_shm<L2OrderBookUpdate>*>(rawMem_);
         queue->init(qCap);
         InstrumentID instrumentID{1};
 
         engine = std::make_unique<MatchingEngine>(queue, instrumentID);
-        observer =
-            std::make_unique<market_data::Observer>(queue, nullptr, l2b, instrumentID);
+        observer = std::make_unique<market_data::Observer>(queue, nullptr, l2b, l3b,
+                                                           instrumentID);
     }
 
     std::unique_ptr<MatchingEngine> engine;
     std::unique_ptr<market_data::Observer> observer;
     Level2OrderBook l2b;
+    Level3OrderBook l3b;
     void* rawMem_ = nullptr;
 
     void TearDown() override { std::free(rawMem_); }
