@@ -9,7 +9,6 @@
 #include <memory>
 #include <optional>
 #include <ranges>
-#include <stdexcept>
 #include <unordered_map>
 #include <utility>
 
