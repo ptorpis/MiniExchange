@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <memory>
-#include <stdexcept>
 #include <utility>
 
 #include "core/matchingEngine.hpp"

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "market-data/bookEvent.hpp"
 #include <atomic>
 #include <bit>
 #include <cstddef>
@@ -9,15 +10,17 @@
 
 namespace utils {
 template <typename T> class spsc_queue_shm {
-    static_assert(std::is_trivially_copyable_v<T>,
-                  "spsc_queue_shm requires trivially copyable types");
     using size_type = std::size_t;
 
+    static_assert(std::is_trivially_copyable_v<L2OrderBookUpdate>);
+    static_assert(std::is_trivially_copyable_v<L3Update>);
+
 public:
-    void init(size_type capacity) {
+    explicit spsc_queue_shm(std::size_t capacity) {
         buffer_size_m = std::bit_ceil(capacity + 1);
         mask_m = buffer_size_m - 1;
         buffer_offset_m = sizeof(spsc_queue_shm);
+
         head_m.store(0, std::memory_order_relaxed);
         tail_m.store(0, std::memory_order_relaxed);
     }
@@ -56,13 +59,8 @@ public:
         return true;
     }
 
-    /*
-     * Since this object is meant to exist in a shared memory space, regular RAII rules
-     * don't apply, dtor, ctor and other special members are deleted, since they would
-     * cause UB
-     */
-    spsc_queue_shm() = delete;
-    ~spsc_queue_shm() = delete;
+    ~spsc_queue_shm() = default;
+
     spsc_queue_shm(const spsc_queue_shm&) = delete;
     spsc_queue_shm(spsc_queue_shm&&) = delete;
     spsc_queue_shm& operator=(const spsc_queue_shm&) = delete;
@@ -113,15 +111,13 @@ public:
         size_type current_tail = tail_m.load(std::memory_order_relaxed);
         size_type current_head = head_m.load(std::memory_order_acquire);
 
-        size_type next_tail = current_tail + 1;
-
-        if (next_tail - current_head >= buffer_size_m) {
+        if (current_head - current_head >= buffer_size_m - 1) {
             return false; // full
         }
 
         size_type index = current_tail & mask_m;
         new (&buffer_m[index]) T(item);
-        tail_m.store(next_tail, std::memory_order_release);
+        tail_m.store(current_tail + 1, std::memory_order_release);
         return true;
     }
 
@@ -129,15 +125,13 @@ public:
         size_type current_tail = tail_m.load(std::memory_order_relaxed);
         size_type current_head = head_m.load(std::memory_order_acquire);
 
-        size_type next_tail = current_tail + 1;
-
-        if (next_tail - current_head >= buffer_size_m) {
+        if (current_tail - current_head >= buffer_size_m - 1) {
             return false; // full
         }
 
         size_type index = current_tail & mask_m;
         new (&buffer_m[index]) T(std::move(item));
-        tail_m.store(next_tail, std::memory_order_release);
+        tail_m.store(current_tail + 1, std::memory_order_release);
         return true;
     }
 

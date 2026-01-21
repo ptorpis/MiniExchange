@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <ranges>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 
@@ -19,9 +20,10 @@
 
 class MatchingEngine {
 public:
-    MatchingEngine(utils::spsc_queue_shm<L2OrderBookUpdate>* queue = nullptr,
+    MatchingEngine(utils::spsc_queue_shm<L2OrderBookUpdate>* l2queue = nullptr,
+                   utils::spsc_queue_shm<L3Update>* l3queue = nullptr,
                    InstrumentID instrumentID = InstrumentID{1})
-        : instrumentID_(instrumentID), queue_(queue) {
+        : instrumentID_(instrumentID), l2queue_(l2queue), l3queue_(l3queue) {
         dispatchTable_[0][0] = &MatchingEngine::matchOrder_<BuySide, LimitOrderPolicy>;
         dispatchTable_[0][1] = &MatchingEngine::matchOrder_<BuySide, MarketOrderPolicy>;
         dispatchTable_[1][0] = &MatchingEngine::matchOrder_<SellSide, LimitOrderPolicy>;
@@ -107,7 +109,8 @@ private:
     InstrumentID instrumentID_;
     Level3OrderBook book;
 
-    utils::spsc_queue_shm<L2OrderBookUpdate>* queue_;
+    utils::spsc_queue_shm<L2OrderBookUpdate>* l2queue_;
+    utils::spsc_queue_shm<L3Update>* l3queue_;
 
     using MatchFunction = MatchResult (MatchingEngine::*)(std::unique_ptr<Order>);
     MatchFunction dispatchTable_[2][2];
@@ -116,7 +119,34 @@ private:
     MatchResult matchOrder_(std::unique_ptr<Order> order);
 
     void emitObserverEvent_(Price price, Qty amount, OrderSide side,
-                            BookUpdateEventType type);
+                            BookUpdateEventType type) {
+        L2OrderBookUpdate ev{};
+
+        ev.price = price;
+        ev.amount = amount;
+        ev.side = side;
+        ev.type = type;
+        ev._padding = 0;
+        ev._padding2 = 0;
+
+        if (!l2queue_) {
+            return;
+        }
+
+        while (!l2queue_->try_push(ev)) {
+            std::this_thread::yield();
+        }
+    }
+
+    void emitL3ObserverEvent_(const L3Update& update) {
+        if (!l3queue_) {
+            return;
+        }
+
+        while (!l3queue_->try_push(update)) {
+            std::this_thread::yield();
+        }
+    }
 
     struct BuySide {
         constexpr static auto& book(MatchingEngine& eng) { return eng.book.asks; }
@@ -233,6 +263,21 @@ MatchResult MatchingEngine::matchOrder_(std::unique_ptr<Order> order) {
             emitObserverEvent_(bestPrice, matchQty, eventSide,
                                BookUpdateEventType::REDUCE);
 
+            // LEVEL 3 ORDER FILLED EVENT
+            L3Update update{
+                .price = bestPrice,
+                .qty = matchQty,
+                .orderID = restingOrder->orderID,
+                .clientOrderID = restingOrder->clientOrderID,
+                .timestamp = TSCClock::now(),
+                .instrumentID = instrumentID_,
+                .eventType = L3EventType::ORDER_FILL_OR_REDUCE,
+                .orderType = OrderType::LIMIT,
+                .orderSide = SidePolicy::isBuyer() ? OrderSide::SELL : OrderSide::BUY,
+            };
+
+            emitL3ObserverEvent_(update);
+
             OrderID sellerOrderID{}, buyerOrderID{};
             ClientID sellerID{}, buyerID{};
             ClientOrderID buyerClientOrderID{}, sellerClientOrderID{};
@@ -327,6 +372,8 @@ bool MatchingEngine::removeFromBook_(OrderID orderID, Price price, Book& bookSid
 #endif
         emitObserverEvent_(order->price, order->qty, order->side,
                            BookUpdateEventType::REDUCE);
+
+        // REDUCE_ORDER LEVEL 3 DATA
 
         book.orderMap.erase(orderID); // BEFORE erasing from the queue -- UB otherwise
         queue.erase(qIt);

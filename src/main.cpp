@@ -9,13 +9,17 @@
 #include "utils/spsc_queue.hpp"
 #include "utils/types.hpp"
 
+#include "utils/sharedRegion.hpp"
+
 #include <atomic>
+#include <bit>
 #include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <ostream>
 #include <thread>
 
 MiniExchangeGateway* g_gateway = nullptr;
@@ -41,27 +45,28 @@ int main(int argc, char** argv) {
 
         std::size_t capacity = 1023;
 
-        std::size_t raw_size = sizeof(utils::spsc_queue_shm<L2OrderBookUpdate>) +
-                               sizeof(L2OrderBookUpdate) * std::bit_ceil(capacity + 1);
+        std::size_t l2Size = sizeof(utils::spsc_queue_shm<L2OrderBookUpdate>) +
+                             sizeof(L2OrderBookUpdate) * std::bit_ceil(capacity + 1);
 
-        void* rawMem = std::malloc(raw_size);
-        if (!rawMem) {
-            return EXIT_FAILURE;
-        }
+        std::size_t l3Size = sizeof(utils::spsc_queue_shm<L3Update>) +
+                             sizeof(L3Update) * std::bit_ceil(capacity + 1);
 
-        auto* queue = reinterpret_cast<utils::spsc_queue_shm<L2OrderBookUpdate>*>(rawMem);
+        SharedRegion l2Region(l2Size, "/l2queue");
+        SharedRegion l3Region(l3Size, "/l3queue");
 
-        queue->init(capacity);
+        auto* l2Queue =
+            new (l2Region.data()) utils::spsc_queue_shm<L2OrderBookUpdate>(capacity);
+        auto* l3Queue = new (l3Region.data()) utils::spsc_queue_shm<L3Update>(capacity);
 
         auto mdQueue = std::make_unique<utils::spsc_queue<L2OrderBookUpdate>>(1024);
 
-        MatchingEngine engine(queue, instrumentID);
+        MatchingEngine engine(l2Queue, l3Queue, instrumentID);
         std::cout << "Matching engine initialized" << std::endl;
 
         Level2OrderBook level2Book;
         Level3OrderBook level3book;
 
-        market_data::Observer observer(queue, mdQueue.get(), level2Book, level3book,
+        market_data::Observer observer(l2Queue, mdQueue.get(), level2Book, level3book,
                                        instrumentID);
         std::cout << "Observer initialized" << std::endl;
 
@@ -113,8 +118,7 @@ int main(int argc, char** argv) {
             gateway.run();
         }
 
-        std::free(rawMem);
-        std::cout << "\nExchange shutdown complete" << std::endl;
+        std::cout << "\nExchange shutdown complete" << std::endl << std::flush;
 
         g_gateway = nullptr;
 

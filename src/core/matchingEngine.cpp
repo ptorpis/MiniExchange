@@ -46,6 +46,8 @@ void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
 
     emitObserverEvent_(order->price, order->qty, order->side, BookUpdateEventType::ADD);
 
+    // LEVEL 3 ADD ORDER EVENT HERE
+
     if (order->side == OrderSide::BUY) {
         book.bids[order->price].emplace_back(std::move(order));
     } else {
@@ -124,6 +126,8 @@ void MatchingEngine::reset() {
         Qty delta = order->qty - newQty;
         emitObserverEvent_(newPrice, delta, order->side, BookUpdateEventType::REDUCE);
 
+        // REDUDE LEVEL 3 event
+
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
                 .newOrderID = orderID,
@@ -181,25 +185,5 @@ const Order* MatchingEngine::getOrder(OrderID orderID) const {
         return it->second;
     } else {
         return nullptr;
-    }
-}
-
-void inline MatchingEngine::emitObserverEvent_(Price price, Qty amount, OrderSide side,
-                                               BookUpdateEventType type) {
-    L2OrderBookUpdate ev{};
-
-    ev.price = price;
-    ev.amount = amount;
-    ev.side = side;
-    ev.type = type;
-    ev._padding = 0;
-    ev._padding2 = 0;
-
-    if (!queue_) {
-        return;
-    }
-
-    while (!queue_->try_push(ev)) {
-        std::this_thread::yield();
     }
 }
