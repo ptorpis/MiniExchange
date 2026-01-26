@@ -374,6 +374,17 @@ bool MatchingEngine::removeFromBook_(OrderID orderID, Price price, Book& bookSid
                            BookUpdateEventType::REDUCE);
 
         // REDUCE_ORDER LEVEL 3 DATA
+        L3Update update{.price = order->price,
+                        .qty = order->qty,
+                        .orderID = order->orderID,
+                        .clientOrderID = order->clientOrderID,
+                        .timestamp = TSCClock::now(),
+                        .instrumentID = instrumentID_,
+                        .eventType = L3EventType::ORDER_FILL_OR_REDUCE,
+                        .orderType = OrderType::LIMIT,
+                        .orderSide = order->side};
+
+        emitL3ObserverEvent_(update);
 
         book.orderMap.erase(orderID); // BEFORE erasing from the queue -- UB otherwise
         queue.erase(qIt);

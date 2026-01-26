@@ -48,6 +48,18 @@ void MatchingEngine::addToBook_(std::unique_ptr<Order> order) {
 
     // LEVEL 3 ADD ORDER EVENT HERE
 
+    L3Update update{.price = order->price,
+                    .qty = order->qty,
+                    .orderID = order->orderID,
+                    .clientOrderID = order->clientOrderID,
+                    .timestamp = TSCClock::now(),
+                    .instrumentID = instrumentID_,
+                    .eventType = L3EventType::ORDER_ADD_OR_INCREASE,
+                    .orderType = OrderType::LIMIT,
+                    .orderSide = order->side};
+
+    emitL3ObserverEvent_(update);
+
     if (order->side == OrderSide::BUY) {
         book.bids[order->price].emplace_back(std::move(order));
     } else {
@@ -127,6 +139,17 @@ void MatchingEngine::reset() {
         emitObserverEvent_(newPrice, delta, order->side, BookUpdateEventType::REDUCE);
 
         // REDUDE LEVEL 3 event
+        L3Update update{.price = order->price,
+                        .qty = delta,
+                        .orderID = order->orderID,
+                        .clientOrderID = order->clientOrderID,
+                        .timestamp = TSCClock::now(),
+                        .instrumentID = instrumentID_,
+                        .eventType = L3EventType::ORDER_FILL_OR_REDUCE,
+                        .orderType = OrderType::LIMIT,
+                        .orderSide = order->side};
+
+        emitL3ObserverEvent_(update);
 
         return {.serverClientID = clientID,
                 .oldOrderID = orderID,
